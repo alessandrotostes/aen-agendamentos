@@ -65,7 +65,7 @@ interface OwnerViewProps {
 }
 
 export default function OwnerView({ user }: OwnerViewProps) {
-  const { uid } = user; // Extraindo o UID para uso consistente e para corrigir o aviso do linter
+  const { uid } = user;
 
   // Estados
   const [establishment, setEstablishment] = useState<Establishment | null>(
@@ -102,6 +102,10 @@ export default function OwnerView({ user }: OwnerViewProps) {
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [profToEditAvailability, setProfToEditAvailability] =
     useState<Professional | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const establishmentRef = doc(db, "establishments", uid);
@@ -151,6 +155,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
     const q = query(
       collection(db, "appointments"),
       where("establishmentId", "==", uid),
+      where("status", "==", "confirmado"),
       where("dateTime", ">=", start),
       where("dateTime", "<=", end)
     );
@@ -319,6 +324,23 @@ export default function OwnerView({ user }: OwnerViewProps) {
     );
     await updateDoc(profRef, { availability });
   };
+  const openCancelModal = (appointmentId: string) => {
+    setAppointmentToCancel(appointmentId);
+    setIsCancelModalOpen(true);
+  };
+  const confirmCancelAppointment = async () => {
+    if (appointmentToCancel) {
+      const appointmentRef = doc(db, "appointments", appointmentToCancel);
+      try {
+        await updateDoc(appointmentRef, { status: "cancelado" });
+      } catch (error) {
+        console.error("Erro ao cancelar agendamento: ", error);
+      } finally {
+        setIsCancelModalOpen(false);
+        setAppointmentToCancel(null);
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -408,7 +430,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceName"
                 className="block text-sm font-medium text-gray-700"
               >
-                Nome do Serviço
+                Nome
               </label>
               <input
                 type="text"
@@ -440,7 +462,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceDuration"
                 className="block text-sm font-medium text-gray-700"
               >
-                Duração (minutos)
+                Duração (min)
               </label>
               <input
                 type="number"
@@ -525,7 +547,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 </div>
               ))
             ) : (
-              <p className="text-gray-500">Nenhum serviço cadastrado ainda.</p>
+              <p className="text-gray-500">Nenhum serviço cadastrado.</p>
             )}
           </div>
         </div>
@@ -561,7 +583,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="profPhoto"
                 className="block text-sm font-medium text-gray-700"
               >
-                Foto (Opcional)
+                Foto
               </label>
               <input
                 type="file"
@@ -573,21 +595,21 @@ export default function OwnerView({ user }: OwnerViewProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Serviços que realiza
+                Serviços
               </label>
               <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
                 {services.map((service) => (
                   <div key={service.id} className="flex items-center">
                     <input
-                      id={`service-${service.id}`}
+                      id={`s-${service.id}`}
                       type="checkbox"
                       checked={selectedServices.includes(service.id)}
                       onChange={() => handleServiceSelection(service.id)}
                       className="h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                     />
                     <label
-                      htmlFor={`service-${service.id}`}
-                      className="ml-3 block text-sm text-gray-800"
+                      htmlFor={`s-${service.id}`}
+                      className="ml-3 block text-sm"
                     >
                       {service.name}
                     </label>
@@ -597,7 +619,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 transition-all"
+              className="w-full px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700"
             >
               Adicionar Profissional
             </button>
@@ -611,19 +633,19 @@ export default function OwnerView({ user }: OwnerViewProps) {
           </h2>
           <div className="mt-4 space-y-4">
             {professionals.length > 0 ? (
-              professionals.map((prof) => {
+              professionals.map((p) => {
                 const profServices = services.filter((s) =>
-                  prof.serviceIds.includes(s.id)
+                  p.serviceIds.includes(s.id)
                 );
                 return (
-                  <div key={prof.id} className="bg-gray-50 p-4 rounded-lg">
+                  <div key={p.id} className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center">
                         <>
-                          {prof.photoURL ? (
+                          {p.photoURL ? (
                             <Image
-                              src={prof.photoURL}
-                              alt={prof.name}
+                              src={p.photoURL}
+                              alt={p.name}
                               width={56}
                               height={56}
                               className="w-14 h-14 rounded-full object-cover mr-4"
@@ -631,14 +653,14 @@ export default function OwnerView({ user }: OwnerViewProps) {
                           ) : (
                             <div className="w-14 h-14 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center mr-4 shrink-0">
                               <span className="text-2xl font-bold text-white">
-                                {prof.name.charAt(0)}
+                                {p.name.charAt(0)}
                               </span>
                             </div>
                           )}
                         </>
                         <div>
                           <p className="font-semibold text-gray-900">
-                            {prof.name}
+                            {p.name}
                           </p>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {profServices.map((s) => (
@@ -654,12 +676,11 @@ export default function OwnerView({ user }: OwnerViewProps) {
                       </div>
                       <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => openEditProfModal(prof)}
+                          onClick={() => openEditProfModal(p)}
                           className="text-gray-400 hover:text-blue-600"
-                          title="Editar profissional"
+                          title="Editar"
                         >
                           <svg
-                            xmlns="http://www.w3.org/2000/svg"
                             className="h-5 w-5"
                             viewBox="0 0 20 20"
                             fill="currentColor"
@@ -673,12 +694,11 @@ export default function OwnerView({ user }: OwnerViewProps) {
                           </svg>
                         </button>
                         <button
-                          onClick={() => openDeleteProfModal(prof.id)}
+                          onClick={() => openDeleteProfModal(p.id)}
                           className="text-gray-400 hover:text-red-600"
-                          title="Excluir profissional"
+                          title="Excluir"
                         >
                           <svg
-                            xmlns="http://www.w3.org/2000/svg"
                             className="h-5 w-5"
                             fill="none"
                             viewBox="0 0 24 24"
@@ -696,8 +716,8 @@ export default function OwnerView({ user }: OwnerViewProps) {
                     </div>
                     <div className="mt-3 flex justify-end">
                       <button
-                        onClick={() => openAvailabilityModal(prof)}
-                        className="text-sm font-medium text-teal-600 hover:text-teal-800 transition-colors"
+                        onClick={() => openAvailabilityModal(p)}
+                        className="text-sm font-medium text-teal-600 hover:text-teal-800"
                       >
                         Gerenciar Horários
                       </button>
@@ -706,9 +726,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 );
               })
             ) : (
-              <p className="text-gray-500">
-                Nenhum profissional cadastrado ainda.
-              </p>
+              <p className="text-gray-500">Nenhum profissional cadastrado.</p>
             )}
           </div>
         </div>
@@ -738,18 +756,26 @@ export default function OwnerView({ user }: OwnerViewProps) {
               agendaAppointments.map((app) => (
                 <div
                   key={app.id}
-                  className="p-4 rounded-lg border border-gray-200 bg-gray-50"
+                  className="p-4 rounded-lg border border-gray-200 bg-gray-50 flex justify-between items-start"
                 >
-                  <p className="text-lg font-bold text-teal-600">
-                    {format(app.dateTime.toDate(), "HH:mm")}
-                  </p>
-                  <p className="font-semibold text-gray-800">
-                    {app.serviceName}
-                  </p>
-                  <div className="text-sm text-gray-600 mt-2">
-                    <p>Cliente: {app.clientName}</p>
-                    <p>Profissional: {app.professionalName}</p>
+                  <div>
+                    <p className="text-lg font-bold text-teal-600">
+                      {format(app.dateTime.toDate(), "HH:mm")}
+                    </p>
+                    <p className="font-semibold text-gray-800">
+                      {app.serviceName}
+                    </p>
+                    <div className="text-sm text-gray-600 mt-2">
+                      <p>Cliente: {app.clientName}</p>
+                      <p>Profissional: {app.professionalName}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => openCancelModal(app.id)}
+                    className="text-sm font-medium text-red-500 hover:text-red-700"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               ))
             ) : (
@@ -836,6 +862,13 @@ export default function OwnerView({ user }: OwnerViewProps) {
         onClose={() => setIsAvailabilityModalOpen(false)}
         onSave={handleSaveAvailability}
         professional={profToEditAvailability}
+      />
+      <ConfirmationModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={confirmCancelAppointment}
+        title="Cancelar Agendamento"
+        message="Tem certeza que deseja cancelar este agendamento?"
       />
     </>
   );
