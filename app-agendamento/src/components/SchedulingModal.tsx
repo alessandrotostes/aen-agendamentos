@@ -18,8 +18,9 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import SuccessModal from "./SuccessModal";
+import { useRouter } from "next/navigation"; // Importar o useRouter
 
-// Interfaces e Tipos
+// Interfaces
 interface Service {
   id: string;
   name: string;
@@ -56,6 +57,7 @@ export default function SchedulingModal({
   establishmentId,
 }: SchedulingModalProps) {
   const { user } = useAuth();
+  const router = useRouter(); // Inicializar o router
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<
     string | null
   >(null);
@@ -162,40 +164,29 @@ export default function SchedulingModal({
   ]);
 
   const handleConfirmBooking = async () => {
-    if (
-      !user ||
-      !service ||
-      !selectedProfessionalId ||
-      !selectedDate ||
-      !selectedTime
-    ) {
-      alert("Por favor, complete todos os passos do agendamento.");
-      return;
-    }
-    const [hours, minutes] = selectedTime.split(":");
-    const bookingDate = new Date(selectedDate);
-    bookingDate.setHours(Number(hours), Number(minutes), 0, 0);
-    try {
-      await addDoc(collection(db, "appointments"), {
-        clientId: user.uid,
-        establishmentId,
-        professionalId: selectedProfessionalId,
-        serviceId: service.id,
-        dateTime: Timestamp.fromDate(bookingDate),
-        duration: service.duration,
-        price: service.price,
-        status: "confirmado",
-        clientName: user.displayName || user.email,
-        serviceName: service.name,
-        professionalName:
-          professionals.find((p) => p.id === selectedProfessionalId)?.name ||
-          "N/A",
-      });
-      setIsSuccessModalOpen(true);
-    } catch (error) {
-      console.error("Erro ao confirmar agendamento: ", error);
-      alert("Ocorreu um erro. Tente novamente.");
-    }
+    // Lógica de agendamento comentada temporariamente
+    /*
+        if (!user || !service || !selectedProfessionalId || !selectedDate || !selectedTime) {
+            alert("Por favor, complete todos os passos do agendamento.");
+            return;
+        }
+        const [hours, minutes] = selectedTime.split(':');
+        const bookingDate = new Date(selectedDate);
+        bookingDate.setHours(Number(hours), Number(minutes), 0, 0);
+        try {
+            await addDoc(collection(db, "appointments"), {
+                // ... dados do agendamento
+            });
+            setIsSuccessModalOpen(true);
+        } catch (error) {
+            console.error("Erro ao confirmar agendamento: ", error);
+            alert("Ocorreu um erro. Tente novamente.");
+        }
+        */
+
+    // Redirecionamento temporário para a página de checkout
+    router.push("/checkout");
+    onClose(); // Fecha o modal após redirecionar
   };
 
   const handleCloseAllModals = () => {
@@ -344,7 +335,7 @@ export default function SchedulingModal({
                           ))
                         ) : selectedDate ? (
                           <p className="col-span-full text-center text-gray-500 p-4">
-                            Nenhum horário disponível para este dia.
+                            Nenhum horário disponível.
                           </p>
                         ) : null}
                       </div>
@@ -364,7 +355,7 @@ export default function SchedulingModal({
                       className="inline-flex justify-center rounded-md border border-transparent bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                       disabled={!selectedTime}
                     >
-                      Confirmar Agendamento
+                      Ir para Pagamento
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -373,7 +364,6 @@ export default function SchedulingModal({
           </div>
         </Dialog>
       </Transition>
-
       <SuccessModal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseAllModals}

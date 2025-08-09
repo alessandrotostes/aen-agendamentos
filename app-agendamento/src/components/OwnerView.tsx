@@ -149,7 +149,13 @@ export default function OwnerView({ user }: OwnerViewProps) {
   }, [uid]);
 
   useEffect(() => {
-    if (!selectedAgendaDate || !uid) return;
+    if (
+      !selectedAgendaDate ||
+      !uid ||
+      services.length === 0 ||
+      professionals.length === 0
+    )
+      return;
     const start = startOfDay(selectedAgendaDate);
     const end = endOfDay(selectedAgendaDate);
     const q = query(
@@ -170,8 +176,8 @@ export default function OwnerView({ user }: OwnerViewProps) {
         );
         return {
           ...app,
-          serviceName: service?.name || "N/A",
-          professionalName: professional?.name || "N/A",
+          serviceName: service?.name || "Serviço Removido",
+          professionalName: professional?.name || "Profissional Removido",
         };
       });
       appointmentsWithDetails.sort(
@@ -430,7 +436,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceName"
                 className="block text-sm font-medium text-gray-700"
               >
-                Nome
+                Nome do Serviço
               </label>
               <input
                 type="text"
@@ -462,7 +468,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceDuration"
                 className="block text-sm font-medium text-gray-700"
               >
-                Duração (min)
+                Duração (minutos)
               </label>
               <input
                 type="number"
