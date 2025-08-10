@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import SuccessModal from "./SuccessModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { PendingAppointment } from "@/types"; // Importando nosso tipo compartilhado
 
 const cardElementOptions = {
   style: {
@@ -12,16 +14,27 @@ const cardElementOptions = {
       fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
       fontSmoothing: "antialiased",
       fontSize: "16px",
-      "::placeholder": { color: "#aab7c4" },
+      "::placeholder": {
+        color: "#aab7c4",
+      },
     },
-    invalid: { color: "#fa755a", iconColor: "#fa755a" },
+    invalid: {
+      color: "#fa755a",
+      iconColor: "#fa755a",
+    },
   },
 };
 
-export default function CheckoutForm() {
+// Definindo o tipo correto para as props do componente
+export default function CheckoutForm({
+  pendingAppointment,
+}: {
+  pendingAppointment: PendingAppointment;
+}) {
   const { user } = useAuth();
   const stripe = useStripe();
   const elements = useElements();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -44,18 +57,21 @@ export default function CheckoutForm() {
     }
 
     const { error: paymentMethodError, paymentMethod } =
-      await stripe.createPaymentMethod({ type: "card", card: cardElement });
+      await stripe.createPaymentMethod({
+        type: "card",
+        card: cardElement,
+      });
+
     if (paymentMethodError) {
-      setError(paymentMethodError.message ?? "Erro ao validar o cartão.");
+      setError(
+        paymentMethodError.message ?? "Ocorreu um erro ao validar o cartão."
+      );
       setProcessing(false);
       return;
     }
 
     try {
-      console.log("Frontend: Preparando para chamar a Cloud Function...");
       const idToken = await user.getIdToken();
-      const amount = 1000;
-
       const response = await fetch(
         "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/createpaymentintent",
         {
@@ -64,38 +80,42 @@ export default function CheckoutForm() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${idToken}`,
           },
+          // O corpo agora contém os detalhes do agendamento, incluindo o timestamp correto
           body: JSON.stringify({
             paymentMethodId: paymentMethod.id,
-            amount: amount,
+            amount: pendingAppointment.price * 100,
+            appointmentDetails: pendingAppointment, // Enviamos o objeto inteiro
           }),
         }
       );
 
-      console.log("Frontend: Resposta recebida do servidor:", response);
       const result = await response.json();
-      console.log("Frontend: Corpo da resposta (JSON):", result);
 
       if (!response.ok) {
-        throw new Error(
-          result.error || `Falha na requisição com status ${response.status}`
-        );
+        throw new Error(result.error || "Falha na requisição ao servidor.");
       }
+
       if (result.success) {
+        sessionStorage.removeItem("pendingAppointment"); // Limpa os dados temporários
         setIsSuccessModalOpen(true);
       } else {
         throw new Error(result.error || "O pagamento falhou no servidor.");
       }
     } catch (err) {
-      console.error("--- ERRO DETALHADO AO CHAMAR A FUNÇÃO (FRONTEND) ---");
-      console.error(err);
+      console.error("Erro ao chamar a Cloud Function:", err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Ocorreu um erro inesperado. Verifique o console.");
+        setError("Ocorreu um erro inesperado.");
       }
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleSuccess = () => {
+    setIsSuccessModalOpen(false);
+    router.push("/dashboard");
   };
 
   return (
@@ -110,14 +130,16 @@ export default function CheckoutForm() {
           disabled={!stripe || processing}
           className="w-full px-4 py-3 font-semibold text-white bg-gradient-to-r from-teal-500 to-indigo-400 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {processing ? "Processando..." : "Pagar R$ 10,00"}
+          {processing
+            ? "Processando..."
+            : `Pagar R$ ${pendingAppointment.price.toFixed(2)}`}
         </button>
       </form>
       <SuccessModal
         isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        title="Pagamento Realizado!"
-        message="Seu pagamento foi processado com sucesso."
+        onClose={handleSuccess}
+        title="Agendamento Confirmado!"
+        message="Seu pagamento foi processado e seu horário foi agendado com sucesso."
       />
     </>
   );

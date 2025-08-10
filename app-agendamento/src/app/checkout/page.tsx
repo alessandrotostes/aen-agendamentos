@@ -1,27 +1,57 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
-import CheckoutForm from "@/components/CheckoutForm"; // O formulário que criaremos a seguir
-import AuthLayout from "@/components/AuthLayout"; // Reutilizando nosso layout
+import CheckoutForm from "@/components/CheckoutForm";
+import AuthLayout from "@/components/AuthLayout";
+import { PendingAppointment } from "@/types"; // Importando nosso novo tipo
 
-// Carregamos a instância do Stripe fora do componente para evitar recriá-la a cada renderização
-// Usamos a nossa chave publicável do arquivo .env.local
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
 export default function CheckoutPage() {
+  // Corrigido: Usando a interface PendingAppointment em vez de 'any'
+  const [pendingAppointment, setPendingAppointment] =
+    useState<PendingAppointment | null>(null);
+
+  useEffect(() => {
+    const appointmentData = sessionStorage.getItem("pendingAppointment");
+    if (appointmentData) {
+      setPendingAppointment(JSON.parse(appointmentData));
+    }
+  }, []);
+
+  if (!pendingAppointment) {
+    return (
+      <AuthLayout>
+        <div className="text-center p-8 bg-white rounded-lg shadow-xl">
+          Carregando detalhes do agendamento...
+        </div>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout>
       <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
           Finalizar Pagamento
         </h1>
-        {/* O componente Elements é um "provedor" que dá acesso ao Stripe para os componentes filhos */}
+        <p className="text-gray-600 mb-6">
+          Você está agendando{" "}
+          <span className="font-bold text-teal-600">
+            {pendingAppointment.serviceName}
+          </span>{" "}
+          por{" "}
+          <span className="font-bold">
+            R$ {pendingAppointment.price.toFixed(2)}
+          </span>
+          .
+        </p>
         <Elements stripe={stripePromise}>
-          <CheckoutForm />
+          <CheckoutForm pendingAppointment={pendingAppointment} />
         </Elements>
       </div>
     </AuthLayout>

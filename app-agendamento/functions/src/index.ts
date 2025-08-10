@@ -3,13 +3,12 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
+import { Timestamp } from "firebase-admin/firestore";
 
-// CORREÇÃO: Usando require para importar o cors
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require("cors")({ origin: true });
 
 admin.initializeApp();
-
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 setGlobalOptions({
@@ -20,7 +19,6 @@ setGlobalOptions({
 let stripe: Stripe;
 
 export const createpaymentintent = onRequest(async (request, response) => {
-  // Usamos o corsHandler para lidar com as requisições
   cors(request, response, async () => {
     console.log("--- Função createpaymentintent iniciada ---");
 
@@ -35,8 +33,9 @@ export const createpaymentintent = onRequest(async (request, response) => {
     console.log("Cabeçalho de autorização encontrado.");
 
     const idToken = authorization.split("Bearer ")[1];
+    let decodedToken;
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      decodedToken = await admin.auth().verifyIdToken(idToken);
       console.log("Token verificado com sucesso para o UID:", decodedToken.uid);
     } catch (error) {
       console.error("Erro ao verificar o token de autenticação:", error);
@@ -48,13 +47,15 @@ export const createpaymentintent = onRequest(async (request, response) => {
       "Corpo da requisição recebido:",
       JSON.stringify(request.body, null, 2)
     );
-    const { amount, paymentMethodId } = request.body;
+    const { amount, paymentMethodId, appointmentDetails } = request.body;
 
-    if (!amount || !paymentMethodId) {
+    if (!amount || !paymentMethodId || !appointmentDetails) {
       console.error(
-        "Erro: 'amount' ou 'paymentMethodId' ausentes no corpo da requisição."
+        "Erro: 'amount', 'paymentMethodId' ou 'appointmentDetails' ausentes no corpo da requisição."
       );
-      response.status(400).send({ error: "Dados de pagamento inválidos." });
+      response
+        .status(400)
+        .send({ error: "Dados de pagamento ou agendamento inválidos." });
       return;
     }
     console.log(
@@ -77,9 +78,43 @@ export const createpaymentintent = onRequest(async (request, response) => {
       );
       if (paymentIntent.status === "succeeded") {
         console.log(
-          "SUCESSO: Pagamento processado com sucesso:",
-          paymentIntent.id
+          "Pagamento bem-sucedido. Criando agendamento no Firestore..."
         );
+
+        // Extrai todos os detalhes do objeto enviado pelo frontend
+        const {
+          establishmentId,
+          serviceId,
+          professionalId,
+          bookingTimestamp, // Usamos o timestamp universal
+          duration,
+          price,
+          serviceName,
+          professionalName,
+        } = appointmentDetails;
+
+        // Converte a string ISO de volta para um objeto Date
+        const bookingDate = new Date(bookingTimestamp);
+
+        // Salva o documento no Firestore
+        await admin
+          .firestore()
+          .collection("appointments")
+          .add({
+            clientId: decodedToken.uid,
+            clientName: decodedToken.name || decodedToken.email,
+            establishmentId,
+            serviceId,
+            professionalId,
+            dateTime: Timestamp.fromDate(bookingDate), // Converte para o tipo do Firestore
+            duration,
+            price,
+            status: "confirmado",
+            serviceName,
+            professionalName,
+          });
+
+        console.log("Agendamento criado com sucesso no Firestore.");
         response
           .status(200)
           .send({ success: true, paymentIntentId: paymentIntent.id });
@@ -88,14 +123,12 @@ export const createpaymentintent = onRequest(async (request, response) => {
           "AVISO: Pagamento não sucedido. Status:",
           paymentIntent.status
         );
-        response
-          .status(400)
-          .send({
-            error: "O pagamento não foi bem-sucedido ou requer ação adicional.",
-          });
+        response.status(400).send({
+          error: "O pagamento não foi bem-sucedido ou requer ação adicional.",
+        });
       }
     } catch (error: any) {
-      console.error("--- ERRO DO STRIPE ---", error);
+      console.error("--- ERRO DO STRIPE OU FIRESTORE ---", error);
       response.status(500).send({ error: error.message });
     }
   });
