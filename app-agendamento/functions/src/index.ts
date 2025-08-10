@@ -6,7 +6,6 @@ import Stripe from "stripe";
 
 admin.initializeApp();
 
-// Definir que nossa função precisará do segredo que criamos
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 setGlobalOptions({
@@ -14,15 +13,12 @@ setGlobalOptions({
   secrets: [stripeSecretKey],
 });
 
-// Inicializamos o Stripe dentro da função, quando ela for executada
 let stripe: Stripe;
 
 export const createpaymentintent = onCall(async (request) => {
   // Inicializamos o Stripe aqui, usando o valor do segredo
-  stripe = new Stripe(stripeSecretKey.value(), {
-    // CORREÇÃO: Usando a apiVersion exata que o seu ambiente exige
-    apiVersion: "2025-07-30.basil",
-  });
+  // A propriedade apiVersion foi removida para usar a padrão da biblioteca
+  stripe = new Stripe(stripeSecretKey.value());
 
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Você precisa estar logado.");
