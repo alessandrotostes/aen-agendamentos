@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { User } from "firebase/auth";
 import { db, storage } from "@/lib/firebaseConfig";
+import { app } from "@/lib/firebaseConfig";
 import {
   doc,
   setDoc,
@@ -16,6 +17,7 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Image from "next/image";
 import { DayPicker } from "react-day-picker";
@@ -32,6 +34,7 @@ interface Establishment {
   businessName: string;
   phone: string;
   address: string;
+  stripeAccountId?: string;
 }
 interface Service {
   id: string;
@@ -106,6 +109,8 @@ export default function OwnerView({ user }: OwnerViewProps) {
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
     null
   );
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [isOnboarding, setIsOnboarding] = useState(false);
 
   useEffect(() => {
     const establishmentRef = doc(db, "establishments", uid);
@@ -345,6 +350,38 @@ export default function OwnerView({ user }: OwnerViewProps) {
         setIsCancelModalOpen(false);
         setAppointmentToCancel(null);
       }
+    }
+  };
+  const handleCreateConnectedAccount = async () => {
+    setIsConnectingStripe(true);
+    try {
+      const functions = getFunctions(app, "southamerica-east1");
+      const createConnectedAccount = httpsCallable(
+        functions,
+        "createconnectedaccount"
+      );
+      const result = await createConnectedAccount();
+      console.log("Conta conectada criada:", result.data);
+    } catch (error) {
+      console.error("Erro ao criar conta conectada:", error);
+      alert("Ocorreu um erro ao conectar com o Stripe. Tente novamente.");
+    } finally {
+      setIsConnectingStripe(false);
+    }
+  };
+  const handleOnboarding = async () => {
+    setIsOnboarding(true);
+    try {
+      const functions = getFunctions(app, "southamerica-east1");
+      const createAccountLink = httpsCallable(functions, "createaccountlink");
+      const result = await createAccountLink();
+      const { url } = result.data as { url: string };
+      window.location.href = url;
+    } catch (error) {
+      console.error("Erro ao gerar link de onboarding:", error);
+      alert("Não foi possível iniciar o processo. Tente novamente.");
+    } finally {
+      setIsOnboarding(false);
     }
   };
 
@@ -627,7 +664,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               type="submit"
               className="w-full px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700"
             >
-              Adicionar Profissional
+              Adicionar
             </button>
           </form>
         </div>
@@ -795,6 +832,53 @@ export default function OwnerView({ user }: OwnerViewProps) {
     </div>
   );
 
+  const renderSettingsView = () => (
+    <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
+      <h2 className="text-xl font-bold text-gray-800">
+        Configurações de Pagamento
+      </h2>
+      <div className="mt-4 pt-4 border-t">
+        {establishment && establishment.stripeAccountId ? (
+          <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="font-semibold text-green-800">
+              ✅ Conta de Pagamento Conectada!
+            </p>
+            <p className="text-sm text-green-700 mt-1">
+              Complete o cadastro de informações no Stripe para poder receber
+              pagamentos.
+            </p>
+            <button
+              onClick={handleOnboarding}
+              disabled={isOnboarding}
+              className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
+            >
+              {isOnboarding
+                ? "Gerando link..."
+                : "Completar Cadastro / Gerenciar Conta"}
+            </button>
+          </div>
+        ) : (
+          <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="font-semibold text-blue-800">
+              Conecte-se ao Stripe para receber pagamentos
+            </p>
+            <p className="text-sm text-blue-700 mt-1">
+              Para que seus clientes possam pagar online, você precisa conectar
+              uma conta do Stripe.
+            </p>
+            <button
+              onClick={handleCreateConnectedAccount}
+              disabled={isConnectingStripe}
+              className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
+            >
+              {isConnectingStripe ? "Conectando..." : "Conectar com Stripe"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="mb-8">
@@ -830,12 +914,23 @@ export default function OwnerView({ user }: OwnerViewProps) {
             >
               Profissionais
             </button>
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`${
+                activeTab === "settings"
+                  ? "border-teal-500 text-teal-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Configurações
+            </button>
           </nav>
         </div>
       </div>
       {activeTab === "agenda" && renderAgendaView()}
       {activeTab === "services" && renderServicesView()}
       {activeTab === "professionals" && renderProfessionalsView()}
+      {activeTab === "settings" && renderSettingsView()}
       <ConfirmationModal
         isOpen={isDeleteServiceModalOpen}
         onClose={() => setIsDeleteServiceModalOpen(false)}
