@@ -35,6 +35,9 @@ interface Establishment {
   phone: string;
   address: string;
   stripeAccountId?: string;
+  logoUrl?: string;
+  rating?: number;
+  mainService?: string;
 }
 interface Service {
   id: string;
@@ -87,6 +90,8 @@ export default function OwnerView({ user }: OwnerViewProps) {
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [mainService, setMainService] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [serviceName, setServiceName] = useState("");
   const [servicePrice, setServicePrice] = useState("");
   const [serviceDuration, setServiceDuration] = useState("");
@@ -111,12 +116,19 @@ export default function OwnerView({ user }: OwnerViewProps) {
   );
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   useEffect(() => {
     const establishmentRef = doc(db, "establishments", uid);
     const unsubscribeEstablishment = onSnapshot(establishmentRef, (docSnap) => {
       if (docSnap.exists()) {
-        setEstablishment(docSnap.data() as Establishment);
+        const establishmentData = docSnap.data() as Establishment;
+        setEstablishment(establishmentData);
+        setBusinessName(establishmentData.businessName);
+        setPhone(establishmentData.phone);
+        setAddress(establishmentData.address);
+        setMainService(establishmentData.mainService || "");
+
         const servicesRef = collection(db, "establishments", uid, "services");
         const unsubscribeServices = onSnapshot(query(servicesRef), (snapshot) =>
           setServices(
@@ -194,16 +206,50 @@ export default function OwnerView({ user }: OwnerViewProps) {
   }, [selectedAgendaDate, uid, services, professionals]);
 
   // Handlers
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogoFile(e.target.files[0]);
+    }
+  };
   const handleSaveEstablishment = async (e: React.FormEvent) => {
     e.preventDefault();
+    let logoUrl = "";
+    if (logoFile) {
+      const logoRef = ref(storage, `logos/${uid}/${logoFile.name}`);
+      await uploadBytes(logoRef, logoFile);
+      logoUrl = await getDownloadURL(logoRef);
+    }
     const establishmentRef = doc(db, "establishments", uid);
     await setDoc(establishmentRef, {
       ownerId: uid,
       businessName,
       phone,
       address,
+      mainService,
+      logoUrl,
+      rating: 4.5,
       createdAt: serverTimestamp(),
     });
+  };
+  const handleUpdateEstablishment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let logoUrl = establishment?.logoUrl || "";
+    if (logoFile) {
+      const logoRef = ref(storage, `logos/${uid}/${logoFile.name}`);
+      await uploadBytes(logoRef, logoFile);
+      logoUrl = await getDownloadURL(logoRef);
+    }
+    const establishmentRef = doc(db, "establishments", uid);
+    await updateDoc(establishmentRef, {
+      businessName,
+      phone,
+      address,
+      mainService,
+      logoUrl,
+    });
+    alert("Perfil atualizado com sucesso!");
+    setLogoFile(null);
+    setIsEditingProfile(false);
   };
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -360,11 +406,10 @@ export default function OwnerView({ user }: OwnerViewProps) {
         functions,
         "createconnectedaccount"
       );
-      const result = await createConnectedAccount();
-      console.log("Conta conectada criada:", result.data);
+      await createConnectedAccount();
     } catch (error) {
       console.error("Erro ao criar conta conectada:", error);
-      alert("Ocorreu um erro ao conectar com o Stripe. Tente novamente.");
+      alert("Ocorreu um erro ao conectar com o Stripe.");
     } finally {
       setIsConnectingStripe(false);
     }
@@ -379,18 +424,14 @@ export default function OwnerView({ user }: OwnerViewProps) {
       window.location.href = url;
     } catch (error) {
       console.error("Erro ao gerar link de onboarding:", error);
-      alert("Não foi possível iniciar o processo. Tente novamente.");
+      alert("Não foi possível iniciar o processo.");
     } finally {
       setIsOnboarding(false);
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="text-center text-gray-600">
-        Carregando dados do seu negócio...
-      </div>
-    );
+    return <div className="text-center text-gray-600">Carregando...</div>;
   }
   if (!establishment) {
     return (
@@ -412,7 +453,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               required
-              className="w-full px-4 py-3 mt-1 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full mt-1 rounded-lg"
             />
           </div>
           <div>
@@ -428,7 +469,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
-              className="w-full px-4 py-3 mt-1 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full mt-1 rounded-lg"
             />
           </div>
           <div>
@@ -444,13 +485,48 @@ export default function OwnerView({ user }: OwnerViewProps) {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               required
-              className="w-full px-4 py-3 mt-1 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full mt-1 rounded-lg"
+            />
+          </div>
+          <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+            <label
+              htmlFor="mainService"
+              className="block text-sm font-bold text-gray-800"
+            >
+              Serviço Principal
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Este será o serviço em destaque no seu card. Ex: Corte & Barba,
+              &aposManicure e Pedicure&apos.
+            </p>
+            <input
+              type="text"
+              id="mainService"
+              value={mainService}
+              onChange={(e) => setMainService(e.target.value)}
+              required
+              className="w-full mt-1 rounded-lg"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="logo"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Logo do Estabelecimento
+            </label>
+            <input
+              type="file"
+              id="logo"
+              onChange={handleLogoChange}
+              accept="image/png, image/jpeg"
+              className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
             />
           </div>
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white font-semibold rounded-lg shadow-md hover:opacity-90 transition-opacity"
+              className="w-full px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white font-semibold rounded-lg shadow-md"
             >
               Salvar e Continuar
             </button>
@@ -473,7 +549,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceName"
                 className="block text-sm font-medium text-gray-700"
               >
-                Nome do Serviço
+                Nome
               </label>
               <input
                 type="text"
@@ -505,7 +581,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
                 htmlFor="serviceDuration"
                 className="block text-sm font-medium text-gray-700"
               >
-                Duração (minutos)
+                Duração (min)
               </label>
               <input
                 type="number"
@@ -550,10 +626,9 @@ export default function OwnerView({ user }: OwnerViewProps) {
                     <button
                       onClick={() => openEditServiceModal(service)}
                       className="text-gray-400 hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Editar serviço"
+                      title="Editar"
                     >
                       <svg
-                        xmlns="http://www.w3.org/2000/svg"
                         className="h-5 w-5"
                         viewBox="0 0 20 20"
                         fill="currentColor"
@@ -569,10 +644,9 @@ export default function OwnerView({ user }: OwnerViewProps) {
                     <button
                       onClick={() => openDeleteServiceModal(service.id)}
                       className="text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Excluir serviço"
+                      title="Excluir"
                     >
                       <svg
-                        xmlns="http://www.w3.org/2000/svg"
                         className="h-5 w-5"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -831,65 +905,225 @@ export default function OwnerView({ user }: OwnerViewProps) {
       </div>
     </div>
   );
-
   const renderSettingsView = () => (
-    <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold text-gray-800">
-        Configurações de Pagamento
-      </h2>
-      <div className="mt-4 pt-4 border-t">
-        {establishment && establishment.stripeAccountId ? (
-          <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="font-semibold text-green-800">
-              ✅ Conta de Pagamento Conectada!
-            </p>
-            <p className="text-sm text-green-700 mt-1">
-              Complete o cadastro de informações no Stripe para poder receber
-              pagamentos.
-            </p>
+    <div className="space-y-8">
+      <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-gray-800">
+            Perfil do Estabelecimento
+          </h3>
+          {!isEditingProfile && (
             <button
-              onClick={handleOnboarding}
-              disabled={isOnboarding}
-              className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
+              onClick={() => setIsEditingProfile(true)}
+              className="text-sm font-medium text-teal-600 hover:text-teal-800"
             >
-              {isOnboarding
-                ? "Gerando link..."
-                : "Completar Cadastro / Gerenciar Conta"}
+              Editar Perfil
             </button>
-          </div>
+          )}
+        </div>
+
+        {isEditingProfile ? (
+          <form
+            onSubmit={handleUpdateEstablishment}
+            className="space-y-4 pt-4 border-t"
+          >
+            <div>
+              <label
+                htmlFor="editBusinessName"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Nome do Estabelecimento
+              </label>
+              <input
+                type="text"
+                id="editBusinessName"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                required
+                className="w-full mt-1 rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="editPhone"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Telefone / WhatsApp
+              </label>
+              <input
+                type="tel"
+                id="editPhone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                className="w-full mt-1 rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="editAddress"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Endereço Completo
+              </label>
+              <input
+                type="text"
+                id="editAddress"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                className="w-full mt-1 rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="editMainService"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Serviço Principal
+              </label>
+              <input
+                type="text"
+                id="editMainService"
+                value={mainService}
+                onChange={(e) => setMainService(e.target.value)}
+                required
+                className="w-full mt-1 rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="editLogo"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Alterar Logo
+              </label>
+              <input
+                type="file"
+                id="editLogo"
+                onChange={handleLogoChange}
+                accept="image/png, image/jpeg"
+                className="w-full mt-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+              />
+              {establishment?.logoUrl && !logoFile && (
+                <Image
+                  src={establishment.logoUrl}
+                  alt="Logo Atual"
+                  width={80}
+                  height={80}
+                  className="mt-2 h-20 w-20 rounded-lg object-cover"
+                />
+              )}
+            </div>
+            <div className="pt-2 flex space-x-4">
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile(false)}
+                className="w-full px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-full px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </form>
         ) : (
-          <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="font-semibold text-blue-800">
-              Conecte-se ao Stripe para receber pagamentos
+          <div className="space-y-2 pt-4 border-t">
+            <p>
+              <span className="font-semibold">Nome:</span>{" "}
+              {establishment?.businessName}
             </p>
-            <p className="text-sm text-blue-700 mt-1">
-              Para que seus clientes possam pagar online, você precisa conectar
-              uma conta do Stripe.
+            <p>
+              <span className="font-semibold">Telefone:</span>{" "}
+              {establishment?.phone}
             </p>
-            <button
-              onClick={handleCreateConnectedAccount}
-              disabled={isConnectingStripe}
-              className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
-            >
-              {isConnectingStripe ? "Conectando..." : "Conectar com Stripe"}
-            </button>
+            <p>
+              <span className="font-semibold">Endereço:</span>{" "}
+              {establishment?.address}
+            </p>
+            <p>
+              <span className="font-semibold">Serviço Principal:</span>{" "}
+              {establishment?.mainService}
+            </p>
+            {establishment?.logoUrl && (
+              <div className="mt-2">
+                <span className="font-semibold">Logo:</span>
+                <Image
+                  src={establishment.logoUrl}
+                  alt="Logo"
+                  width={80}
+                  height={80}
+                  className="mt-1 h-20 w-20 rounded-lg object-cover"
+                />
+              </div>
+            )}
           </div>
         )}
+      </div>
+      <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
+        <h2 className="text-xl font-bold text-gray-800">
+          Configurações de Pagamento
+        </h2>
+        <div className="mt-4 pt-4 border-t">
+          {establishment && establishment.stripeAccountId ? (
+            <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="font-semibold text-green-800">
+                ✅ Conta de Pagamento Conectada!
+              </p>
+              <p className="text-sm text-green-700 mt-1">
+                Complete o cadastro no Stripe para poder receber pagamentos.
+              </p>
+              <button
+                onClick={handleOnboarding}
+                disabled={isOnboarding}
+                className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700"
+              >
+                {isOnboarding
+                  ? "Gerando link..."
+                  : "Completar Cadastro / Gerenciar Conta"}
+              </button>
+            </div>
+          ) : (
+            <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="font-semibold text-blue-800">
+                Conecte-se ao Stripe para receber pagamentos
+              </p>
+              <p className="text-sm text-blue-700 mt-1">
+                Seus clientes poderão pagar online e o dinheiro será repassado
+                para sua conta.
+              </p>
+              <button
+                onClick={handleCreateConnectedAccount}
+                disabled={isConnectingStripe}
+                className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700"
+              >
+                {isConnectingStripe ? "Conectando..." : "Conectar com Stripe"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   return (
-    <>
+    <div>
       <div className="mb-8">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+          <nav
+            className="-mb-px flex space-x-6 overflow-x-auto"
+            aria-label="Tabs"
+          >
             <button
               onClick={() => setActiveTab("agenda")}
               className={`${
                 activeTab === "agenda"
                   ? "border-teal-500 text-teal-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Agenda
@@ -899,7 +1133,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               className={`${
                 activeTab === "services"
                   ? "border-teal-500 text-teal-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Serviços
@@ -909,7 +1143,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               className={`${
                 activeTab === "professionals"
                   ? "border-teal-500 text-teal-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Profissionais
@@ -919,7 +1153,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
               className={`${
                 activeTab === "settings"
                   ? "border-teal-500 text-teal-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Configurações
@@ -936,7 +1170,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
         onClose={() => setIsDeleteServiceModalOpen(false)}
         onConfirm={confirmDeleteService}
         title="Excluir Serviço"
-        message="Tem certeza que deseja excluir este serviço?"
+        message="Tem certeza?"
       />
       <EditServiceModal
         isOpen={isEditServiceModalOpen}
@@ -949,7 +1183,7 @@ export default function OwnerView({ user }: OwnerViewProps) {
         onClose={() => setIsDeleteProfModalOpen(false)}
         onConfirm={confirmDeleteProf}
         title="Excluir Profissional"
-        message="Tem certeza que deseja excluir este profissional?"
+        message="Tem certeza?"
       />
       <EditProfessionalModal
         isOpen={isEditProfModalOpen}
@@ -969,8 +1203,8 @@ export default function OwnerView({ user }: OwnerViewProps) {
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={confirmCancelAppointment}
         title="Cancelar Agendamento"
-        message="Tem certeza que deseja cancelar este agendamento?"
+        message="Tem certeza?"
       />
-    </>
+    </div>
   );
 }

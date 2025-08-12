@@ -3,7 +3,6 @@
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 
-// Ícone de check para o sucesso
 const CheckIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -36,7 +35,7 @@ export default function SuccessModal({
 }: SuccessModalProps) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-20" onClose={onClose}>
+      <Dialog as="div" className="relative z-30" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -48,7 +47,6 @@ export default function SuccessModal({
         >
           <div className="fixed inset-0 bg-black bg-opacity-40" />
         </Transition.Child>
-
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -73,7 +71,6 @@ export default function SuccessModal({
                 <div className="mt-2">
                   <p className="text-md text-gray-600">{message}</p>
                 </div>
-
                 <div className="mt-6">
                   <button
                     type="button"

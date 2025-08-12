@@ -1,5 +1,14 @@
-// Arquivo: src/types/index.ts
 import { Timestamp } from "firebase/firestore";
+
+export interface Establishment {
+  businessName: string;
+  phone: string;
+  address: string;
+  stripeAccountId?: string;
+  logoUrl?: string;
+  rating?: number;
+  mainService?: string;
+}
 
 export interface Service {
   id: string;
@@ -7,9 +16,11 @@ export interface Service {
   price: number;
   duration: number;
 }
+
 export interface Availability {
   [key: string]: { start: string; end: string } | null;
 }
+
 export interface Professional {
   id: string;
   name: string;
@@ -17,6 +28,7 @@ export interface Professional {
   photoURL?: string;
   availability?: Availability;
 }
+
 export interface PendingAppointment {
   establishmentId: string;
   serviceId: string;
@@ -43,4 +55,4 @@ export interface Appointment {
   establishmentId: string;
 }
 
-// A interface vazia foi removida daqui.
+// A interface vazia AppointmentWithDetails foi removida daqui.

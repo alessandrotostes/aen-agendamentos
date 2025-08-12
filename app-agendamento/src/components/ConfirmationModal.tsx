@@ -3,7 +3,6 @@
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 
-// Definindo as propriedades que nosso modal vai aceitar
 interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,8 +20,7 @@ export default function ConfirmationModal({
 }: ConfirmationModalProps) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
-        {/* O Fundo Escurecido (Overlay) */}
+      <Dialog as="div" className="relative z-20" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -34,7 +32,6 @@ export default function ConfirmationModal({
         >
           <div className="fixed inset-0 bg-black bg-opacity-40" />
         </Transition.Child>
-
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -56,22 +53,20 @@ export default function ConfirmationModal({
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">{message}</p>
                 </div>
-
-                {/* Botões de Ação */}
                 <div className="mt-6 flex justify-end space-x-4">
                   <button
                     type="button"
-                    className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                    className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
                     onClick={onClose}
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
-                    className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
                     onClick={onConfirm}
                   >
-                    Confirmar Exclusão
+                    Confirmar
                   </button>
                 </div>
               </Dialog.Panel>

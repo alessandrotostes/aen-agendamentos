@@ -7,7 +7,7 @@ import Image from "next/image";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, isToday } from "date-fns";
 import { db } from "@/lib/firebaseConfig";
 import {
   collection,
@@ -21,12 +21,10 @@ import {
   Professional,
   Appointment,
   PendingAppointment,
-  Availability,
 } from "@/types";
-import SuccessModal from "./SuccessModal"; // Assumindo que este modal existe para o fluxo antigo
+import SuccessModal from "./SuccessModal";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Interface das Props do Componente
 interface SchedulingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,7 +41,7 @@ export default function SchedulingModal({
   establishmentId,
 }: SchedulingModalProps) {
   const router = useRouter();
-  const { user } = useAuth(); // Necessário para a lógica de agendamento final
+  const { user } = useAuth();
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<
     string | null
   >(null);
@@ -109,23 +107,31 @@ export default function SchedulingModal({
       dayKeyMap[format(selectedDate, "eeee", { locale: ptBR }).toLowerCase()];
     const workingHours = professional.availability[dayOfWeek];
     if (!workingHours) return [];
-    const potentialSlotsInMinutes = [];
+
+    const slotsInMinutes = [];
     const startInMinutes =
       parseInt(workingHours.start.split(":")[0]) * 60 +
       parseInt(workingHours.start.split(":")[1]);
     const endInMinutes =
       parseInt(workingHours.end.split(":")[0]) * 60 +
       parseInt(workingHours.end.split(":")[1]);
+    const now = new Date();
+    const startOfBookingWindow = isToday(selectedDate)
+      ? now.getHours() * 60 + now.getMinutes()
+      : 0;
     for (let t = startInMinutes; t < endInMinutes; t += 15) {
-      potentialSlotsInMinutes.push(t);
+      if (t >= startOfBookingWindow) {
+        slotsInMinutes.push(t);
+      }
     }
+
     const bookedIntervals = todaysAppointments.map((app) => {
       const bookedDate = app.dateTime.toDate();
       const start = bookedDate.getHours() * 60 + bookedDate.getMinutes();
       const end = start + app.duration;
       return { start, end };
     });
-    const availableSlots = potentialSlotsInMinutes.filter((potentialStart) => {
+    const availableSlots = slotsInMinutes.filter((potentialStart) => {
       const potentialEnd = potentialStart + service.duration;
       if (potentialEnd > endInMinutes) return false;
       const hasConflict = bookedIntervals.some(
@@ -133,6 +139,7 @@ export default function SchedulingModal({
       );
       return !hasConflict;
     });
+
     return availableSlots.map((minutesTotal) => {
       const hours = Math.floor(minutesTotal / 60);
       const minutes = minutesTotal % 60;
@@ -156,10 +163,8 @@ export default function SchedulingModal({
     const professional = professionals.find(
       (p) => p.id === selectedProfessionalId
     );
-
-    // Criamos o objeto Date final aqui no cliente
-    const [hours, minutes] = selectedTime.split(":");
     const finalBookingDate = new Date(selectedDate);
+    const [hours, minutes] = selectedTime.split(":");
     finalBookingDate.setHours(Number(hours), Number(minutes), 0, 0);
 
     const pendingAppointment: PendingAppointment = {
@@ -170,8 +175,6 @@ export default function SchedulingModal({
       duration: service.duration,
       professionalId: selectedProfessionalId,
       professionalName: professional?.name || "N/A",
-      // Removemos selectedTime e selectedDate
-      // E adicionamos um único campo com a data completa e correta
       bookingTimestamp: finalBookingDate.toISOString(),
     };
     sessionStorage.setItem(
@@ -190,7 +193,7 @@ export default function SchedulingModal({
   if (!service) return null;
 
   return (
-    <>
+    <div>
       <Transition appear show={isOpen} as={Fragment}>
         <Dialog as="div" className="relative z-10" onClose={onClose}>
           <Transition.Child
@@ -269,7 +272,7 @@ export default function SchedulingModal({
                             ))
                           ) : (
                             <p className="text-gray-500 p-4 bg-gray-100 rounded-md">
-                              Nenhum profissional disponível para este serviço.
+                              Nenhum profissional disponível.
                             </p>
                           )}
                         </div>
@@ -328,7 +331,7 @@ export default function SchedulingModal({
                           ))
                         ) : selectedDate ? (
                           <p className="col-span-full text-center text-gray-500 p-4">
-                            Nenhum horário disponível para este dia.
+                            Nenhum horário disponível.
                           </p>
                         ) : null}
                       </div>
@@ -357,13 +360,12 @@ export default function SchedulingModal({
           </div>
         </Dialog>
       </Transition>
-
       <SuccessModal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseAllModals}
         title="Agendamento Confirmado!"
         message={`Seu horário para ${service.name} foi agendado com sucesso.`}
       />
-    </>
+    </div>
   );
 }
