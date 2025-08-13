@@ -1,76 +1,51 @@
+// src/app/page.tsx
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import "./globals.css";
 
 export default function HomePage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const router = useRouter();
-
-  // Esta lógica de redirecionamento está correta e permanece a mesma
-  useEffect(() => {
-    if (!isAuthLoading && user) {
-      router.push("/dashboard");
-    }
-  }, [user, isAuthLoading, router]);
-
-  // LÓGICA DE RENDERIZAÇÃO CORRIGIDA ABAIXO
-
-  // 1. Enquanto a autenticação está sendo verificada, mostramos um loader
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        {/* Pode adicionar um spinner aqui */}
-      </div>
-    );
-  }
-
-  // 2. Se a verificação terminou e TEM um usuário, o useEffect acima vai redirecionar.
-  //    Mostramos uma mensagem enquanto isso acontece.
-  if (user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Redirecionando para o seu painel...</p>
-      </div>
-    );
-  }
-
-  // 3. Se a verificação terminou e NÃO TEM usuário, mostramos a Landing Page
   return (
-    <div className="w-full">
-      <section className="relative flex items-center justify-center h-screen bg-black">
-        <div className="absolute inset-0 bg-[url('/images/fundo-auth.jpg')] bg-cover bg-center opacity-70"></div>
-        <div className="relative z-10 text-center px-4">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900">
-            <span className="bg-gradient-to-r from-teal-500 to-indigo-400 bg-clip-text text-transparent">
-              Agende. Relaxe.
-            </span>{" "}
-            <span className="bg-gradient-to-r from-teal-500 to-indigo-400 bg-clip-text text-transparent">
-              Transforme.
-            </span>
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-gray-200">
-            A forma mais simples de encontrar e agendar horários nos melhores
-            salões e barbearias da sua cidade.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/login"
-              className="w-full sm:w-auto inline-block px-8 py-4 bg-gradient-to-r from-teal-500 to-indigo-400 text-white font-bold text-lg rounded-lg shadow-lg hover:opacity-90 transition-transform transform hover:scale-105"
-            >
-              Quero Agendar Agora
-            </Link>
-            <Link
-              href="/login-owner"
-              className="w-full sm:w-auto inline-block px-8 py-4 bg-gray-700 text-white font-bold text-lg rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
-            >
-              Sou um Estabelecimento
-            </Link>
-          </div>
+    <div className="relative min-h-screen flex items-center justify-center">
+      {/* Imagem de fundo */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('/images/fundo-auth.jpg')",
+        }}
+      />
+
+      {/* Sobreposição semitransparente */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Conteúdo principal */}
+      <div className="relative z-10 max-w-md w-full text-center p-8 bg-white/80 backdrop-blur-md rounded-xl shadow-lg">
+        <h1 className="text-4xl font-extrabold text-teal-600 mb-4">S&B</h1>
+        <p className="text-lg text-gray-800 mb-8 font-medium">
+          Bem-vindo ao Sistema de Agendamento de Salões & Barbearias
+        </p>
+        <div className="space-y-4">
+          <Link
+            href="/login?role=client"
+            className="flex items-center justify-center py-3 px-6 w-full bg-gradient-to-r from-teal-500 to-indigo-400 text-white text-lg font-medium rounded-lg hover:from-teal-600 hover:to-indigo-500 transition-all"
+          >
+            <span className="mr-2 text-2xl">👤</span>
+            Sou Cliente
+          </Link>
+          <Link
+            href="/login?role=owner"
+            className="flex items-center justify-center py-3 px-6 w-full bg-gradient-to-r from-indigo-400 to-teal-500 text-white text-lg font-medium rounded-lg hover:from-indigo-500 hover:to-teal-600 transition-all"
+          >
+            <span className="mr-2 text-2xl">👨‍💼</span>
+            Sou Estabelecimento
+          </Link>
         </div>
-      </section>
+        <p className="mt-8 text-xs text-gray-600">
+          © {new Date().getFullYear()} Sistema de Agendamento. Todos os direitos
+          reservados.
+        </p>
+      </div>
     </div>
   );
 }

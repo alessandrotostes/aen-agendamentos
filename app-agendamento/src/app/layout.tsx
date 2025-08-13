@@ -1,26 +1,21 @@
-import type { Metadata } from "next";
+// src/app/layout.tsx
+"use client";
+
+import React, { ReactNode } from "react";
 import { Inter } from "next/font/google";
+import { AuthProvider } from "../contexts/AuthContext";
+
 import "./globals.css";
-// Importe o AuthProvider
-import { AuthProvider } from "@/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "App de Agendamento",
-  description: "Agende seus horários de forma fácil",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-br">
+    <html lang="pt-BR">
       <body className={inter.className}>
-        {/* Envolva os 'children' com o AuthProvider */}
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

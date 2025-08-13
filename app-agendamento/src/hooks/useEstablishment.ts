@@ -1,0 +1,219 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { doc, onSnapshot, collection } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../lib/firebaseConfig";
+import {
+  Establishment,
+  CreateServiceData,
+  CreateProfessionalData,
+  Service,
+  Professional,
+  UpdateEstablishmentData,
+} from "../types";
+import { useAuth } from "../contexts/AuthContext";
+import { firestoreOperations, useFirestore } from "./useFirestore";
+import { errorUtils } from "../lib/utils";
+
+// ========== ESTABLISHMENT HOOK ==========
+export function useEstablishment() {
+  const { userData } = useAuth();
+  const [establishment, setEstablishment] = useState<Establishment | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userData?.uid || userData.role !== "owner") {
+      setEstablishment(null);
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, "establishments", userData.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setEstablishment({
+            id: docSnap.id,
+            ...docSnap.data(),
+          } as Establishment);
+        } else {
+          setEstablishment(null);
+        }
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error("Erro ao buscar establishment:", err);
+        setError(errorUtils.getFirebaseErrorMessage(err));
+        setLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [userData?.uid, userData?.role]);
+
+  const updateEstablishment = async (
+    data: Partial<UpdateEstablishmentData>
+  ) => {
+    if (!userData?.uid) throw new Error("Usuário não autenticado");
+
+    const { imageFile, ...restOfData } = data;
+    const dataToUpdate: Partial<Establishment> = { ...restOfData };
+
+    if (imageFile) {
+      const storageRef = ref(
+        storage,
+        `establishments/${userData.uid}/logo/${imageFile.name}`
+      );
+      await uploadBytes(storageRef, file);
+      dataToUpdate.imageURL = await getDownloadURL(storageRef);
+    }
+
+    await firestoreOperations.update<Establishment>(
+      "establishments",
+      userData.uid,
+      dataToUpdate
+    );
+  };
+
+  return { establishment, loading, error, updateEstablishment };
+}
+
+// ========== SERVICES HOOK (ATUALIZADO) ==========
+export function useServices(establishmentId?: string) {
+  const { userData } = useAuth();
+  const ownerId = establishmentId || userData?.uid;
+  const collectionPath = ownerId ? `establishments/${ownerId}/services` : null;
+
+  const {
+    data: services,
+    loading,
+    error,
+    refresh,
+  } = useFirestore<Service>(collectionPath, {
+    realtime: true,
+    orderByField: "name",
+    orderDirection: "asc",
+  });
+
+  const createService = async (data: CreateServiceData) => {
+    if (!collectionPath || !userData?.uid)
+      throw new Error("Usuário não autenticado");
+    const serviceData = { ...data, establishmentId: userData.uid };
+    await firestoreOperations.create<Omit<Service, "id">>(
+      collectionPath,
+      serviceData
+    );
+  };
+
+  const updateService = async (id: string, data: Partial<Service>) => {
+    if (!collectionPath) throw new Error("Usuário não autenticado");
+    await firestoreOperations.update<Service>(collectionPath, id, data);
+  };
+
+  const deleteService = async (id: string) => {
+    if (!collectionPath) throw new Error("Usuário não autenticado");
+    await firestoreOperations.delete(collectionPath, id);
+  };
+
+  return {
+    services,
+    loading,
+    error,
+    refresh,
+    createService,
+    updateService,
+    deleteService,
+  };
+}
+
+// ========== PROFESSIONALS HOOK (ATUALIZADO) ==========
+export function useProfessionals(establishmentId?: string) {
+  const { userData } = useAuth();
+  const ownerId = establishmentId || userData?.uid;
+  const collectionPath = ownerId
+    ? `establishments/${ownerId}/professionals`
+    : null;
+
+  const {
+    data: professionals,
+    loading,
+    error,
+    refresh,
+  } = useFirestore<Professional>(collectionPath, {
+    realtime: true,
+    orderByField: "name",
+    orderDirection: "asc",
+  });
+
+  const handleImageUpload = async (
+    imageFile: File,
+    professionalId: string
+  ): Promise<string> => {
+    const storageRef = ref(
+      storage,
+      `professionals/${userData!.uid}/${professionalId}/${imageFile.name}`
+    );
+    await uploadBytes(storageRef, imageFile);
+    return await getDownloadURL(storageRef);
+  };
+
+  const createProfessional = async (data: CreateProfessionalData) => {
+    if (!collectionPath || !userData?.uid)
+      throw new Error("Usuário não autenticado");
+
+    const { imageFile, ...restOfData } = data;
+    let finalPhotoURL = "";
+    if (imageFile) {
+      const tempId = doc(collection(db, "temp")).id;
+      finalPhotoURL = await handleImageUpload(imageFile, tempId);
+    }
+    const professionalData = {
+      ...restOfData,
+      establishmentId: userData.uid,
+      serviceIds: [],
+      photoURL: finalPhotoURL,
+    };
+    await firestoreOperations.create<Omit<Professional, "id">>(
+      collectionPath,
+      professionalData
+    );
+  };
+
+  const updateProfessional = async (
+    id: string,
+    data: Partial<CreateProfessionalData>
+  ) => {
+    if (!collectionPath) throw new Error("Usuário não autenticado");
+
+    const { imageFile, ...restOfData } = data;
+    const professionalData: Partial<Professional> = { ...restOfData };
+    if (imageFile) {
+      professionalData.photoURL = await handleImageUpload(imageFile, id);
+    }
+    await firestoreOperations.update<Professional>(
+      collectionPath,
+      id,
+      professionalData
+    );
+  };
+
+  const deleteProfessional = async (id: string) => {
+    if (!collectionPath) throw new Error("Usuário não autenticado");
+    await firestoreOperations.delete(collectionPath, id);
+  };
+
+  return {
+    professionals,
+    loading,
+    error,
+    refresh,
+    createProfessional,
+    updateProfessional,
+    deleteProfessional,
+  };
+}

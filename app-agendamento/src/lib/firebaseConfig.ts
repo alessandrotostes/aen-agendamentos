@@ -1,11 +1,10 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
-// Your web app's Firebase configuration
-// ATENÇÃO: Substitua com as suas próprias chaves do Firebase!
+// Substitua pelas suas credenciais Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBM-z31G_J6Hy5bIdFPORdwKj0mgJfMWiU",
   authDomain: "webappagendamento-1c932.firebaseapp.com",
@@ -16,14 +15,13 @@ const firebaseConfig = {
   measurementId: "G-VTXFWJJBLJ",
 };
 
-// Initialize Firebase
-// Para evitar reinicializar o app no lado do servidor com Next.js,
-// verificamos se ele já foi inicializado.
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
 
-// Exportando os serviços do Firebase para serem usados em outras partes do app
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Serviços Firebase
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const functions = getFunctions(app, "southamerica-east1");
+export const storage = getStorage(app);
 
-export { app, auth, db, storage };
+export default app;
