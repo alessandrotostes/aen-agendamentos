@@ -5,12 +5,12 @@ import EmptyState from "./common/EmptyState";
 import Image from "next/image";
 import type { Professional } from "../../types";
 
-// A interface de Props agora está mais simples
 interface Props {
   professionals: Professional[];
   createProfessional: () => void;
   updateProfessional: (id: string) => void;
   deleteProfessional: (id: string) => void;
+  onManageAvailability: (professional: Professional) => void;
 }
 
 export default function ProfessionalsTab({
@@ -18,6 +18,7 @@ export default function ProfessionalsTab({
   createProfessional,
   updateProfessional,
   deleteProfessional,
+  onManageAvailability,
 }: Props) {
   return (
     <div className="space-y-6">
@@ -55,7 +56,7 @@ export default function ProfessionalsTab({
           {professionals.map((p) => (
             <div
               key={p.id}
-              className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-indigo-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-200 group"
+              className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-indigo-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-200 group flex flex-col"
             >
               <div className="flex items-center space-x-4 mb-4">
                 <div className="relative w-16 h-16">
@@ -97,16 +98,22 @@ export default function ProfessionalsTab({
                 </div>
               )}
 
-              <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="mt-auto pt-4 border-t flex justify-end space-x-2">
+                <button
+                  onClick={() => onManageAvailability(p)}
+                  className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                >
+                  Horários
+                </button>
                 <button
                   onClick={() => updateProfessional(p.id)}
-                  className="px-4 py-2 text-teal-600 hover:text-teal-400 hover:bg-teal-50 rounded-lg transition-colors duration-200 font-medium"
+                  className="px-3 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg"
                 >
                   Editar
                 </button>
                 <button
                   onClick={() => deleteProfessional(p.id)}
-                  className="px-4 py-2 text-red-500 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
+                  className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
                 >
                   Excluir
                 </button>

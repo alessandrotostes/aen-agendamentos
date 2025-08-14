@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react"; // Adicionado useCallback
 import { httpsCallable } from "firebase/functions";
-import { auth, functions } from "../lib/firebaseConfig"; // ✅ Importar auth
+import { functions } from "../lib/firebaseConfig"; // Removido 'auth' pois usaremos o hook
 import {
   CreateConnectedAccountResult,
   CreateAccountLinkResult,
-  CreatePaymentIntentData,
+  PendingAppointment,
 } from "../types";
 import { useAuth } from "../contexts/AuthContext";
-import { errorUtils, currencyUtils } from "../lib/utils";
+import { errorUtils } from "../lib/utils"; // Removido currencyUtils se não for usado aqui
 
 // ========== STRIPE ACCOUNT HOOK ==========
 export function useStripeAccount() {
@@ -17,150 +17,107 @@ export function useStripeAccount() {
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
 
-  // Criar conta conectada Stripe
+  // Função genérica para chamar uma Cloud Function, evitando repetição de código.
+  const callStripeFunction = useCallback(
+    async <T>(functionName: string): Promise<T | null> => {
+      if (!currentUser) {
+        const authError = "Usuário não autenticado.";
+        setError(authError);
+        throw new Error(authError);
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const callableFunction = httpsCallable<void, { success: boolean } & T>(
+          functions,
+          functionName
+        );
+        const result = await callableFunction();
+        if (result.data.success) {
+          return result.data;
+        }
+        throw new Error(`Erro ao executar a função: ${functionName}`);
+      } catch (err) {
+        const errorMessage = errorUtils.getFirebaseErrorMessage(err);
+        setError(errorMessage);
+        // Re-lançar o erro permite que o componente que chama o hook também possa tratar o erro se necessário.
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentUser]
+  ); // useCallback memoriza a função para evitar recriações desnecessárias.
+
   const createConnectedAccount = async (): Promise<string | null> => {
-    if (!currentUser) {
-      throw new Error("Usuário não autenticado");
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const createAccount = httpsCallable<void, CreateConnectedAccountResult>(
-        functions,
-        "createconnectedaccount"
-      );
-
-      const result = await createAccount();
-
-      if (result.data.success) {
-        return result.data.accountId;
-      } else {
-        throw new Error("Erro ao criar conta Stripe");
-      }
-    } catch (err) {
-      const errorMessage = errorUtils.getFirebaseErrorMessage(err);
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    const result = await callStripeFunction<CreateConnectedAccountResult>(
+      "createconnectedaccount"
+    );
+    return result?.accountId ?? null;
   };
 
-  // Criar link de onboarding
   const createAccountLink = async (): Promise<string | null> => {
-    if (!currentUser) {
-      throw new Error("Usuário não autenticado");
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const createLink = httpsCallable<void, CreateAccountLinkResult>(
-        functions,
-        "createaccountlink"
-      );
-
-      const result = await createLink();
-
-      if (result.data.success) {
-        return result.data.url;
-      } else {
-        throw new Error("Erro ao gerar link de configuração");
-      }
-    } catch (err) {
-      const errorMessage = errorUtils.getFirebaseErrorMessage(err);
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    const result = await callStripeFunction<CreateAccountLinkResult>(
+      "createaccountlink"
+    );
+    return result?.url ?? null;
   };
 
-  return {
-    loading,
-    error,
-    createConnectedAccount,
-    createAccountLink,
-  };
+  return { loading, error, createConnectedAccount, createAccountLink };
 }
 
 // ========== STRIPE PAYMENT HOOK ==========
-interface PaymentData {
-  serviceId: string;
-  professionalId: string;
-  establishmentId: string;
+export interface PaymentData extends PendingAppointment {
   dateTime: Date;
-  serviceName: string;
-  professionalName: string;
-  price: number;
-  duration: number;
 }
 
 export function useStripePayment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuth(); // Usando o hook para consistência
 
-  // Processar pagamento com agendamento
   const processPayment = async (
     paymentMethodId: string,
     paymentData: PaymentData
   ): Promise<{ success: boolean; paymentIntentId?: string }> => {
     if (!currentUser) {
-      throw new Error("Usuário não autenticado");
+      const authError = "Usuário não autenticado.";
+      setError(authError);
+      throw new Error(authError);
     }
 
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-
-      // Preparar dados para a Cloud Function
-      const requestData: CreatePaymentIntentData = {
-        amount: currencyUtils.toCents(paymentData.price),
-        paymentMethodId,
-        appointmentDetails: {
-          establishmentId: paymentData.establishmentId,
-          serviceId: paymentData.serviceId,
-          professionalId: paymentData.professionalId,
-          bookingTimestamp: paymentData.dateTime.toISOString(),
-          duration: paymentData.duration,
-          price: paymentData.price,
-          serviceName: paymentData.serviceName,
-          professionalName: paymentData.professionalName,
-        },
-      };
-
-      // ✅ CORREÇÃO: Usar auth.currentUser para getIdToken
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) {
-        throw new Error("Usuário do Firebase não encontrado");
-      }
-
-      const token = await firebaseUser.getIdToken(); // ✅ Agora funciona
-
-      // Fazer requisição para a Cloud Function (onRequest)
+      const token = await currentUser.getIdToken();
+      console.log("Enviando token:", token);
+      // Padrão de mercado: Enviar o token de autenticação no cabeçalho (Header) da requisição.
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`, // O token vai aqui
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          // O corpo da requisição agora contém apenas os dados da transação.
+          paymentMethodId,
+          appointmentDetails: {
+            ...paymentData,
+            bookingTimestamp: paymentData.dateTime.toISOString(),
+          },
+        }),
       });
 
       const result = await response.json();
 
-      if (result.success) {
-        return {
-          success: true,
-          paymentIntentId: result.paymentIntentId,
-        };
-      } else {
+      if (!response.ok || !result.success) {
         throw new Error(result.error || "Erro no pagamento");
       }
+
+      return { success: true, paymentIntentId: result.paymentIntentId };
     } catch (err) {
       const errorMessage = errorUtils.getFirebaseErrorMessage(err);
       setError(errorMessage);
@@ -170,40 +127,5 @@ export function useStripePayment() {
     }
   };
 
-  return {
-    loading,
-    error,
-    processPayment,
-  };
+  return { loading, error, processPayment };
 }
-
-// ========== STRIPE UTILITIES ==========
-export const stripeUtils = {
-  // Formatar valor para exibição
-  formatAmount: (amountInCents: number): string => {
-    return currencyUtils.format(currencyUtils.fromCents(amountInCents));
-  },
-
-  // Calcular taxa da plataforma (7%)
-  calculatePlatformFee: (amount: number): number => {
-    return Math.floor(amount * 0.07);
-  },
-
-  // Calcular valor que o estabelecimento recebe
-  calculateEstablishmentAmount: (totalAmount: number): number => {
-    return totalAmount - stripeUtils.calculatePlatformFee(totalAmount);
-  },
-
-  // Validar se valor é válido para Stripe (mínimo R$ 0,50)
-  isValidAmount: (amount: number): boolean => {
-    return amount >= 0.5 && amount <= 999999.99;
-  },
-
-  // Gerar descrição para o pagamento
-  generatePaymentDescription: (
-    serviceName: string,
-    establishmentName: string
-  ): string => {
-    return `${serviceName} - ${establishmentName}`;
-  },
-};

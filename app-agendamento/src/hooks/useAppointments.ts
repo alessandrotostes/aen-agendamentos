@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Timestamp } from "firebase/firestore";
-import { Appointment, CreateAppointmentData } from "../types";
+import { Appointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { useFirestore } from "./useFirestore"; // ✅ Correto
 import { errorUtils, timestampUtils } from "../lib/utils";

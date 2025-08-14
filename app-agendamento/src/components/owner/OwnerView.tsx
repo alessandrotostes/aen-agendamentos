@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import OwnerHeader from "./OwnerHeader";
 import DashboardTab from "./DashboardTab";
 import ServicesTab from "./ServicesTab";
@@ -22,6 +22,8 @@ import type {
   CreateProfessionalData,
   UpdateEstablishmentData,
   AvailabilityData,
+  Establishment,
+  Availability,
 } from "../../types";
 
 export default function OwnerView() {
@@ -56,13 +58,22 @@ export default function OwnerView() {
   const todayAppointmentsData = useTodayAppointments();
   const stripeHook = useStripeAccount();
 
-  const handleOnboardingRedirect = async (): Promise<string | null> => {
+  const handleOnboardingRedirect = async () => {
     try {
       const url = await stripeHook.createAccountLink();
-      return url ?? null;
+      if (url) {
+        window.location.href = url;
+      }
     } catch (error) {
       console.error("Falha ao obter o link de onboarding:", error);
-      return null;
+    }
+  };
+
+  const handleCreateStripeAccount = async () => {
+    try {
+      await stripeHook.createConnectedAccount();
+    } catch (error) {
+      console.error("Falha ao criar conta Stripe:", error);
     }
   };
 
@@ -71,7 +82,7 @@ export default function OwnerView() {
     isStripeOnboarded: Boolean(establishment?.stripeAccountOnboarded),
     loading: stripeHook.loading,
     error: stripeHook.error,
-    createConnectedAccount: stripeHook.createConnectedAccount,
+    createConnectedAccount: handleCreateStripeAccount,
     createAccountLink: handleOnboardingRedirect,
   };
 
@@ -128,6 +139,11 @@ export default function OwnerView() {
     }
   };
 
+  const handleManageAvailability = (professional: Professional) => {
+    setSelectedProfessional(professional);
+    openModal("editAvailability");
+  };
+
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -153,11 +169,38 @@ export default function OwnerView() {
     showSuccess("Estabelecimento atualizado!");
     closeModal("editEstablishment");
   };
+
   const handleSaveAvailability = async (data: AvailabilityData) => {
-    console.log("Salvando:", data);
-    showSuccess("Horários atualizados!");
-    closeModal("editAvailability");
+    if (!selectedProfessional) return;
+    try {
+      const scheduleToSave: Availability = {};
+      data.weeklySchedule.forEach((day) => {
+        const dayKey = day.dayName
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace("-feira", "");
+        if (day.isOpen && day.timeSlots.length > 0) {
+          scheduleToSave[dayKey] = {
+            start: day.timeSlots[0].start,
+            end: day.timeSlots[0].end,
+          };
+        } else {
+          scheduleToSave[dayKey] = null;
+        }
+      });
+
+      await professionalsData.updateProfessional(selectedProfessional.id, {
+        availability: scheduleToSave,
+      });
+      showSuccess("Horários do profissional atualizados!");
+    } catch (error) {
+      console.error("OwnerView: Erro ao salvar disponibilidade:", error);
+    } finally {
+      closeModal("editAvailability");
+    }
   };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.type === "service") {
@@ -237,6 +280,7 @@ export default function OwnerView() {
             createProfessional={handleCreateProfessional}
             updateProfessional={handleUpdateProfessional}
             deleteProfessional={handleDeleteProfessional}
+            onManageAvailability={handleManageAvailability}
           />
         )}
         {activeTab === "settings" && (
@@ -244,6 +288,7 @@ export default function OwnerView() {
             establishment={establishment}
             stripeData={stripeData}
             onEditEstablishment={() => openModal("editEstablishment")}
+            onEditAvailability={() => openModal("editAvailability")}
           />
         )}
       </main>
@@ -259,6 +304,7 @@ export default function OwnerView() {
         establishmentToEdit={establishment}
         deleteTarget={deleteTarget}
         successMessage={successMessage}
+        allServices={servicesData.services} // <-- ALTERAÇÃO APLICADA AQUI
         onCloseService={() => closeModal("editService")}
         onCloseProfessional={() => closeModal("editProfessional")}
         onCloseEstablishment={() => closeModal("editEstablishment")}

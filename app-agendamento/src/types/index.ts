@@ -22,6 +22,7 @@ export interface Establishment {
   rating?: number;
   stripeAccountId?: string;
   stripeAccountOnboarded?: boolean;
+  availability?: Availability; // <-- ADICIONE ESTA LINHA
 }
 
 export interface Service {
@@ -72,7 +73,7 @@ export interface CreateProfessionalData {
   name: string;
   photoURL: string;
   bio: string;
-  specialties: string[];
+  serviceIds: string[];
   imageFile?: File | null;
 }
 
@@ -84,6 +85,18 @@ export interface UpdateEstablishmentData {
   imageURL: string;
   mainService: string;
   imageFile?: File | null;
+  availability?: Availability;
+}
+
+export interface PendingAppointment {
+  establishmentId: string;
+  serviceId: string;
+  serviceName: string;
+  price: number;
+  duration: number;
+  professionalId: string;
+  professionalName: string;
+  bookingTimestamp: string;
 }
 
 export interface AvailabilityData {
@@ -93,6 +106,23 @@ export interface AvailabilityData {
   autoAcceptBookings: boolean;
   advanceBookingDays: number;
   minimumNoticeHours: number;
+}
+
+// CLOUD FUNCTIONS TYPES (Estava faltando)
+export interface CreateConnectedAccountResult {
+  success: boolean;
+  accountId: string;
+}
+
+export interface CreateAccountLinkResult {
+  success: boolean;
+  url: string;
+}
+
+export interface CreatePaymentIntentData {
+  amount: number;
+  paymentMethodId: string;
+  appointmentDetails: PendingAppointment;
 }
 
 // OUTROS TIPOS

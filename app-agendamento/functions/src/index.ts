@@ -20,32 +20,41 @@ let stripe: Stripe;
 
 // ===== FUNÇÃO 1: PROCESSAR PAGAMENTO COM SPLIT (onRequest) =====
 export const createpaymentintent = onRequest(async (request, response) => {
+  // PASSO 1: LOG INICIAL
+  console.log("✅ --- PASSO 1: FUNÇÃO INICIADA ---");
+
   cors(request, response, async () => {
-    stripe = new Stripe(stripeSecretKey.value());
-
-    const authorization = request.headers.authorization;
-    if (!authorization || !authorization.startsWith("Bearer ")) {
-      response.status(401).send({ error: "Unauthorized" });
-      return;
-    }
-    let decodedToken;
-    const idToken = authorization.split("Bearer ")[1];
     try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
-    } catch (error) {
-      response.status(401).send({ error: "Unauthorized" });
-      return;
-    }
+      // PASSO 2: INICIALIZAÇÃO DO STRIPE
+      console.log("⏳ --- PASSO 2: TENTANDO INICIALIZAR O STRIPE... ---");
+      stripe = new Stripe(stripeSecretKey.value());
+      console.log("✅ --- STRIPE INICIALIZADO COM SUCESSO ---");
 
-    const { amount, paymentMethodId, appointmentDetails } = request.body;
-    if (!amount || !paymentMethodId || !appointmentDetails) {
-      response
-        .status(400)
-        .send({ error: "Dados de pagamento ou agendamento inválidos." });
-      return;
-    }
+      // PASSO 3: VERIFICAÇÃO DE AUTORIZAÇÃO
+      const authorization = request.headers.authorization;
+      if (!authorization || !authorization.startsWith("Bearer ")) {
+        // Usamos throw para que o erro seja capturado pelo nosso catch principal
+        throw new HttpsError(
+          "unauthenticated",
+          "Cabeçalho de autorização inválido."
+        );
+      }
+      const idToken = authorization.split("Bearer ")[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      console.log(
+        `✅ --- PASSO 3: TOKEN VERIFICADO PARA UID: ${decodedToken.uid} ---`
+      );
 
-    try {
+      // PASSO 4: VERIFICAÇÃO DO CORPO DA REQUISIÇÃO
+      const { amount, paymentMethodId, appointmentDetails } = request.body;
+      if (!amount || !paymentMethodId || !appointmentDetails) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Dados de pagamento ou agendamento inválidos."
+        );
+      }
+      console.log("✅ --- PASSO 4: DADOS DO CORPO DA REQUISIÇÃO VÁLIDOS ---");
+
       // 1. Buscar o ID da conta Stripe do estabelecimento no Firestore
       const establishmentDoc = await admin
         .firestore()
@@ -63,7 +72,10 @@ export const createpaymentintent = onRequest(async (request, response) => {
       // 2. Calcular a nossa comissão (7%)
       const applicationFee = Math.floor(amount * 0.07);
 
-      // 3. Criar o PaymentIntent com os dados para o split
+      // PASSO 5: CRIAÇÃO DO PAYMENT INTENT
+      console.log(
+        "⏳ --- PASSO 5: CHAMANDO A API DA STRIPE PARA CRIAR PAGAMENTO... ---"
+      );
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "brl",
@@ -76,6 +88,7 @@ export const createpaymentintent = onRequest(async (request, response) => {
           destination: stripeAccountId,
         },
       });
+      console.log("✅ --- PAGAMENTO CRIADO COM SUCESSO NO STRIPE ---");
 
       if (paymentIntent.status === "succeeded") {
         const {
@@ -109,13 +122,21 @@ export const createpaymentintent = onRequest(async (request, response) => {
           .status(200)
           .send({ success: true, paymentIntentId: paymentIntent.id });
       } else {
-        response
-          .status(400)
-          .send({ error: "O pagamento não foi bem-sucedido." });
+        throw new Error("O pagamento não foi bem-sucedido no Stripe.");
       }
     } catch (error: any) {
-      console.error("Erro no Stripe ou Firestore:", error);
-      response.status(500).send({ error: error.message });
+      // ESTE É O LOG MAIS IMPORTANTE! Ele vai nos dizer o erro exato.
+      console.error("❌ --- ERRO FATAL CAPTURADO --- ❌", {
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+      response
+        .status(500)
+        .send({
+          error: "Erro interno na Cloud Function.",
+          details: error.message,
+        });
     }
   });
 });
@@ -195,8 +216,8 @@ export const createaccountlink = onCall(async (request) => {
   try {
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: "http://localhost:3000/dashboard", // Para onde voltar se o link expirar
-      return_url: "http://localhost:3000/dashboard", // Para onde voltar após completar
+      refresh_url: "http://localhost:3000/owner", // Para onde voltar se o link expirar
+      return_url: "http://localhost:3000/owner", // Para onde voltar após completar
       type: "account_onboarding",
     });
 

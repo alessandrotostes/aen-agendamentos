@@ -7,7 +7,6 @@ import EditEstablishmentModal from "./modals/EditEstablishmentModal";
 import EditAvailabilityModal from "./modals/EditAvailabilityModal";
 import ConfirmationModal from "../shared/modals/ConfirmationModal";
 import SuccessModal from "../shared/modals/SuccessModal";
-
 import type {
   Service,
   Professional,
@@ -25,27 +24,23 @@ interface ModalsManagerProps {
   isAvailabilityOpen: boolean;
   isDeleteConfirmOpen: boolean;
   isSuccessOpen: boolean;
-
   selectedService: Service | null;
   selectedProfessional: Professional | null;
   establishmentToEdit: Establishment | null;
-
   deleteTarget: {
     type: "service" | "professional";
     id: string;
     name: string;
   } | null;
   successMessage: string;
-
+  allServices: Service[]; // Nova prop
   onCloseService: () => void;
   onCloseProfessional: () => void;
   onCloseEstablishment: () => void;
   onCloseAvailability: () => void;
   onCloseDeleteConfirm: () => void;
   onCloseSuccess: () => void;
-
   onConfirmDelete: () => Promise<void>;
-
   onSaveService: (data: CreateServiceData) => Promise<void>;
   onSaveProfessional: (data: CreateProfessionalData) => Promise<void>;
   onSaveEstablishment: (data: UpdateEstablishmentData) => Promise<void>;
@@ -64,6 +59,7 @@ export default function ModalsManager({
   establishmentToEdit,
   deleteTarget,
   successMessage,
+  allServices,
   onCloseService,
   onCloseProfessional,
   onCloseEstablishment,
@@ -89,6 +85,7 @@ export default function ModalsManager({
         onClose={onCloseProfessional}
         onSave={onSaveProfessional}
         professional={selectedProfessional}
+        allServices={allServices}
       />
       <EditEstablishmentModal
         isOpen={isEstablishmentOpen}
@@ -100,8 +97,7 @@ export default function ModalsManager({
         isOpen={isAvailabilityOpen}
         onClose={onCloseAvailability}
         onSave={onSaveAvailability}
-        establishmentId={establishmentToEdit?.id || ""}
-        availability={null} // Esta parte pode ser aprimorada no futuro
+        professional={selectedProfessional}
       />
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
@@ -110,7 +106,7 @@ export default function ModalsManager({
         title={`Excluir ${
           deleteTarget?.type === "service" ? "Serviço" : "Profissional"
         }`}
-        message={`Tem certeza que deseja excluir "${deleteTarget?.name}"? Esta ação não pode ser desfeita.`}
+        message={`Tem certeza que deseja excluir "${deleteTarget?.name}"?`}
       />
       <SuccessModal
         isOpen={isSuccessOpen}

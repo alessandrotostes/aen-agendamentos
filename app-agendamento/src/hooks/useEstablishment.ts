@@ -69,7 +69,7 @@ export function useEstablishment() {
         storage,
         `establishments/${userData.uid}/logo/${imageFile.name}`
       );
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, imageFile);
       dataToUpdate.imageURL = await getDownloadURL(storageRef);
     }
 

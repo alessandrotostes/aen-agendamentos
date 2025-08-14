@@ -126,16 +126,16 @@ const AppointmentCard = ({
 };
 
 export default function ClientView({ onNavigateToSearch }: ClientViewProps) {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!currentUser) return;
     const q = query(
       collection(db, "appointments"),
-      where("clientId", "==", user.uid)
+      where("clientId", "==", currentUser.uid)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const apps = snapshot.docs.map(
@@ -162,7 +162,7 @@ export default function ClientView({ onNavigateToSearch }: ClientViewProps) {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [currentUser]);
 
   const upcomingAppointments = appointments.filter(
     (app) => app.status === "confirmado" && app.dateTime.toDate() >= new Date()

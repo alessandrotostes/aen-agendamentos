@@ -18,8 +18,9 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Service, Professional, Appointment } from "@/types";
+import SuccessModal from "../../shared/modals/SuccessModal";
 
-type PendingAppointment = {
+interface PendingAppointment {
   establishmentId: string;
   serviceId: string;
   serviceName: string;
@@ -28,8 +29,7 @@ type PendingAppointment = {
   professionalId: string;
   professionalName: string;
   bookingTimestamp: string;
-};
-import SuccessModal from "../../shared/modals/SuccessModal";
+}
 
 interface SchedulingModalProps {
   isOpen: boolean;
@@ -113,6 +113,7 @@ export default function SchedulingModal({
       dayKeyMap[format(selectedDate, "eeee", { locale: ptBR }).toLowerCase()];
     const workingHours = professional.availability[dayOfWeek];
     if (!workingHours) return [];
+
     const slotsInMinutes = [];
     const startInMinutes =
       parseInt(workingHours.start.split(":")[0]) * 60 +
@@ -124,11 +125,13 @@ export default function SchedulingModal({
     const startOfBookingWindow = isToday(selectedDate)
       ? now.getHours() * 60 + now.getMinutes()
       : 0;
+
     for (let t = startInMinutes; t < endInMinutes; t += 15) {
       if (t >= startOfBookingWindow) {
         slotsInMinutes.push(t);
       }
     }
+
     const bookedIntervals = todaysAppointments.map((app) => {
       const bookedDate = app.dateTime.toDate();
       const start = bookedDate.getHours() * 60 + bookedDate.getMinutes();
@@ -143,6 +146,7 @@ export default function SchedulingModal({
       );
       return !hasConflict;
     });
+
     return availableSlots.map((minutesTotal) => {
       const hours = Math.floor(minutesTotal / 60);
       const minutes = minutesTotal % 60;
@@ -172,6 +176,7 @@ export default function SchedulingModal({
     const finalBookingDate = new Date(selectedDate);
     const [hours, minutes] = selectedTime.split(":");
     finalBookingDate.setHours(Number(hours), Number(minutes), 0, 0);
+
     const pendingAppointment: PendingAppointment = {
       establishmentId,
       serviceId: service.id,
@@ -238,42 +243,48 @@ export default function SchedulingModal({
                           1. Escolha o profissional
                         </h4>
                         <div className="mt-2 space-y-2 max-h-40 overflow-y-auto pr-2">
-                          {availableProfessionals.map((prof) => (
-                            <button
-                              key={prof.id}
-                              onClick={() => {
-                                setSelectedProfessionalId(prof.id);
-                                setSelectedDate(undefined);
-                                setSelectedTime(null);
-                              }}
-                              className={`w-full flex items-center space-x-4 p-3 rounded-lg border-2 transition-all ${
-                                selectedProfessionalId === prof.id
-                                  ? "border-teal-500 bg-teal-50"
-                                  : "border-gray-200 hover:border-teal-400"
-                              }`}
-                            >
-                              <>
-                                {prof.photoURL ? (
-                                  <Image
-                                    src={prof.photoURL}
-                                    alt={prof.name}
-                                    width={40}
-                                    height={40}
-                                    className="w-10 h-10 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center shrink-0">
-                                    <span className="text-lg font-bold text-white">
-                                      {prof.name.charAt(0)}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                              <p className="font-bold text-gray-800 text-md">
-                                {prof.name}
-                              </p>
-                            </button>
-                          ))}
+                          {availableProfessionals.length > 0 ? (
+                            availableProfessionals.map((prof) => (
+                              <button
+                                key={prof.id}
+                                onClick={() => {
+                                  setSelectedProfessionalId(prof.id);
+                                  setSelectedDate(undefined);
+                                  setSelectedTime(null);
+                                }}
+                                className={`w-full flex items-center space-x-4 p-3 rounded-lg border-2 transition-all ${
+                                  selectedProfessionalId === prof.id
+                                    ? "border-teal-500 bg-teal-50"
+                                    : "border-gray-200 hover:border-teal-400"
+                                }`}
+                              >
+                                <>
+                                  {prof.photoURL ? (
+                                    <Image
+                                      src={prof.photoURL}
+                                      alt={prof.name}
+                                      width={40}
+                                      height={40}
+                                      className="w-10 h-10 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center shrink-0">
+                                      <span className="text-lg font-bold text-white">
+                                        {prof.name.charAt(0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                                <p className="font-bold text-gray-800 text-md">
+                                  {prof.name}
+                                </p>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="text-gray-500 p-2">
+                              Nenhum profissional disponível para este serviço.
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div>

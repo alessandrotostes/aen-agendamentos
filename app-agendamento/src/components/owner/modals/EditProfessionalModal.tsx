@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import Image from "next/image";
-// CORREÇÃO: Caminho de importação ajustado
-import { Professional, CreateProfessionalData } from "../../../types";
+import { Dialog, Transition } from "@headlessui/react";
+import { Professional, CreateProfessionalData, Service } from "../../../types";
 
 interface EditProfessionalModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreateProfessionalData) => Promise<void>;
   professional?: Professional | null;
+  allServices: Service[];
 }
 
 interface FormErrors {
@@ -21,18 +22,18 @@ export default function EditProfessionalModal({
   onClose,
   onSave,
   professional,
+  allServices,
 }: EditProfessionalModalProps) {
   const isEdit = !!professional;
   const [formData, setFormData] = useState<CreateProfessionalData>({
     name: "",
     photoURL: "",
     bio: "",
-    specialties: [],
+    serviceIds: [],
     imageFile: null,
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
-  const [specialtyInput, setSpecialtyInput] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -41,7 +42,7 @@ export default function EditProfessionalModal({
           name: professional.name,
           photoURL: professional.photoURL || "",
           bio: professional.bio || "",
-          specialties: professional.specialties || [],
+          serviceIds: professional.serviceIds || [],
           imageFile: null,
         });
       } else {
@@ -49,12 +50,11 @@ export default function EditProfessionalModal({
           name: "",
           photoURL: "",
           bio: "",
-          specialties: [],
+          serviceIds: [],
           imageFile: null,
         });
       }
       setErrors({});
-      setSpecialtyInput("");
     }
   }, [isOpen, professional]);
 
@@ -68,159 +68,194 @@ export default function EditProfessionalModal({
       setFormData((prev) => ({ ...prev, imageFile: e.target.files![0] }));
     }
   };
-  const addSpecialty = () => {
-    const specialty = specialtyInput.trim();
-    if (specialty && !formData.specialties?.includes(specialty)) {
-      setFormData((prev) => ({
-        ...prev,
-        specialties: [...(prev.specialties || []), specialty],
-      }));
-      setSpecialtyInput("");
-    }
+
+  const handleServiceSelection = (serviceId: string) => {
+    setFormData((prev) => {
+      const newServiceIds = prev.serviceIds.includes(serviceId)
+        ? prev.serviceIds.filter((id) => id !== serviceId)
+        : [...prev.serviceIds, serviceId];
+      return { ...prev, serviceIds: newServiceIds };
+    });
   };
-  const removeSpecialty = (specialtyToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      specialties:
-        prev.specialties?.filter((s) => s !== specialtyToRemove) || [],
-    }));
-  };
-  const handleSpecialtyKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addSpecialty();
-    }
-  };
-  const validateForm = () => {
-    /* ... */ return true;
-  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
     setLoading(true);
-    await onSave(formData);
-    setLoading(false);
+    try {
+      await onSave(formData);
+    } catch (error) {
+      console.error("Erro ao salvar profissional:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {isEdit ? "Editar Profissional" : "Novo Profissional"}
-          </h3>
-          <button onClick={onClose} disabled={loading}>
-            <svg />
-          </button>
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-50" />
+        </Transition.Child>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Title
+                  as="h3"
+                  className="text-lg font-bold leading-6 text-gray-900"
+                >
+                  {isEdit ? "Editar Profissional" : "Novo Profissional"}
+                </Dialog.Title>
+                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Nome Completo *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      className={`w-full px-3 py-2 border rounded-lg shadow-sm ${
+                        errors.name ? "border-red-300" : "border-gray-300"
+                      }`}
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="imageFile"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Foto
+                    </label>
+                    <input
+                      type="file"
+                      id="imageFile"
+                      name="imageFile"
+                      onChange={handleFileChange}
+                      disabled={loading}
+                      accept="image/png, image/jpeg"
+                      className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-teal-50 file:text-teal-700"
+                    />
+                    {(formData.imageFile || formData.photoURL) && (
+                      <div className="mt-2">
+                        <Image
+                          src={
+                            formData.imageFile
+                              ? URL.createObjectURL(formData.imageFile)
+                              : formData.photoURL!
+                          }
+                          alt="Preview"
+                          width={60}
+                          height={60}
+                          className="rounded-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="bio"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Biografia
+                    </label>
+                    <textarea
+                      id="bio"
+                      name="bio"
+                      value={formData.bio}
+                      onChange={handleChange}
+                      disabled={loading}
+                      rows={3}
+                      className="w-full px-3 py-2 border rounded-lg shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Serviços que realiza
+                    </label>
+                    <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                      {allServices.length > 0 ? (
+                        allServices.map((service) => (
+                          <div key={service.id} className="flex items-center">
+                            <input
+                              id={`service-${service.id}`}
+                              type="checkbox"
+                              checked={formData.serviceIds.includes(service.id)}
+                              onChange={() =>
+                                handleServiceSelection(service.id)
+                              }
+                              className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+                            />
+                            <label
+                              htmlFor={`service-${service.id}`}
+                              className="ml-3 block text-sm text-gray-800"
+                            >
+                              {service.name}
+                            </label>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          Nenhum serviço cadastrado. Adicione na aba
+                          &quot;Serviços&quot;.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      disabled={loading}
+                      className="px-4 py-2 border rounded-lg"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
+                    >
+                      {loading
+                        ? "Salvando..."
+                        : isEdit
+                        ? "Salvar Alterações"
+                        : "Criar Profissional"}
+                    </button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label htmlFor="name">Nome Completo *</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              disabled={loading}
-              className={`w-full ... ${
-                errors.name ? "border-red-300" : "border-gray-300"
-              }`}
-            />
-            {errors.name && (
-              <p className="mt-1 text-xs text-red-600">{errors.name}</p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="imageFile">Foto</label>
-            <input
-              type="file"
-              id="imageFile"
-              name="imageFile"
-              onChange={handleFileChange}
-              disabled={loading}
-              accept="image/png, image/jpeg"
-            />
-            {(formData.imageFile || formData.photoURL) && (
-              <div className="mt-2">
-                <Image
-                  src={
-                    formData.imageFile
-                      ? URL.createObjectURL(formData.imageFile)
-                      : formData.photoURL!
-                  }
-                  alt="Preview"
-                  width={60}
-                  height={60}
-                  className="rounded-full object-cover"
-                />
-              </div>
-            )}
-          </div>
-          <div>
-            <label htmlFor="bio">Biografia</label>
-            <textarea
-              id="bio"
-              name="bio"
-              value={formData.bio || ""}
-              onChange={handleChange}
-              disabled={loading}
-              rows={3}
-            />
-          </div>
-          <div>
-            <label>Especialidades</label>
-            <div className="flex space-x-2 mb-2">
-              <input
-                type="text"
-                value={specialtyInput}
-                onChange={(e) => setSpecialtyInput(e.target.value)}
-                onKeyPress={handleSpecialtyKeyPress}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={addSpecialty}
-                disabled={loading || !specialtyInput.trim()}
-              >
-                +
-              </button>
-            </div>
-            {formData.specialties && formData.specialties.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.specialties.map(
-                  (specialty: string, index: number) => (
-                    <span key={index} className="inline-flex items-center ...">
-                      {specialty}
-                      <button
-                        type="button"
-                        onClick={() => removeSpecialty(specialty)}
-                        disabled={loading}
-                      >
-                        <svg />
-                      </button>
-                    </span>
-                  )
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <button type="button" onClick={onClose} disabled={loading}>
-              Cancelar
-            </button>
-            <button type="submit" disabled={loading}>
-              {loading
-                ? "Salvando..."
-                : isEdit
-                ? "Salvar Alterações"
-                : "Criar Profissional"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   );
 }

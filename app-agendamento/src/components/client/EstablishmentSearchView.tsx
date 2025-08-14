@@ -107,7 +107,7 @@ const SalonCard = ({
       </p>
       <div className="mt-4 pt-4 border-t flex justify-between items-center">
         <span className="text-sm text-gray-700 font-medium">
-          {salon.mainService || "Diversos Serviços"}
+          {"Diversos Serviços"}
         </span>
         <Link
           href={`/client/salon/${salon.id}`}
