@@ -1,161 +1,150 @@
 "use client";
 
 import React from "react";
-import type { Establishment, Availability } from "../../types";
+import { Building, CreditCard, Clock, RefreshCw } from "lucide-react";
 
-// CORREÇÃO: A interface de StripeData foi alinhada com o OwnerView
 interface StripeData {
   hasStripeAccount: boolean;
   isStripeOnboarded: boolean;
   loading: boolean;
-  error: string | null;
   createConnectedAccount: () => Promise<void>;
   createAccountLink: () => Promise<void>;
+  error: string | null; // <-- Propriedade 'error' adicionada aqui
 }
 
 interface Props {
-  establishment: Establishment | null;
+  // establishment foi removido, pois não estava a ser usado.
   stripeData: StripeData;
   onEditEstablishment: () => void;
-  onEditAvailability: () => void;
+  onManageOperatingHours: () => void;
+  onRefreshStripeStatus: () => void;
 }
 
 export default function SettingsTab({
-  establishment,
   stripeData,
   onEditEstablishment,
-  onEditAvailability,
+  onManageOperatingHours,
+  onRefreshStripeStatus,
 }: Props) {
-  const renderSchedule = (availability: Availability | undefined) => {
-    if (!availability || Object.keys(availability).length === 0) {
-      return (
-        <p className="text-sm text-gray-500">
-          Nenhum horário de funcionamento definido.
-        </p>
-      );
-    }
-    const daysOrder = [
-      "segunda",
-      "terca",
-      "quarta",
-      "quinta",
-      "sexta",
-      "sabado",
-      "domingo",
-    ];
-    const dayLabels: { [key: string]: string } = {
-      segunda: "Segunda-feira",
-      terca: "Terça-feira",
-      quarta: "Quarta-feira",
-      quinta: "Quinta-feira",
-      sexta: "Sexta-feira",
-      sabado: "Sábado",
-      domingo: "Domingo",
-    };
-    return (
-      <div className="space-y-1">
-        {daysOrder.map((dayKey) => {
-          const schedule = availability[dayKey];
-          return (
-            <div key={dayKey} className="flex justify-between text-sm">
-              <span className="capitalize text-gray-700">
-                {dayLabels[dayKey]}:
-              </span>
-              <span className="font-medium text-gray-900">
-                {schedule ? `${schedule.start} - ${schedule.end}` : "Fechado"}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-8">
-      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">
-            Perfil do Estabelecimento
-          </h3>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+            <span className="text-4xl mr-3">⚙️</span>
+            Configurações
+          </h2>
+          <p className="text-teal-600 mt-1">
+            Gerencie as informações do seu negócio e pagamentos.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card de Informações do Estabelecimento */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border">
+          <div className="flex items-center gap-3">
+            <Building className="w-6 h-6 text-teal-600" />
+            <h3 className="text-lg font-bold text-slate-900">
+              Informações Gerais
+            </h3>
+          </div>
+          <p className="text-sm text-slate-500 mt-2">
+            Edite o nome, endereço e outras informações do seu estabelecimento.
+          </p>
           <button
             onClick={onEditEstablishment}
-            className="text-sm font-medium text-teal-600 hover:text-teal-800"
+            className="mt-4 w-full px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg"
           >
-            Editar Perfil
+            Editar Informações
           </button>
         </div>
-        <div className="space-y-2 border-t pt-4 text-gray-700">
-          <p>
-            <strong>Nome:</strong> {establishment?.name || "Não informado"}
+
+        {/* Card de Horário de Funcionamento */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border">
+          <div className="flex items-center gap-3">
+            <Clock className="w-6 h-6 text-teal-600" />
+            <h3 className="text-lg font-bold text-slate-900">
+              Horário de Funcionamento
+            </h3>
+          </div>
+          <p className="text-sm text-slate-500 mt-2">
+            Defina os horários em que seu estabelecimento está aberto para os
+            clientes.
           </p>
-          <p>
-            <strong>Endereço:</strong>{" "}
-            {establishment?.address || "Não informado"}
-          </p>
-          <p>
-            <strong>Telefone:</strong> {establishment?.phone || "Não informado"}
-          </p>
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">
-            Horários de Funcionamento
-          </h3>
           <button
-            onClick={onEditAvailability}
-            className="text-sm font-medium text-teal-600 hover:text-teal-800"
+            onClick={onManageOperatingHours}
+            className="mt-4 w-full px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg"
           >
-            Editar Horários
+            Gerir Horários
           </button>
         </div>
-        <div className="border-t pt-4">
-          {renderSchedule(establishment?.availability)}
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-        <h3 className="text-xl font-semibold mb-4 flex items-center">
-          <span className="text-indigo-600 mr-2">💳</span> Pagamentos Online
-        </h3>
-        <div className="border-t pt-4">
-          {stripeData.error && (
-            <div className="p-3 bg-red-50 text-red-700 rounded mb-4">
-              {stripeData.error}
-            </div>
-          )}
-          {stripeData.hasStripeAccount ? (
-            <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="font-semibold text-green-800">
-                ✅ Conta Stripe Conectada
-              </p>
-              {!stripeData.isStripeOnboarded && (
-                <p className="text-sm text-green-700 mt-1">
-                  Complete a configuração para receber pagamentos.
+
+        {/* Card de Configurações de Pagamento (Stripe) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border md:col-span-2">
+          <div className="flex items-center gap-3">
+            <CreditCard className="w-6 h-6 text-teal-600" />
+            <h3 className="text-lg font-bold text-slate-900">
+              Configuração de Pagamentos
+            </h3>
+          </div>
+          <div className="mt-4">
+            {stripeData.loading ? (
+              <p className="text-slate-500">A verificar status da conta...</p>
+            ) : stripeData.hasStripeAccount ? (
+              stripeData.isStripeOnboarded ? (
+                <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
+                  <p className="font-semibold">
+                    ✅ Sua conta de pagamentos está ativa.
+                  </p>
+                  <p className="text-sm">
+                    Você está pronto para receber pagamentos online.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center p-4 bg-amber-50 rounded-lg">
+                  <p className="text-amber-700 font-semibold mb-2">
+                    Sua conta precisa de mais informações.
+                  </p>
+                  <p className="text-sm text-amber-600 mb-4">
+                    Complete o cadastro no Stripe para começar a receber
+                    pagamentos.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      onClick={stripeData.createAccountLink}
+                      className="px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg"
+                    >
+                      Completar Configuração
+                    </button>
+                    <button
+                      onClick={onRefreshStripeStatus}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Verificar Status
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : (
+              <div>
+                <p className="text-slate-500 mb-4">
+                  Conecte com o Stripe para receber pagamentos online dos seus
+                  clientes de forma segura.
                 </p>
-              )}
-              <button
-                onClick={stripeData.createAccountLink}
-                disabled={stripeData.loading}
-                className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700"
-              >
-                {stripeData.loading ? "Gerando..." : "Painel de Pagamentos"}
-              </button>
-            </div>
-          ) : (
-            <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="font-semibold text-blue-800">
-                Conecte-se ao Stripe para receber pagamentos
-              </p>
-              <button
-                onClick={stripeData.createConnectedAccount}
-                disabled={stripeData.loading}
-                className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700"
-              >
-                {stripeData.loading ? "Conectando..." : "Conectar com Stripe"}
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={stripeData.createConnectedAccount}
+                  className="w-full px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg"
+                >
+                  Conectar com Stripe
+                </button>
+              </div>
+            )}
+            {stripeData.error && (
+              <p className="text-red-500 text-sm mt-2">{stripeData.error}</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -10,6 +10,26 @@ export interface AuthUser {
 }
 
 // ESTABLISHMENT & RELATED
+
+// Define a estrutura para um único intervalo de tempo
+type TimeSlotType = {
+  start: string;
+  end: string;
+};
+
+// --- TIPO CORRIGIDO ---
+// Define a estrutura para o objeto completo de horários de funcionamento
+export type OperatingHours = {
+  [key: string]: TimeSlotType | null | undefined; // <-- Adicionamos '| undefined' aqui para alinhar com as props opcionais
+  segunda?: TimeSlotType | null;
+  terca?: TimeSlotType | null;
+  quarta?: TimeSlotType | null;
+  quinta?: TimeSlotType | null;
+  sexta?: TimeSlotType | null;
+  sabado?: TimeSlotType | null;
+  domingo?: TimeSlotType | null;
+};
+
 export interface Establishment {
   id: string;
   ownerId: string;
@@ -22,7 +42,8 @@ export interface Establishment {
   rating?: number;
   stripeAccountId?: string;
   stripeAccountOnboarded?: boolean;
-  availability?: Availability; // <-- ADICIONE ESTA LINHA
+  availability?: Availability;
+  operatingHours?: OperatingHours;
 }
 
 export interface Service {
@@ -32,6 +53,7 @@ export interface Service {
   description?: string;
   price: number;
   duration: number; // em minutos
+  category?: string;
 }
 
 export interface Professional {
@@ -67,13 +89,16 @@ export interface CreateServiceData {
   description: string;
   price: number;
   duration: number;
+  category?: string;
 }
 
 export interface CreateProfessionalData {
   name: string;
-  photoURL: string;
-  bio: string;
+  email: string;
+  phone: string;
   serviceIds: string[];
+  photoURL?: string;
+  availability?: Availability;
   imageFile?: File | null;
 }
 
@@ -86,6 +111,7 @@ export interface UpdateEstablishmentData {
   mainService: string;
   imageFile?: File | null;
   availability?: Availability;
+  operatingHours?: OperatingHours;
 }
 
 export interface PendingAppointment {
@@ -108,7 +134,7 @@ export interface AvailabilityData {
   minimumNoticeHours: number;
 }
 
-// CLOUD FUNCTIONS TYPES (Estava faltando)
+// CLOUD FUNCTIONS TYPES
 export interface CreateConnectedAccountResult {
   success: boolean;
   accountId: string;

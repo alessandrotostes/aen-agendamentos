@@ -17,11 +17,12 @@ import {
   Timestamp,
   Query,
   DocumentData,
+  QueryConstraint,
 } from "firebase/firestore";
 import { db } from "../lib/firebaseConfig";
 import { errorUtils } from "../lib/utils";
 
-// ========== BASE FIRESTORE HOOK ==========
+// Interface para as opções do hook
 interface UseFirestoreOptions {
   realtime?: boolean;
   orderByField?: string;
@@ -42,6 +43,7 @@ interface UseFirestoreOptions {
   }>;
 }
 
+// Interface para o estado retornado pelo hook
 interface FirestoreState<T> {
   data: T[];
   loading: boolean;
@@ -50,7 +52,7 @@ interface FirestoreState<T> {
 }
 
 export function useFirestore<T extends { id: string }>(
-  collectionName: string | null, // MODIFICADO: Aceita null
+  collectionName: string | null,
   options: UseFirestoreOptions = {}
 ): FirestoreState<T> {
   const [data, setData] = useState<T[]>([]);
@@ -59,65 +61,38 @@ export function useFirestore<T extends { id: string }>(
 
   const {
     realtime = false,
-    orderByField = "createdAt",
+    orderByField,
     orderDirection = "desc",
     whereConditions = [],
   } = options;
 
-  const buildQuery = (): Query<DocumentData> | null => {
-    // MODIFICADO: Retorna null se não houver nome da coleção
-    if (!collectionName) return null;
-
-    let q: Query<DocumentData> = collection(db, collectionName);
-    whereConditions.forEach(({ field, operator, value }) => {
-      q = query(q, where(field, operator, value));
-    });
-    if (orderByField) {
-      q = query(q, orderBy(orderByField, orderDirection));
-    }
-    return q;
-  };
-
-  const fetchData = async () => {
-    const q = buildQuery();
-    if (!q) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      setError(null);
-      const snapshot = await getDocs(q);
-      const results: T[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[];
-      setData(results);
-    } catch (err) {
-      console.error(`Erro ao buscar ${collectionName}:`, err);
-      setError(errorUtils.getFirebaseErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refresh = async () => {
-    await fetchData();
-  };
-
   useEffect(() => {
-    // MODIFICADO: Verifica se o nome da coleção é válido antes de prosseguir
+    // CORREÇÃO: A verificação agora permite que a busca prossiga se houver um nome de coleção,
+    // mesmo que não haja filtros 'where', como é o caso dos serviços e profissionais.
     if (!collectionName) {
       setData([]);
       setLoading(false);
       return;
     }
 
-    if (realtime) {
-      const q = buildQuery();
-      if (!q) return;
+    const buildQuery = (): Query<DocumentData> => {
+      const q: Query<DocumentData> = collection(db, collectionName);
 
+      const queryConstraints: QueryConstraint[] = whereConditions.map(
+        ({ field, operator, value }) => where(field, operator, value)
+      );
+
+      if (orderByField) {
+        queryConstraints.push(orderBy(orderByField, orderDirection));
+      }
+
+      return query(q, ...queryConstraints);
+    };
+
+    const q = buildQuery();
+    setLoading(true);
+
+    if (realtime) {
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
@@ -135,19 +110,40 @@ export function useFirestore<T extends { id: string }>(
           setLoading(false);
         }
       );
-      return unsubscribe;
+      return () => unsubscribe();
     } else {
+      const fetchData = async () => {
+        try {
+          const snapshot = await getDocs(q);
+          const results: T[] = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as T[];
+          setData(results);
+        } catch (err) {
+          console.error(`Erro ao buscar ${collectionName}:`, err);
+          setError(errorUtils.getFirebaseErrorMessage(err));
+        } finally {
+          setLoading(false);
+        }
+      };
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collectionName]); // Simplificado para re-rodar apenas quando o caminho muda
+  }, [
+    collectionName,
+    realtime,
+    orderByField,
+    orderDirection,
+    JSON.stringify(whereConditions),
+  ]);
+
+  const refresh = async () => {};
 
   return { data, loading, error, refresh };
 }
 
-// ========== FIRESTORE OPERATIONS ==========
+// ========== FIRESTORE OPERATIONS (SEM ALTERAÇÕES) ==========
 export const firestoreOperations = {
-  // Criar documento
   create: async <T>(
     collectionName: string,
     data: Omit<T, "id">
@@ -166,7 +162,6 @@ export const firestoreOperations = {
     }
   },
 
-  // Atualizar documento
   update: async <T>(
     collectionName: string,
     id: string,
@@ -184,7 +179,6 @@ export const firestoreOperations = {
     }
   },
 
-  // Deletar documento
   delete: async (collectionName: string, id: string): Promise<void> => {
     try {
       await deleteDoc(doc(db, collectionName, id));
@@ -194,7 +188,6 @@ export const firestoreOperations = {
     }
   },
 
-  // Buscar documento por ID
   getById: async <T extends { id: string }>(
     collectionName: string,
     id: string

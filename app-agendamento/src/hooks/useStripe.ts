@@ -1,25 +1,29 @@
 "use client";
 
-import { useState, useCallback } from "react"; // Adicionado useCallback
+import { useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../lib/firebaseConfig"; // Removido 'auth' pois usaremos o hook
-import {
-  CreateConnectedAccountResult,
-  CreateAccountLinkResult,
-  PendingAppointment,
-} from "../types";
+import { functions } from "../lib/firebaseConfig";
+import { CreateAccountLinkResult, PendingAppointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
-import { errorUtils } from "../lib/utils"; // Removido currencyUtils se não for usado aqui
+import { errorUtils } from "../lib/utils";
 
-// ========== STRIPE ACCOUNT HOOK ==========
+// Interface para o novo resultado da função combinada do backend
+interface CreateAccountAndLinkResult {
+  success: boolean;
+  url?: string;
+  accountId?: string;
+}
+
+// ========== STRIPE ACCOUNT HOOK (VERSÃO CORRIGIDA) ==========
 export function useStripeAccount() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
 
-  // Função genérica para chamar uma Cloud Function, evitando repetição de código.
-  const callStripeFunction = useCallback(
-    async <T>(functionName: string): Promise<T | null> => {
+  // --- FUNÇÃO ALTERADA ---
+  // Agora ela chama a função combinada e espera uma URL de volta.
+  const createConnectedAccount =
+    async (): Promise<CreateAccountAndLinkResult | null> => {
       if (!currentUser) {
         const authError = "Usuário não autenticado.";
         setError(authError);
@@ -30,45 +34,53 @@ export function useStripeAccount() {
       setError(null);
 
       try {
-        const callableFunction = httpsCallable<void, { success: boolean } & T>(
+        const createAccountFn = httpsCallable<void, CreateAccountAndLinkResult>(
           functions,
-          functionName
+          "createconnectedaccount"
         );
-        const result = await callableFunction();
+        const result = await createAccountFn();
+
+        // Retornamos o objeto de dados completo, que agora contém a URL.
         if (result.data.success) {
           return result.data;
         }
-        throw new Error(`Erro ao executar a função: ${functionName}`);
+        throw new Error("Erro ao criar a conta conectada e o link.");
       } catch (err) {
         const errorMessage = errorUtils.getFirebaseErrorMessage(err);
         setError(errorMessage);
-        // Re-lançar o erro permite que o componente que chama o hook também possa tratar o erro se necessário.
         throw new Error(errorMessage);
       } finally {
         setLoading(false);
       }
-    },
-    [currentUser]
-  ); // useCallback memoriza a função para evitar recriações desnecessárias.
+    };
 
-  const createConnectedAccount = async (): Promise<string | null> => {
-    const result = await callStripeFunction<CreateConnectedAccountResult>(
-      "createconnectedaccount"
-    );
-    return result?.accountId ?? null;
-  };
-
+  // Esta função é mantida para o botão "Completar Configuração",
+  // caso o usuário precise de um novo link.
   const createAccountLink = async (): Promise<string | null> => {
-    const result = await callStripeFunction<CreateAccountLinkResult>(
-      "createaccountlink"
-    );
-    return result?.url ?? null;
+    if (!currentUser) throw new Error("Usuário não autenticado");
+    try {
+      setLoading(true);
+      setError(null);
+      const createLinkFn = httpsCallable<void, CreateAccountLinkResult>(
+        functions,
+        "createaccountlink"
+      );
+      const result = await createLinkFn();
+      if (result.data.success) return result.data.url;
+      throw new Error("Erro ao gerar link de configuração");
+    } catch (err) {
+      const errorMessage = errorUtils.getFirebaseErrorMessage(err);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return { loading, error, createConnectedAccount, createAccountLink };
 }
 
-// ========== STRIPE PAYMENT HOOK ==========
+// ========== STRIPE PAYMENT HOOK (SEM ALTERAÇÕES) ==========
 export interface PaymentData extends PendingAppointment {
   dateTime: Date;
 }
@@ -76,7 +88,7 @@ export interface PaymentData extends PendingAppointment {
 export function useStripePayment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useAuth(); // Usando o hook para consistência
+  const { currentUser } = useAuth();
 
   const processPayment = async (
     paymentMethodId: string,
@@ -93,16 +105,14 @@ export function useStripePayment() {
 
     try {
       const token = await currentUser.getIdToken();
-      console.log("Enviando token:", token);
-      // Padrão de mercado: Enviar o token de autenticação no cabeçalho (Header) da requisição.
+
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // O token vai aqui
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          // O corpo da requisição agora contém apenas os dados da transação.
           paymentMethodId,
           appointmentDetails: {
             ...paymentData,

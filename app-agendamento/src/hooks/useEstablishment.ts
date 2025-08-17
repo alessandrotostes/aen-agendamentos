@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { doc, onSnapshot, collection } from "firebase/firestore";
+import { useState, useEffect, useCallback } from "react";
+import { doc, getDoc, onSnapshot, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../lib/firebaseConfig";
 import {
@@ -16,7 +16,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { firestoreOperations, useFirestore } from "./useFirestore";
 import { errorUtils } from "../lib/utils";
 
-// ========== ESTABLISHMENT HOOK ==========
+// ========== ESTABLISHMENT HOOK (VERSÃO ROBUSTA) ==========
 export function useEstablishment() {
   const { userData } = useAuth();
   const [establishment, setEstablishment] = useState<Establishment | null>(
@@ -25,36 +25,45 @@ export function useEstablishment() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Criamos uma função de busca de dados com useCallback para ser estável
+  const fetchEstablishment = useCallback(async () => {
     if (!userData?.uid || userData.role !== "owner") {
       setEstablishment(null);
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onSnapshot(
-      doc(db, "establishments", userData.uid),
-      (docSnap) => {
-        if (docSnap.exists()) {
-          setEstablishment({
-            id: docSnap.id,
-            ...docSnap.data(),
-          } as Establishment);
-        } else {
-          setEstablishment(null);
-        }
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("Erro ao buscar establishment:", err);
-        setError(errorUtils.getFirebaseErrorMessage(err));
-        setLoading(false);
-      }
-    );
+    console.log("Buscando os dados mais recentes do estabelecimento...");
+    setLoading(true);
+    setError(null);
 
-    return unsubscribe;
+    try {
+      const docRef = doc(db, "establishments", userData.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const establishmentData = {
+          id: docSnap.id,
+          ...docSnap.data(),
+        } as Establishment;
+        setEstablishment(establishmentData);
+        console.log("Dados do estabelecimento atualizados.", establishmentData);
+      } else {
+        setEstablishment(null);
+        console.log("Nenhum documento de estabelecimento encontrado.");
+      }
+    } catch (err) {
+      const errorMessage = errorUtils.getFirebaseErrorMessage(err);
+      setError(errorMessage);
+      console.error("Erro ao buscar estabelecimento:", errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }, [userData?.uid, userData?.role]);
+
+  // useEffect agora apenas chama a nossa função de busca uma vez quando o usuário muda
+  useEffect(() => {
+    fetchEstablishment();
+  }, [fetchEstablishment]);
 
   const updateEstablishment = async (
     data: Partial<UpdateEstablishmentData>
@@ -78,12 +87,21 @@ export function useEstablishment() {
       userData.uid,
       dataToUpdate
     );
+
+    // Após a atualização, buscamos os dados novamente para garantir consistência
+    await fetchEstablishment();
   };
 
-  return { establishment, loading, error, updateEstablishment };
+  return {
+    establishment,
+    loading,
+    error,
+    updateEstablishment,
+    refreshEstablishment: fetchEstablishment, // A função de refresh agora é a própria fetchEstablishment
+  };
 }
 
-// ========== SERVICES HOOK (ATUALIZADO) ==========
+// ========== SERVICES HOOK ==========
 export function useServices(establishmentId?: string) {
   const { userData } = useAuth();
   const ownerId = establishmentId || userData?.uid;
@@ -131,7 +149,7 @@ export function useServices(establishmentId?: string) {
   };
 }
 
-// ========== PROFESSIONALS HOOK (ATUALIZADO) ==========
+// ========== PROFESSIONALS HOOK ==========
 export function useProfessionals(establishmentId?: string) {
   const { userData } = useAuth();
   const ownerId = establishmentId || userData?.uid;

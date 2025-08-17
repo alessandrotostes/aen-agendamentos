@@ -13,7 +13,7 @@ import {
   useServices,
   useProfessionals,
 } from "../../hooks/useEstablishment";
-import { useTodayAppointments } from "../../hooks/useAppointments";
+import { useAppointmentsForDate } from "../../hooks/useAppointments";
 import { useStripeAccount } from "../../hooks/useStripe";
 import type {
   Service,
@@ -22,19 +22,23 @@ import type {
   CreateProfessionalData,
   UpdateEstablishmentData,
   AvailabilityData,
-  Establishment,
   Availability,
+  OperatingHours,
 } from "../../types";
 
 export default function OwnerView() {
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "services" | "professionals" | "settings"
   >("dashboard");
+
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   const [modals, setModals] = useState({
     editService: false,
     editProfessional: false,
     editEstablishment: false,
     editAvailability: false,
+    editOperatingHours: false,
     deleteConfirm: false,
     success: false,
   });
@@ -52,10 +56,11 @@ export default function OwnerView() {
     establishment,
     loading: estLoading,
     updateEstablishment,
+    refreshEstablishment,
   } = useEstablishment();
   const servicesData = useServices();
   const professionalsData = useProfessionals();
-  const todayAppointmentsData = useTodayAppointments();
+  const appointmentsData = useAppointmentsForDate(selectedDate);
   const stripeHook = useStripeAccount();
 
   const handleOnboardingRedirect = async () => {
@@ -189,7 +194,6 @@ export default function OwnerView() {
           scheduleToSave[dayKey] = null;
         }
       });
-
       await professionalsData.updateProfessional(selectedProfessional.id, {
         availability: scheduleToSave,
       });
@@ -199,6 +203,11 @@ export default function OwnerView() {
     } finally {
       closeModal("editAvailability");
     }
+  };
+
+  const handleSaveOperatingHours = async (hours: OperatingHours) => {
+    await updateEstablishment({ operatingHours: hours });
+    showSuccess("Horário de funcionamento atualizado!");
   };
 
   const handleConfirmDelete = async () => {
@@ -261,9 +270,12 @@ export default function OwnerView() {
             stats={{
               services: servicesData.services.length,
               professionals: professionalsData.professionals.length,
-              today: todayAppointmentsData.todayAppointments.length,
+              today: appointmentsData.appointmentsForDate.length,
             }}
-            todayAppointments={todayAppointmentsData.todayAppointments}
+            appointmentsForDate={appointmentsData.appointmentsForDate}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            loading={appointmentsData.loading}
           />
         )}
         {activeTab === "services" && (
@@ -285,10 +297,10 @@ export default function OwnerView() {
         )}
         {activeTab === "settings" && (
           <SettingsTab
-            establishment={establishment}
             stripeData={stripeData}
             onEditEstablishment={() => openModal("editEstablishment")}
-            onEditAvailability={() => openModal("editAvailability")}
+            onManageOperatingHours={() => openModal("editOperatingHours")}
+            onRefreshStripeStatus={refreshEstablishment}
           />
         )}
       </main>
@@ -297,6 +309,7 @@ export default function OwnerView() {
         isProfessionalOpen={modals.editProfessional}
         isEstablishmentOpen={modals.editEstablishment}
         isAvailabilityOpen={modals.editAvailability}
+        isOperatingHoursOpen={modals.editOperatingHours}
         isDeleteConfirmOpen={modals.deleteConfirm}
         isSuccessOpen={modals.success}
         selectedService={selectedService}
@@ -304,11 +317,12 @@ export default function OwnerView() {
         establishmentToEdit={establishment}
         deleteTarget={deleteTarget}
         successMessage={successMessage}
-        allServices={servicesData.services} // <-- ALTERAÇÃO APLICADA AQUI
+        allServices={servicesData.services}
         onCloseService={() => closeModal("editService")}
         onCloseProfessional={() => closeModal("editProfessional")}
         onCloseEstablishment={() => closeModal("editEstablishment")}
         onCloseAvailability={() => closeModal("editAvailability")}
+        onCloseOperatingHours={() => closeModal("editOperatingHours")}
         onCloseDeleteConfirm={() => closeModal("deleteConfirm")}
         onCloseSuccess={() => closeModal("success")}
         onConfirmDelete={handleConfirmDelete}
@@ -316,6 +330,7 @@ export default function OwnerView() {
         onSaveProfessional={handleSaveProfessional}
         onSaveEstablishment={handleSaveEstablishment}
         onSaveAvailability={handleSaveAvailability}
+        onSaveOperatingHours={handleSaveOperatingHours}
       />
     </div>
   );

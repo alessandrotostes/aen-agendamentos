@@ -5,6 +5,7 @@ import EditServiceModal from "./modals/EditServiceModal";
 import EditProfessionalModal from "./modals/EditProfessionalModal";
 import EditEstablishmentModal from "./modals/EditEstablishmentModal";
 import EditAvailabilityModal from "./modals/EditAvailabilityModal";
+import OperatingHoursModal from "./modals/OperatingHoursModal";
 import ConfirmationModal from "../shared/modals/ConfirmationModal";
 import SuccessModal from "../shared/modals/SuccessModal";
 import type {
@@ -15,6 +16,7 @@ import type {
   CreateProfessionalData,
   UpdateEstablishmentData,
   AvailabilityData,
+  OperatingHours,
 } from "../../types";
 
 interface ModalsManagerProps {
@@ -22,6 +24,7 @@ interface ModalsManagerProps {
   isProfessionalOpen: boolean;
   isEstablishmentOpen: boolean;
   isAvailabilityOpen: boolean;
+  isOperatingHoursOpen: boolean;
   isDeleteConfirmOpen: boolean;
   isSuccessOpen: boolean;
   selectedService: Service | null;
@@ -33,11 +36,12 @@ interface ModalsManagerProps {
     name: string;
   } | null;
   successMessage: string;
-  allServices: Service[]; // Nova prop
+  allServices: Service[];
   onCloseService: () => void;
   onCloseProfessional: () => void;
   onCloseEstablishment: () => void;
   onCloseAvailability: () => void;
+  onCloseOperatingHours: () => void;
   onCloseDeleteConfirm: () => void;
   onCloseSuccess: () => void;
   onConfirmDelete: () => Promise<void>;
@@ -45,6 +49,7 @@ interface ModalsManagerProps {
   onSaveProfessional: (data: CreateProfessionalData) => Promise<void>;
   onSaveEstablishment: (data: UpdateEstablishmentData) => Promise<void>;
   onSaveAvailability: (data: AvailabilityData) => Promise<void>;
+  onSaveOperatingHours: (hours: OperatingHours) => Promise<void>;
 }
 
 export default function ModalsManager({
@@ -52,6 +57,7 @@ export default function ModalsManager({
   isProfessionalOpen,
   isEstablishmentOpen,
   isAvailabilityOpen,
+  isOperatingHoursOpen,
   isDeleteConfirmOpen,
   isSuccessOpen,
   selectedService,
@@ -64,6 +70,7 @@ export default function ModalsManager({
   onCloseProfessional,
   onCloseEstablishment,
   onCloseAvailability,
+  onCloseOperatingHours,
   onCloseDeleteConfirm,
   onCloseSuccess,
   onConfirmDelete,
@@ -71,6 +78,7 @@ export default function ModalsManager({
   onSaveProfessional,
   onSaveEstablishment,
   onSaveAvailability,
+  onSaveOperatingHours,
 }: ModalsManagerProps) {
   return (
     <>
@@ -98,6 +106,12 @@ export default function ModalsManager({
         onClose={onCloseAvailability}
         onSave={onSaveAvailability}
         professional={selectedProfessional}
+      />
+      <OperatingHoursModal
+        isOpen={isOperatingHoursOpen}
+        onClose={onCloseOperatingHours}
+        onSave={onSaveOperatingHours}
+        establishment={establishmentToEdit}
       />
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}

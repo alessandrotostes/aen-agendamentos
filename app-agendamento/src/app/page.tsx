@@ -21,9 +21,9 @@ export default function HomePage() {
 
       {/* Conteúdo principal */}
       <div className="relative z-10 max-w-md w-full text-center p-8 bg-white/80 backdrop-blur-md rounded-xl shadow-lg">
-        <h1 className="text-4xl font-extrabold text-teal-600 mb-4">S&B</h1>
+        <h1 className="text-4xl font-extrabold text-teal-600 mb-4">A&N</h1>
         <p className="text-lg text-gray-800 mb-8 font-medium">
-          Bem-vindo ao Sistema de Agendamento de Salões & Barbearias
+          Bem-vindo ao Sistema de Agendamento <strong>A&N</strong>
         </p>
         <div className="space-y-4">
           <Link
