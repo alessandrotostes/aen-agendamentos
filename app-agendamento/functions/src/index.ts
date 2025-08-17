@@ -13,6 +13,7 @@ admin.initializeApp();
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
+// Opções globais agora apenas definem a região. Segredos são definidos por função.
 setGlobalOptions({
   region: "southamerica-east1",
 });
@@ -54,6 +55,9 @@ export const createpaymentintent = onRequest(
           .collection("establishments")
           .doc(appointmentDetails.establishmentId)
           .get();
+        if (!establishmentDoc.exists) {
+          throw new Error("Estabelecimento não encontrado.");
+        }
         const stripeAccountId = establishmentDoc.data()?.stripeAccountId;
 
         if (!stripeAccountId) {
@@ -119,12 +123,10 @@ export const createpaymentintent = onRequest(
           errorCode: error.code,
           errorMessage: error.message,
         });
-        response
-          .status(500)
-          .send({
-            error: "Erro interno na Cloud Function.",
-            details: error.message,
-          });
+        response.status(500).send({
+          error: "Erro interno na Cloud Function.",
+          details: error.message,
+        });
       }
     });
   }
@@ -137,16 +139,48 @@ export const createconnectedaccount = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Você precisa estar logado.");
     }
+
     initializeStripe();
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
-    if (userDoc.data()?.role !== "owner") {
+    const userDocRef = admin.firestore().collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists || userDoc.data()?.role !== "owner") {
       throw new HttpsError(
         "permission-denied",
         "Apenas proprietários podem criar contas."
       );
+    }
+
+    const establishmentRef = admin
+      .firestore()
+      .collection("establishments")
+      .doc(uid);
+    const establishmentDoc = await establishmentRef.get();
+
+    if (!establishmentDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Documento de estabelecimento não encontrado."
+      );
+    }
+
+    const existingAccountId = establishmentDoc.data()?.stripeAccountId;
+    if (existingAccountId) {
+      try {
+        const account = await stripe.accounts.retrieve(existingAccountId);
+        console.log(
+          `Conta Stripe ${account.id} já existe e é válida. Reutilizando.`
+        );
+        return { success: true, accountId: account.id };
+      } catch (error) {
+        console.warn(
+          "ID da conta Stripe existente no Firestore era inválido. A criar uma nova conta.",
+          error
+        );
+      }
     }
 
     try {
@@ -160,14 +194,14 @@ export const createconnectedaccount = onCall(
         },
       });
 
-      await admin.firestore().collection("establishments").doc(uid).update({
+      await establishmentRef.update({
         stripeAccountId: account.id,
-        stripeAccountOnboarded: false, // Inicia como 'false'
+        stripeAccountOnboarded: false,
       });
-
       console.log(
-        `Nova conta ${account.id} criada para o estabelecimento ${uid}.`
+        `Nova conta ${account.id} criada e salva para o estabelecimento ${uid}.`
       );
+
       return { success: true, accountId: account.id };
     } catch (error: any) {
       console.error("Erro ao criar conta conectada no Stripe:", error);
@@ -195,6 +229,12 @@ export const createaccountlink = onCall(
       .collection("establishments")
       .doc(uid)
       .get();
+    if (!establishmentDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Documento de estabelecimento não encontrado."
+      );
+    }
     const stripeAccountId = establishmentDoc.data()?.stripeAccountId;
 
     if (!stripeAccountId) {
@@ -211,6 +251,7 @@ export const createaccountlink = onCall(
         return_url: "http://localhost:3000/owner",
         type: "account_onboarding",
       });
+
       return { success: true, url: accountLink.url };
     } catch (error: any) {
       console.error("Erro ao criar link de conta:", error);
@@ -230,7 +271,9 @@ export const stripewebhook = onRequest(
     const webhookSecret = stripeWebhookSecret.value();
 
     if (!webhookSecret) {
-      console.error("Erro Crítico: Segredo do Webhook não foi encontrado!");
+      console.error(
+        "Erro Crítico: Segredo do Webhook (STRIPE_WEBHOOK_SECRET) não foi encontrado!"
+      );
       response.status(500).send("Configuração do servidor incompleta.");
       return;
     }
