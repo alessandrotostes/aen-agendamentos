@@ -63,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // CORREÇÃO 1: A função agora retorna os dados do usuário
   async function fetchUserData(uid: string): Promise<AuthUser | null> {
     const userDocRef = doc(db, "users", uid);
     const userSnap = await getDoc(userDocRef);
@@ -77,10 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: data.createdAt?.toDate() ?? null,
       };
       setUserData(fetchedUser);
-      return fetchedUser; // Retorna os dados buscados
+      return fetchedUser;
     } else {
       setUserData(null);
-      return null; // Retorna null se não encontrar
+      return null;
     }
   }
 
@@ -122,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await setDoc(doc(db, "establishments", uid), {
         ownerId: uid,
-        name, // Usando o nome do proprietário como nome inicial do estabelecimento
+        name,
         email,
         address: "",
         imageURL,
@@ -136,7 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push(role === "owner" ? "/owner" : "/client");
   }
 
-  // CORREÇÃO 2: A função login agora usa o retorno de fetchUserData
   async function login(email: string, password: string) {
     setLoading(true);
     try {
@@ -145,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password
       );
-      const fetchedData = await fetchUserData(userCredential.user.uid); // Captura os dados retornados
+      const fetchedData = await fetchUserData(userCredential.user.uid);
 
       if (fetchedData?.role === "owner") {
         router.push("/owner");
@@ -159,8 +157,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     await signOut(auth);
-    setCurrentUser(null);
-    setUserData(null);
     router.push("/login");
   }
 

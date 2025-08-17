@@ -117,13 +117,6 @@ export default function SettingsTab({
                     >
                       Completar Configuração
                     </button>
-                    <button
-                      onClick={onRefreshStripeStatus}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Verificar Status
-                    </button>
                   </div>
                 </div>
               )

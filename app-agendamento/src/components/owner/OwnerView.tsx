@@ -63,6 +63,25 @@ export default function OwnerView() {
   const appointmentsData = useAppointmentsForDate(selectedDate);
   const stripeHook = useStripeAccount();
 
+  const handleCreateStripeAccount = async () => {
+    try {
+      const result = await stripeHook.createConnectedAccount();
+      // Após criar a conta, atualizamos os dados do estabelecimento para refletir a mudança
+      if (result?.accountId) {
+        await refreshEstablishment();
+      }
+      // Se a função retornar uma URL, redirecionamos o usuário
+      if (result?.url) {
+        window.location.href = result.url;
+      }
+    } catch (error) {
+      console.error("Falha ao criar conta Stripe:", error);
+      alert(
+        "Ocorreu um erro ao conectar com o Stripe. Verifique o console para mais detalhes."
+      );
+    }
+  };
+
   const handleOnboardingRedirect = async () => {
     try {
       const url = await stripeHook.createAccountLink();
@@ -71,20 +90,16 @@ export default function OwnerView() {
       }
     } catch (error) {
       console.error("Falha ao obter o link de onboarding:", error);
+      alert(
+        "Ocorreu um erro ao gerar o link. Verifique o console para mais detalhes."
+      );
     }
   };
 
-  const handleCreateStripeAccount = async () => {
-    try {
-      await stripeHook.createConnectedAccount();
-    } catch (error) {
-      console.error("Falha ao criar conta Stripe:", error);
-    }
-  };
-
+  // --- CORREÇÃO APLICADA AQUI ---
   const stripeData = {
-    hasStripeAccount: Boolean(establishment?.stripeAccountId),
-    isStripeOnboarded: Boolean(establishment?.stripeAccountOnboarded),
+    hasStripeAccount: !!establishment?.stripeAccountId,
+    isStripeOnboarded: !!establishment?.stripeAccountOnboarded,
     loading: stripeHook.loading,
     error: stripeHook.error,
     createConnectedAccount: handleCreateStripeAccount,

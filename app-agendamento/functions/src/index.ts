@@ -13,7 +13,6 @@ admin.initializeApp();
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
-// Opções globais agora apenas definem a região. Segredos são definidos por função.
 setGlobalOptions({
   region: "southamerica-east1",
 });
@@ -132,7 +131,7 @@ export const createpaymentintent = onRequest(
   }
 );
 
-// ===== FUNÇÃO 2: CRIAR CONTA CONECTADA (onCall) =====
+// ===== FUNÇÃO 2: CRIAR CONTA E LINK DE ONBOARDING (onCall) =====
 export const createconnectedaccount = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
@@ -167,54 +166,69 @@ export const createconnectedaccount = onCall(
       );
     }
 
-    const existingAccountId = establishmentDoc.data()?.stripeAccountId;
-    if (existingAccountId) {
+    let stripeAccountId = establishmentDoc.data()?.stripeAccountId;
+
+    if (stripeAccountId) {
       try {
-        const account = await stripe.accounts.retrieve(existingAccountId);
-        console.log(
-          `Conta Stripe ${account.id} já existe e é válida. Reutilizando.`
-        );
-        return { success: true, accountId: account.id };
+        await stripe.accounts.retrieve(stripeAccountId);
+        console.log(`Conta Stripe ${stripeAccountId} já existe e é válida.`);
       } catch (error) {
         console.warn(
-          "ID da conta Stripe existente no Firestore era inválido. A criar uma nova conta.",
+          "ID da conta Stripe existente era inválido. A criar uma nova conta.",
           error
+        );
+        stripeAccountId = null;
+      }
+    }
+
+    if (!stripeAccountId) {
+      try {
+        const account = await stripe.accounts.create({
+          type: "express",
+          country: "BR",
+          email: email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+        });
+        stripeAccountId = account.id;
+        await establishmentRef.update({
+          stripeAccountId: stripeAccountId,
+          stripeAccountOnboarded: false,
+        });
+        console.log(
+          `Nova conta ${stripeAccountId} criada para o estabelecimento ${uid}.`
+        );
+      } catch (error: any) {
+        console.error("Erro ao criar nova conta conectada no Stripe:", error);
+        throw new HttpsError(
+          "internal",
+          "Não foi possível criar a conta de pagamento.",
+          error.message
         );
       }
     }
 
     try {
-      const account = await stripe.accounts.create({
-        type: "express",
-        country: "BR",
-        email: email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
+      const accountLink = await stripe.accountLinks.create({
+        account: stripeAccountId,
+        refresh_url: "http://localhost:3000/owner",
+        return_url: "http://localhost:3000/owner",
+        type: "account_onboarding",
       });
-
-      await establishmentRef.update({
-        stripeAccountId: account.id,
-        stripeAccountOnboarded: false,
-      });
-      console.log(
-        `Nova conta ${account.id} criada e salva para o estabelecimento ${uid}.`
-      );
-
-      return { success: true, accountId: account.id };
+      return { success: true, url: accountLink.url };
     } catch (error: any) {
-      console.error("Erro ao criar conta conectada no Stripe:", error);
+      console.error("Erro ao criar link de conta para conta existente:", error);
       throw new HttpsError(
         "internal",
-        "Não foi possível criar a conta de pagamento.",
-        error.message
+        "Não foi possível gerar o link de onboarding do Stripe."
       );
     }
   }
 );
 
-// ===== FUNÇÃO 3: CRIAR LINK DE ONBOARDING (onCall) =====
+// ===== FUNÇÃO 3: CRIAR LINK DE ONBOARDING (onCall) - MANTIDA POR SEGURANÇA =====
 export const createaccountlink = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
