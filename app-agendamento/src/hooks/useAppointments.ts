@@ -1,61 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { Timestamp } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+  Timestamp,
+  collectionGroup,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
 import { Appointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { useFirestore } from "./useFirestore";
+import { db } from "../lib/firebaseConfig"; // Import db para a consulta collectionGroup
 import { errorUtils, timestampUtils } from "../lib/utils";
 
-// ========== APPOINTMENTS HOOK (SEM ALTERAÇÕES) ==========
+// ========== APPOINTMENTS HOOK (LÓGICA CORRIGIDA PARA O CLIENTE) ==========
 export function useAppointments() {
   const { userData } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const ownerAppointments = useFirestore<Appointment>("appointments", {
-    realtime: true,
-    whereConditions:
-      userData?.uid && userData.role === "owner"
-        ? [{ field: "establishmentId", operator: "==", value: userData.uid }]
-        : [],
-    orderByField: "dateTime",
-    orderDirection: "asc",
-  });
+  useEffect(() => {
+    if (!userData?.uid || userData.role !== "client") {
+      setLoading(false);
+      setAppointments([]);
+      return;
+    }
 
-  const clientAppointments = useFirestore<Appointment>("appointments", {
-    realtime: true,
-    whereConditions:
-      userData?.uid && userData.role === "client"
-        ? [{ field: "clientId", operator: "==", value: userData.uid }]
-        : [],
-    orderByField: "dateTime",
-    orderDirection: "desc",
-  });
+    setLoading(true);
+    // Usamos uma consulta 'collectionGroup' para buscar em todas as subcoleções 'appointments'
+    // onde o cliente é o mesmo. Esta é a forma correta de fazer esta busca.
+    const q = query(
+      collectionGroup(db, "appointments"),
+      where("clientId", "==", userData.uid)
+    );
 
-  const appointments =
-    userData?.role === "owner" ? ownerAppointments : clientAppointments;
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const apps = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
+        );
+        // Ordena por data descendente para mostrar os mais recentes primeiro
+        apps.sort((a, b) => b.dateTime.toMillis() - a.dateTime.toMillis());
+        setAppointments(apps);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Erro no listener de appointments (cliente):", err);
+        setError(errorUtils.getFirebaseErrorMessage(err));
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userData]);
 
   return {
-    appointments: appointments.data,
-    loading: appointments.loading,
-    error: appointments.error,
-    refresh: appointments.refresh,
+    appointments,
+    loading,
+    error,
+    refresh: () => {}, // O onSnapshot já atualiza em tempo real
   };
 }
 
-// ========== APPOINTMENTS FOR DATE HOOK (LÓGICA CORRIGIDA) ==========
+// ========== APPOINTMENTS FOR DATE HOOK (LÓGICA CORRIGIDA PARA O OWNER) ==========
 export function useAppointmentsForDate(date: Date) {
   const { userData } = useAuth();
 
-  // O 'startOfDay' está correto: início do dia selecionado.
+  // A lógica para definir o início e o fim do dia está perfeita.
   const startOfDay = new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate()
   );
-
-  // O 'endOfDay' agora é o final do dia selecionado (23:59:59.999).
-  // Isso evita problemas de fuso horário e garante que todos os agendamentos
-  // daquele dia sejam incluídos, não importa a hora.
   const endOfDay = new Date(
     date.getFullYear(),
     date.getMonth(),
@@ -66,23 +85,26 @@ export function useAppointmentsForDate(date: Date) {
     999
   );
 
+  // AQUI ESTÁ A MUDANÇA: Apontamos para a subcoleção dentro do estabelecimento do owner.
+  const collectionPath = userData?.uid
+    ? `establishments/${userData.uid}/appointments`
+    : null;
+
   const {
     data: appointments,
     loading,
     error,
     refresh,
-  } = useFirestore<Appointment>("appointments", {
+  } = useFirestore<Appointment>(collectionPath, {
     realtime: true,
     whereConditions:
       userData?.uid && userData.role === "owner"
         ? [
-            { field: "establishmentId", operator: "==", value: userData.uid },
             {
               field: "dateTime",
               operator: ">=",
               value: Timestamp.fromDate(startOfDay),
             },
-            // A consulta agora usa '<=' para incluir o final do dia.
             {
               field: "dateTime",
               operator: "<=",

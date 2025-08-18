@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import { Timestamp } from "firebase-admin/firestore";
 import { differenceInHours } from "date-fns";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require("cors")({ origin: true });
 
@@ -14,19 +15,18 @@ admin.initializeApp();
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
-// Opções globais agora apenas definem a região.
 setGlobalOptions({
   region: "southamerica-east1",
 });
 
-// A inicialização do Stripe agora acontece dentro de cada função para evitar erros de deploy.
-
-// ===== FUNÇÃO 1: PROCESSAR PAGAMENTO COM SPLIT (onRequest) =====
+// ===== FUNÇÃO 1: PROCESSAR PAGAMENTO COM SPLIT (onRequest) - VERSÃO CORRIGIDA =====
 export const createpaymentintent = onRequest(
   { secrets: [stripeSecretKey] },
   async (request, response) => {
     cors(request, response, async () => {
       try {
+        console.log("--- createpaymentintent: INICIADA ---");
+
         const stripe = new Stripe(stripeSecretKey.value());
         const authorization = request.headers.authorization;
         if (!authorization || !authorization.startsWith("Bearer ")) {
@@ -39,6 +39,7 @@ export const createpaymentintent = onRequest(
         const decodedToken = await admin.auth().verifyIdToken(idToken);
 
         const { amount, paymentMethodId, appointmentDetails } = request.body;
+
         if (!amount || !paymentMethodId || !appointmentDetails) {
           throw new HttpsError(
             "invalid-argument",
@@ -52,7 +53,6 @@ export const createpaymentintent = onRequest(
           .doc(appointmentDetails.establishmentId)
           .get();
         if (!establishmentDoc.exists) {
-          // <-- SINTAXE CORRIGIDA
           throw new Error("Estabelecimento não encontrado.");
         }
         const stripeAccountId = establishmentDoc.data()?.stripeAccountId;
@@ -75,12 +75,15 @@ export const createpaymentintent = onRequest(
             allow_redirects: "never",
           },
           application_fee_amount: applicationFee,
-          transfer_data: {
-            destination: stripeAccountId,
-          },
+          transfer_data: { destination: stripeAccountId },
         });
+        console.log("Payment Intent criado com status:", paymentIntent.status);
 
         if (paymentIntent.status === "succeeded") {
+          console.log(
+            "Pagamento bem-sucedido. A preparar para salvar no Firestore..."
+          );
+
           const {
             establishmentId,
             serviceId,
@@ -91,24 +94,57 @@ export const createpaymentintent = onRequest(
             serviceName,
             professionalName,
           } = appointmentDetails;
-          const bookingDate = new Date(bookingTimestamp);
-          await admin
+
+          const professionalDoc = await admin
             .firestore()
-            .collection("appointments")
-            .add({
-              clientId: decodedToken.uid,
-              clientName: decodedToken.name || decodedToken.email,
-              establishmentId,
-              serviceId,
-              professionalId,
-              dateTime: Timestamp.fromDate(bookingDate),
-              duration,
-              price,
-              status: "confirmado",
-              serviceName,
-              professionalName,
-              paymentIntentId: paymentIntent.id,
-            });
+            .collection("establishments")
+            .doc(establishmentId)
+            .collection("professionals")
+            .doc(professionalId)
+            .get();
+
+          const professionalAuthUid = professionalDoc.data()?.authUid || null;
+          const bookingDate = new Date(bookingTimestamp);
+
+          const appointmentData = {
+            clientId: decodedToken.uid,
+            clientName: decodedToken.name || decodedToken.email,
+            establishmentId,
+            serviceId,
+            professionalId,
+            professionalAuthUid: professionalAuthUid,
+            dateTime: Timestamp.fromDate(bookingDate),
+            duration,
+            price,
+            status: "confirmado",
+            serviceName,
+            professionalName,
+            paymentIntentId: paymentIntent.id,
+          };
+
+          try {
+            console.log(
+              `Tentando salvar agendamento em /establishments/${establishmentId}/appointments`
+            );
+            const docRef = await admin
+              .firestore()
+              .collection("establishments")
+              .doc(establishmentId)
+              .collection("appointments")
+              .add(appointmentData);
+            console.log(
+              `SUCESSO: Documento de agendamento criado com o ID: ${docRef.id}`
+            );
+          } catch (firestoreError) {
+            console.error(
+              "ERRO CRÍTICO AO SALVAR NO FIRESTORE:",
+              firestoreError
+            );
+            throw new Error(
+              "Falha ao salvar o agendamento no banco de dados após o pagamento bem-sucedido."
+            );
+          }
+
           response
             .status(200)
             .send({ success: true, paymentIntentId: paymentIntent.id });
@@ -116,10 +152,7 @@ export const createpaymentintent = onRequest(
           throw new Error("O pagamento não foi bem-sucedido no Stripe.");
         }
       } catch (error: any) {
-        console.error("❌ Erro em createpaymentintent:", {
-          errorCode: error.code,
-          errorMessage: error.message,
-        });
+        console.error("❌ Erro em createpaymentintent:", error.message);
         response.status(500).send({
           error: "Erro interno na Cloud Function.",
           details: error.message,
@@ -145,7 +178,6 @@ export const createconnectedaccount = onCall(
     const userDoc = await userDocRef.get();
 
     if (!userDoc.exists || userDoc.data()?.role !== "owner") {
-      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "permission-denied",
         "Apenas proprietários podem criar contas."
@@ -159,7 +191,6 @@ export const createconnectedaccount = onCall(
     const establishmentDoc = await establishmentRef.get();
 
     if (!establishmentDoc.exists) {
-      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "not-found",
         "Documento de estabelecimento não encontrado."
@@ -244,7 +275,6 @@ export const createaccountlink = onCall(
       .doc(uid)
       .get();
     if (!establishmentDoc.exists) {
-      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "not-found",
         "Documento de estabelecimento não encontrado."
@@ -346,7 +376,7 @@ export const stripewebhook = onRequest(
   }
 );
 
-// ===== FUNÇÃO 5: CANCELAR E REEMBOLSAR AGENDAMENTO (onCall) =====
+// ===== FUNÇÃO 5: CANCELAR E REEMBOLSAR AGENDAMENTO (onCall) - VERSÃO CORRIGIDA =====
 export const cancelAndRefundAppointment = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
@@ -356,20 +386,23 @@ export const cancelAndRefundAppointment = onCall(
 
     const stripe = new Stripe(stripeSecretKey.value());
     const uid = request.auth.uid;
-    const { appointmentId } = request.data;
+    const { appointmentId, establishmentId } = request.data;
 
-    if (typeof appointmentId !== "string" || !appointmentId) {
+    if (!appointmentId || !establishmentId) {
       throw new HttpsError(
         "invalid-argument",
-        "O ID do agendamento é obrigatório."
+        "Os IDs do agendamento e do estabelecimento são obrigatórios."
       );
     }
 
     try {
       const appointmentRef = admin
         .firestore()
+        .collection("establishments")
+        .doc(establishmentId)
         .collection("appointments")
         .doc(appointmentId);
+
       const appointmentDoc = await appointmentRef.get();
 
       if (!appointmentDoc.exists) {
@@ -404,51 +437,26 @@ export const cancelAndRefundAppointment = onCall(
         };
       }
 
-      // --- INÍCIO DA CORREÇÃO ---
-
-      // 1. Obter os detalhes do Payment Intent original do Stripe
-      // Precisamos disto para saber o valor total e a taxa de aplicação cobrada.
-      console.log(`A obter detalhes do Payment Intent: ${paymentIntentId}`);
       const paymentIntent = await stripe.paymentIntents.retrieve(
         paymentIntentId
       );
-
-      // 2. Calcular o valor do reembolso (valor total - taxa do app)
-      // Garantimos que o valor a reembolsar desconta a nossa taxa.
       const applicationFeeAmount = paymentIntent.application_fee_amount || 0;
       const amountToRefund = paymentIntent.amount - applicationFeeAmount;
 
-      console.log(
-        `A processar reembolso para ${paymentIntentId}. Valor total: ${paymentIntent.amount}, Taxa: ${applicationFeeAmount}, Valor a reembolsar: ${amountToRefund}`
-      );
-
-      if (amountToRefund <= 0) {
-        console.log(
-          "Valor do reembolso é zero ou negativo. Apenas a cancelar agendamento."
-        );
-        // Se não houver nada a reembolsar, apenas atualizamos o status.
-      } else {
-        // 3. Criar o reembolso com o valor parcial calculado
-        // Ao especificar o 'amount', dizemos ao Stripe exatamente quanto devolver ao cliente.
+      if (amountToRefund > 0) {
         await stripe.refunds.create({
           payment_intent: paymentIntentId,
           amount: amountToRefund,
         });
-        console.log(
-          `Reembolso de ${amountToRefund} para ${paymentIntentId} processado com sucesso.`
-        );
       }
-
-      // --- FIM DA CORREÇÃO ---
 
       await appointmentRef.update({ status: "cancelado" });
 
       return {
         success: true,
-        message: "Agendamento cancelado e reembolso processado com sucesso.",
+        message: "Agendamento cancelado e reembolso processado.",
       };
     } catch (error: any) {
-      console.error("Erro ao cancelar e reembolsar agendamento:", error);
       if (error instanceof HttpsError) {
         throw error;
       }
@@ -460,10 +468,11 @@ export const cancelAndRefundAppointment = onCall(
     }
   }
 );
+
+// ===== FUNÇÃO 6: CONVIDAR PROFISSIONAL (onCall) =====
 export const inviteProfessional = onCall(
-  { secrets: [stripeSecretKey] }, // Podemos manter os secrets se precisar de alguma info no futuro
+  { secrets: [stripeSecretKey] },
   async (request) => {
-    // 1. Validação de Segurança: Apenas 'owners' podem convidar
     if (request.auth?.token.role !== "owner") {
       throw new HttpsError(
         "permission-denied",
@@ -503,7 +512,6 @@ export const inviteProfessional = onCall(
       );
     }
 
-    // 2. Verificar se já não foi convidado (se já tem um authUid)
     if (professionalData?.authUid) {
       throw new HttpsError(
         "already-exists",
@@ -512,39 +520,20 @@ export const inviteProfessional = onCall(
     }
 
     try {
-      // 3. Criar o utilizador no Firebase Authentication
-      console.log(`A criar utilizador de autenticação para ${email}...`);
       const userRecord = await admin.auth().createUser({
         email: email,
         displayName: professionalData?.name,
-        // Podemos definir uma senha aleatória inicial que será trocada
         password: Math.random().toString(36).slice(-8),
       });
-      console.log("Utilizador criado com sucesso:", userRecord.uid);
 
-      // 4. Associar o novo ID de autenticação ao documento do profissional
       await professionalRef.update({
         authUid: userRecord.uid,
       });
 
-      // 5. Gerar um link para o profissional definir a sua senha
-      // O Firebase enviará um email padrão para ele.
-      const passwordResetLink = await admin
-        .auth()
-        .generatePasswordResetLink(email);
+      await admin.auth().generatePasswordResetLink(email);
 
-      console.log(
-        `Utilizador ${userRecord.uid} associado ao profissional ${professionalId}. O profissional pode usar o link de redefinição de senha para o primeiro login.`
-      );
-
-      // Embora o Firebase envie o email, ter o link pode ser útil para debug
-      return {
-        success: true,
-        message: "Convite enviado com sucesso!",
-        link: passwordResetLink,
-      };
+      return { success: true, message: "Convite enviado com sucesso!" };
     } catch (error: any) {
-      console.error("Erro ao criar utilizador para profissional:", error);
       if (error.code === "auth/email-already-exists") {
         throw new HttpsError(
           "already-exists",
@@ -558,39 +547,28 @@ export const inviteProfessional = onCall(
     }
   }
 );
+
 // ===== FUNÇÃO DE GATILHO: SINCRONIZAR CARGO DO UTILIZADOR =====
-// Esta função irá executar automaticamente sempre que um documento na coleção 'users'
-// for criado ou atualizado.
 export const onUserRoleChange = onDocumentWritten(
   "users/{userId}",
   async (event) => {
-    // Se o documento foi apagado, não fazemos nada.
     if (!event.data?.after.exists) {
       return null;
     }
 
-    // Obtemos o novo 'role' do documento.
     const newRole = event.data.after.data()?.role;
-    // Obtemos o 'role' antigo, se existia.
     const oldRole = event.data.before.data()?.role;
 
-    // Se o 'role' não mudou, não precisamos de fazer nada.
     if (newRole === oldRole) {
-      console.log(`Role for user ${event.params.userId} has not changed.`);
       return null;
     }
 
     try {
       const userId = event.params.userId;
-      console.log(
-        `Role changed for user ${userId} to '${newRole}'. Setting custom claim...`
-      );
-
-      // Usamos o Firebase Admin SDK para "carimbar" o cargo no token do utilizador.
-      // Se o cargo for removido (ex: newRole é undefined), as claims são limpas.
       await admin.auth().setCustomUserClaims(userId, { role: newRole });
-
-      console.log(`Custom claim for user ${userId} successfully set.`);
+      console.log(
+        `Custom claim for user ${userId} successfully set to '${newRole}'.`
+      );
       return { success: true };
     } catch (error) {
       console.error("Error setting custom user claims:", error);
@@ -598,3 +576,64 @@ export const onUserRoleChange = onDocumentWritten(
     }
   }
 );
+
+// ===== FUNÇÃO 7: REENVIAR CONVITE DO PROFISSIONAL (onCall) =====
+export const resendInvite = onCall(async (request) => {
+  if (request.auth?.token.role !== "owner") {
+    throw new HttpsError(
+      "permission-denied",
+      "Apenas proprietários podem reenviar convites."
+    );
+  }
+
+  const { professionalId } = request.data;
+  if (!professionalId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "O ID do profissional é obrigatório."
+    );
+  }
+
+  const ownerId = request.auth.uid;
+  const professionalRef = admin
+    .firestore()
+    .collection("establishments")
+    .doc(ownerId)
+    .collection("professionals")
+    .doc(professionalId);
+
+  const professionalDoc = await professionalRef.get();
+
+  if (!professionalDoc.exists) {
+    throw new HttpsError("not-found", "Profissional não encontrado.");
+  }
+
+  const professionalData = professionalDoc.data();
+  const email = professionalData?.email;
+
+  if (!email) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Este profissional não tem um email cadastrado para o qual reenviar o convite."
+    );
+  }
+
+  if (!professionalData?.authUid) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Este profissional ainda não foi convidado. Use a função 'Convidar' primeiro."
+    );
+  }
+
+  try {
+    await admin.auth().generatePasswordResetLink(email);
+    console.log(`Email de redefinição de senha reenviado para ${email}.`);
+
+    return { success: true, message: "Convite reenviado com sucesso!" };
+  } catch (error: any) {
+    throw new HttpsError(
+      "internal",
+      "Ocorreu um erro inesperado ao reenviar o convite."
+    );
+  }
+});

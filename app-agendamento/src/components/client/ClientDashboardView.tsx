@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useAppointments } from "../../hooks/useAppointments";
-import { db, functions } from "../../lib/firebaseConfig"; // Importe 'functions'
-import { httpsCallable } from "firebase/functions"; // Importe 'httpsCallable'
+import { db, functions } from "../../lib/firebaseConfig";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
 import { differenceInHours } from "date-fns";
@@ -28,7 +28,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   >(new Map());
   const [loading, setLoading] = useState(true);
 
-  // Estados para controlar o modal de cancelamento
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
@@ -72,7 +71,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     fetchEstablishmentDetails();
   }, [appointments, appointmentsLoading]);
 
-  // Lógica de cancelamento com a regra de tempo e o modal
   const handleCancelAppointment = (appointment: Appointment) => {
     const now = new Date();
     const appointmentTime = appointment.dateTime.toDate();
@@ -88,33 +86,35 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setIsCancelModalOpen(true);
   };
 
-  // --- FUNÇÃO MODIFICADA PARA CHAMAR O BACKEND (FASE B) ---
+  // --- FUNÇÃO CORRIGIDA ---
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
 
     try {
-      // Prepara a chamada para a nossa nova Cloud Function
       const cancelFunction = httpsCallable(
         functions,
         "cancelAndRefundAppointment"
       );
 
-      // Chama a função, passando o ID do agendamento
-      const result = await cancelFunction({
+      console.log("A cancelar agendamento com os seguintes dados:", {
         appointmentId: appointmentToCancel.id,
+        establishmentId: appointmentToCancel.establishmentId,
       });
 
-      console.log("Resultado da função de cancelamento:", result.data);
+      // Enviamos agora os dois IDs necessários para o backend
+      await cancelFunction({
+        appointmentId: appointmentToCancel.id,
+        establishmentId: appointmentToCancel.establishmentId,
+      });
+
+      console.log("Agendamento cancelado com sucesso!");
       alert("Agendamento cancelado e reembolso iniciado com sucesso!");
-      // O 'onSnapshot' do hook useAppointments deve atualizar a UI automaticamente
     } catch (error: unknown) {
       console.error("Erro ao chamar a função de cancelamento:", error);
-      // Mostra a mensagem de erro vinda do backend para o usuário
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
       alert(`Ocorreu um erro: ${errorMessage}`);
     } finally {
-      // Limpa e fecha o modal independentemente do resultado
       setIsCancelModalOpen(false);
       setAppointmentToCancel(null);
     }
@@ -184,7 +184,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={app.id}
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
-                  onCancel={() => {}} // Não se pode cancelar agendamentos passados
+                  onCancel={() => {}}
                 />
               ))}
             </div>

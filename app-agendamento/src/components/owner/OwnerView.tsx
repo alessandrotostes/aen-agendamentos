@@ -179,6 +179,25 @@ export default function OwnerView() {
     }
   };
 
+  const handleResendInvite = async (professionalId: string) => {
+    try {
+      const functions = getFunctions(getApp(), "southamerica-east1");
+      const resendInvite = httpsCallable(functions, "resendInvite");
+
+      console.log(
+        `Reenviando convite para o profissional ${professionalId}...`
+      );
+      await resendInvite({ professionalId: professionalId });
+
+      showSuccess(
+        "Convite reenviado com sucesso! O profissional receberá um novo email."
+      );
+    } catch (error) {
+      console.error("Erro ao reenviar convite:", error);
+      alert("Ocorreu um erro ao reenviar o convite. Verifique o console.");
+    }
+  };
+
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -305,6 +324,7 @@ export default function OwnerView() {
               openModal("editProfessionalUnified");
             }}
             onInviteProfessional={handleInviteProfessional}
+            onResendInvite={handleResendInvite}
           />
         )}
         {activeTab === "settings" && (
