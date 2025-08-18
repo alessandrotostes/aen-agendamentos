@@ -13,6 +13,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useFirestore } from "./useFirestore";
 import { db } from "../lib/firebaseConfig"; // Import db para a consulta collectionGroup
 import { errorUtils, timestampUtils } from "../lib/utils";
+import { getAuth } from "firebase/auth";
 
 // ========== APPOINTMENTS HOOK (LÓGICA CORRIGIDA PARA O CLIENTE) ==========
 export function useAppointments() {
@@ -201,3 +202,69 @@ export const appointmentUtils = {
     return slots;
   },
 };
+// ========== HOOK PARA BUSCAR AGENDAMENTOS DO PROFISSIONAL LOGADO ==========
+export function useAppointmentsForProfessional(date: Date) {
+  const { userData } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Só executa se tivermos um utilizador e se ele for um profissional
+    if (!userData?.uid || userData.role !== "professional") {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    // Define o início e o fim do dia para a consulta
+    const startOfDay = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+    const endOfDay = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    // Consulta 'collectionGroup' para buscar em todos os agendamentos da plataforma
+    const q = query(
+      collectionGroup(db, "appointments"),
+      // Filtra para trazer apenas os agendamentos deste profissional
+      where("professionalAuthUid", "==", userData.uid),
+      // Filtra pelo dia selecionado
+      where("dateTime", ">=", Timestamp.fromDate(startOfDay)),
+      where("dateTime", "<=", Timestamp.fromDate(endOfDay))
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const apps = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
+        );
+        // Ordena por hora
+        apps.sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
+        setAppointments(apps);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Erro no listener de appointments (professional):", err);
+        setError(errorUtils.getFirebaseErrorMessage(err));
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+    // Re-executa sempre que o profissional ou a data selecionada mudar
+  }, [userData, date]);
+
+  return { appointments, loading, error };
+}

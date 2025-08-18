@@ -7,17 +7,11 @@ import Image from "next/image";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
-import { format, startOfDay, endOfDay, isToday } from "date-fns";
-import { db } from "@/lib/firebaseConfig";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  Timestamp,
-} from "firebase/firestore";
+import { format, isToday } from "date-fns";
+import { getApp } from "firebase/app";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "@/contexts/AuthContext";
-import { Service, Professional, Appointment } from "@/types";
+import { Service, Professional } from "@/types";
 import SuccessModal from "../../shared/modals/SuccessModal";
 
 interface PendingAppointment {
@@ -29,6 +23,11 @@ interface PendingAppointment {
   professionalId: string;
   professionalName: string;
   bookingTimestamp: string;
+}
+
+interface BookedSlot {
+  dateTime: string; // Vem como ISO string
+  duration: number;
 }
 
 interface SchedulingModalProps {
@@ -53,9 +52,8 @@ export default function SchedulingModal({
   >(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [todaysAppointments, setTodaysAppointments] = useState<Appointment[]>(
-    []
-  );
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
@@ -70,28 +68,40 @@ export default function SchedulingModal({
 
   useEffect(() => {
     if (!selectedDate || !selectedProfessionalId) {
-      setTodaysAppointments([]);
+      setBookedSlots([]);
       return;
     }
-    const start = startOfDay(selectedDate);
-    const end = endOfDay(selectedDate);
 
-    // AQUI ESTÁ A MUDANÇA: Adicionamos where("status", "==", "confirmado")
-    const q = query(
-      collection(db, "appointments"),
-      where("professionalId", "==", selectedProfessionalId),
-      where("status", "==", "confirmado"), // <-- ADICIONE ESTA LINHA
-      where("dateTime", ">=", start),
-      where("dateTime", "<=", end)
-    );
+    const fetchAvailability = async () => {
+      setIsLoadingSlots(true);
+      try {
+        const functions = getFunctions(getApp(), "southamerica-east1");
+        const getAvailability = httpsCallable(
+          functions,
+          "getProfessionalAvailability"
+        );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTodaysAppointments(
-        snapshot.docs.map((doc) => doc.data() as Appointment)
-      );
-    });
-    return () => unsubscribe();
-  }, [selectedDate, selectedProfessionalId]);
+        const result = await getAvailability({
+          establishmentId: establishmentId,
+          professionalId: selectedProfessionalId,
+          date: selectedDate.toISOString(),
+        });
+
+        setBookedSlots(result.data as BookedSlot[]);
+      } catch (error) {
+        console.error(
+          "Erro ao buscar disponibilidade via Cloud Function:",
+          error
+        );
+        alert("Não foi possível carregar os horários. Tente novamente.");
+        setBookedSlots([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    fetchAvailability();
+  }, [selectedDate, selectedProfessionalId, establishmentId]);
 
   const availableProfessionals = useMemo(() => {
     if (!service) return [];
@@ -104,6 +114,7 @@ export default function SchedulingModal({
       (p) => p.id === selectedProfessionalId
     );
     if (!professional?.availability) return [];
+
     const dayKeyMap: { [key: string]: string } = {
       domingo: "domingo",
       "segunda-feira": "segunda",
@@ -125,6 +136,7 @@ export default function SchedulingModal({
     const endInMinutes =
       parseInt(workingHours.end.split(":")[0]) * 60 +
       parseInt(workingHours.end.split(":")[1]);
+
     const now = new Date();
     const startOfBookingWindow = isToday(selectedDate)
       ? now.getHours() * 60 + now.getMinutes()
@@ -136,12 +148,13 @@ export default function SchedulingModal({
       }
     }
 
-    const bookedIntervals = todaysAppointments.map((app) => {
-      const bookedDate = app.dateTime.toDate();
+    const bookedIntervals = bookedSlots.map((slot) => {
+      const bookedDate = new Date(slot.dateTime);
       const start = bookedDate.getHours() * 60 + bookedDate.getMinutes();
-      const end = start + app.duration;
+      const end = start + slot.duration;
       return { start, end };
     });
+
     const availableSlots = slotsInMinutes.filter((potentialStart) => {
       const potentialEnd = potentialStart + service.duration;
       if (potentialEnd > endInMinutes) return false;
@@ -164,7 +177,7 @@ export default function SchedulingModal({
     selectedProfessionalId,
     service,
     professionals,
-    todaysAppointments,
+    bookedSlots,
   ]);
 
   const handleGoToCheckout = () => {
@@ -328,7 +341,11 @@ export default function SchedulingModal({
                         3. Escolha o horário
                       </h4>
                       <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto pr-2">
-                        {availableTimeSlots.length > 0 ? (
+                        {isLoadingSlots ? (
+                          <p className="col-span-full text-center text-gray-500 p-4">
+                            A carregar horários...
+                          </p>
+                        ) : availableTimeSlots.length > 0 ? (
                           availableTimeSlots.map((time) => (
                             <button
                               key={time}

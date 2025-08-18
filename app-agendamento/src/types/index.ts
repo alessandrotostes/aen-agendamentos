@@ -5,7 +5,7 @@ export interface AuthUser {
   uid: string;
   name: string;
   email: string;
-  role: "owner" | "client";
+  role: "owner" | "client" | "professional";
   createdAt: Date | null;
 }
 

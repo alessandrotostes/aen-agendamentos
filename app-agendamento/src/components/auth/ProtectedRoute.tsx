@@ -1,8 +1,8 @@
 "use client";
 
-import React, { ReactNode } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import React from "react"; // Removido 'ReactNode' do import para corrigir o aviso
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 
 // Um componente simples para ser exibido durante a verificação de autenticação.
@@ -64,27 +64,39 @@ export function ClientRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// --- NOVO COMPONENTE ADICIONADO ---
+// Guardião para páginas que SÓ utilizadores 'professional' podem ver
+export function ProfessionalRoute({ children }: { children: React.ReactNode }) {
+  const { userData, loading } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!loading && userData?.role !== "professional") {
+      router.push("/login");
+    }
+  }, [loading, userData, router]);
+
+  if (loading || userData?.role !== "professional") {
+    return <AuthLoading />;
+  }
+
+  return <>{children}</>;
+}
+
 // Guardião para páginas que SÓ utilizadores NÃO LOGADOS podem ver
-// (Ex: /login, /register, /reset-password)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
   const { currentUser, userData, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    // Se o carregamento terminou e o utilizador ESTÁ logado...
     if (!loading && currentUser && userData) {
-      // ...redireciona para o dashboard apropriado.
       const destination = userData.role === "owner" ? "/owner" : "/client";
       router.replace(destination);
     }
   }, [loading, currentUser, userData, router]);
 
-  // Enquanto carrega ou se o utilizador estiver logado (à espera de redirecionar), mostra o loader.
   if (loading || currentUser) {
     return <AuthLoading />;
   }
 
-  // Se não estiver logado, mostra a página pública.
   return <>{children}</>;
 }

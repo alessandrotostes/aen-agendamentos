@@ -63,7 +63,7 @@ export const createpaymentintent = onRequest(
           );
         }
 
-        const applicationFee = Math.floor(amount * 0.07);
+        const applicationFee = Math.floor(amount * 0.1); // 10% de taxa de serviço (já com taxa do Stripe incluída)
 
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount,
@@ -473,6 +473,7 @@ export const cancelAndRefundAppointment = onCall(
 export const inviteProfessional = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
+    // 1. Validação de Segurança
     if (request.auth?.token.role !== "owner") {
       throw new HttpsError(
         "permission-denied",
@@ -515,29 +516,48 @@ export const inviteProfessional = onCall(
     if (professionalData?.authUid) {
       throw new HttpsError(
         "already-exists",
-        "Este profissional já foi convidado e tem uma conta de utilizador."
+        "Este profissional já foi convidado."
       );
     }
 
     try {
+      // 2. Criar o utilizador no Firebase Authentication
       const userRecord = await admin.auth().createUser({
         email: email,
         displayName: professionalData?.name,
         password: Math.random().toString(36).slice(-8),
       });
 
+      // --- AQUI ESTÁ A CORREÇÃO ---
+      // 3. Criar o documento do utilizador na coleção 'users'
+      // Este passo acionará o nosso gatilho onUserRoleChange para definir o custom claim.
+      console.log(
+        `A criar documento na coleção 'users' para ${userRecord.uid}...`
+      );
+      await admin.firestore().collection("users").doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        name: professionalData?.name,
+        email: email,
+        role: "professional", // Definimos o cargo aqui
+        createdAt: Timestamp.now(),
+      });
+      // --- FIM DA CORREÇÃO ---
+
+      // 4. Associar o novo ID de autenticação ao documento do profissional
       await professionalRef.update({
         authUid: userRecord.uid,
       });
 
+      // 5. Gerar o link de redefinição de senha (o Firebase envia o email)
       await admin.auth().generatePasswordResetLink(email);
 
       return { success: true, message: "Convite enviado com sucesso!" };
     } catch (error: any) {
+      console.error("Erro ao criar utilizador para profissional:", error);
       if (error.code === "auth/email-already-exists") {
         throw new HttpsError(
           "already-exists",
-          "Este email já está a ser utilizado por outra conta na plataforma."
+          "Este email já está a ser utilizado."
         );
       }
       throw new HttpsError(
@@ -634,6 +654,66 @@ export const resendInvite = onCall(async (request) => {
     throw new HttpsError(
       "internal",
       "Ocorreu um erro inesperado ao reenviar o convite."
+    );
+  }
+});
+// ===== FUNÇÃO 8: OBTER DISPONIBILIDADE DE UM PROFISSIONAL (onCall) =====
+export const getProfessionalAvailability = onCall(async (request) => {
+  // Qualquer utilizador logado pode verificar a disponibilidade
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Você precisa estar logado para ver os horários."
+    );
+  }
+
+  const { establishmentId, professionalId, date } = request.data;
+  if (!establishmentId || !professionalId || !date) {
+    throw new HttpsError(
+      "invalid-argument",
+      "IDs do estabelecimento, profissional e a data são obrigatórios."
+    );
+  }
+
+  try {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const q = admin
+      .firestore()
+      .collection("establishments")
+      .doc(establishmentId)
+      .collection("appointments")
+      .where("professionalId", "==", professionalId)
+      .where("status", "==", "confirmado")
+      .where("dateTime", ">=", Timestamp.fromDate(startOfDay))
+      .where("dateTime", "<=", Timestamp.fromDate(endOfDay));
+
+    const snapshot = await q.get();
+
+    if (snapshot.empty) {
+      return []; // Nenhum agendamento, todos os horários estão livres
+    }
+
+    // Processamos os dados no backend para enviar apenas o necessário
+    const bookedSlots = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        // Enviamos a data/hora em formato ISO string para ser facilmente usada no frontend
+        dateTime: (data.dateTime as Timestamp).toDate().toISOString(),
+        duration: data.duration as number,
+      };
+    });
+
+    return bookedSlots;
+  } catch (error) {
+    console.error("Erro ao buscar disponibilidade:", error);
+    throw new HttpsError(
+      "internal",
+      "Não foi possível buscar os horários disponíveis."
     );
   }
 });

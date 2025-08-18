@@ -11,7 +11,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
+  onIdTokenChanged,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { auth, db, storage } from "../lib/firebaseConfig";
@@ -51,10 +51,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        await fetchUserData(user.uid);
+        const tokenResult = await user.getIdTokenResult(true);
+        console.log("Token Claims:", tokenResult.claims);
+
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data() as DocumentData;
+          const finalRole =
+            (tokenResult.claims.role as "owner" | "client" | "professional") ||
+            data.role;
+
+          const fetchedUser: AuthUser = {
+            uid: user.uid,
+            name: data.name,
+            email: data.email,
+            role: finalRole,
+            createdAt: data.createdAt?.toDate() ?? null,
+          };
+          setUserData(fetchedUser);
+        } else {
+          setUserData(null);
+        }
       } else {
         setUserData(null);
       }
@@ -62,26 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsubscribe;
   }, []);
-
-  async function fetchUserData(uid: string): Promise<AuthUser | null> {
-    const userDocRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists()) {
-      const data = userSnap.data() as DocumentData;
-      const fetchedUser: AuthUser = {
-        uid: data.uid,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        createdAt: data.createdAt?.toDate() ?? null,
-      };
-      setUserData(fetchedUser);
-      return fetchedUser;
-    } else {
-      setUserData(null);
-      return null;
-    }
-  }
 
   async function register(
     email: string,
@@ -130,7 +132,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    await fetchUserData(uid);
     setLoading(false);
     router.push(role === "owner" ? "/owner" : "/client");
   }
@@ -143,13 +144,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password
       );
-      const fetchedData = await fetchUserData(userCredential.user.uid);
 
-      if (fetchedData?.role === "owner") {
-        router.push("/owner");
+      const userDocRef = doc(db, "users", userCredential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (userSnap.exists()) {
+        const userRole = userSnap.data().role;
+
+        if (userRole === "owner") {
+          router.push("/owner");
+        } else if (userRole === "professional") {
+          router.push("/professional/dashboard");
+        } else {
+          router.push("/client");
+        }
       } else {
-        router.push("/client");
+        console.error(
+          "Documento do utilizador não encontrado no Firestore após login."
+        );
+        await signOut(auth);
+        router.push("/login");
       }
+    } catch (error) {
+      console.error("Erro no login:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -162,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refreshUserData() {
     if (currentUser) {
-      await fetchUserData(currentUser.uid);
+      await currentUser.getIdToken(true);
     }
   }
 
