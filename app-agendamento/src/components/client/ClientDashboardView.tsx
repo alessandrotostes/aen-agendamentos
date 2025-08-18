@@ -4,14 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAppointments } from "../../hooks/useAppointments";
 import { db, functions } from "../../lib/firebaseConfig"; // Importe 'functions'
 import { httpsCallable } from "firebase/functions"; // Importe 'httpsCallable'
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
 import { differenceInHours } from "date-fns";
 import EmptyState from "../owner/common/EmptyState";
@@ -95,12 +88,12 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setIsCancelModalOpen(true);
   };
 
-  // Função chamada pelo modal para confirmar o cancelamento (preparada para a Fase B)
+  // --- FUNÇÃO MODIFICADA PARA CHAMAR O BACKEND (FASE B) ---
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
 
     try {
-      // Prepara a chamada para a nossa Cloud Function de cancelamento e reembolso
+      // Prepara a chamada para a nossa nova Cloud Function
       const cancelFunction = httpsCallable(
         functions,
         "cancelAndRefundAppointment"
@@ -113,6 +106,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
 
       console.log("Resultado da função de cancelamento:", result.data);
       alert("Agendamento cancelado e reembolso iniciado com sucesso!");
+      // O 'onSnapshot' do hook useAppointments deve atualizar a UI automaticamente
     } catch (error: unknown) {
       console.error("Erro ao chamar a função de cancelamento:", error);
       // Mostra a mensagem de erro vinda do backend para o usuário

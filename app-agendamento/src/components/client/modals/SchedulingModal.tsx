@@ -75,12 +75,16 @@ export default function SchedulingModal({
     }
     const start = startOfDay(selectedDate);
     const end = endOfDay(selectedDate);
+
+    // AQUI ESTÁ A MUDANÇA: Adicionamos where("status", "==", "confirmado")
     const q = query(
       collection(db, "appointments"),
       where("professionalId", "==", selectedProfessionalId),
+      where("status", "==", "confirmado"), // <-- ADICIONE ESTA LINHA
       where("dateTime", ">=", start),
       where("dateTime", "<=", end)
     );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTodaysAppointments(
         snapshot.docs.map((doc) => doc.data() as Appointment)

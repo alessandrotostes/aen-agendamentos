@@ -60,6 +60,8 @@ export interface Professional {
   id: string;
   establishmentId: string;
   name: string;
+  email?: string;
+  phone?: string;
   photoURL?: string;
   bio?: string;
   specialties?: string[];
@@ -100,6 +102,7 @@ export interface CreateProfessionalData {
   photoURL?: string;
   availability?: Availability;
   imageFile?: File | null;
+  bio?: string; //
 }
 
 export interface UpdateEstablishmentData {

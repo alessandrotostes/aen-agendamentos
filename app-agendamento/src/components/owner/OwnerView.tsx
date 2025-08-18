@@ -21,23 +21,24 @@ import type {
   CreateServiceData,
   CreateProfessionalData,
   UpdateEstablishmentData,
-  AvailabilityData,
-  Availability,
   OperatingHours,
+  Availability,
 } from "../../types";
+
+type UnifiedProfessionalData = CreateProfessionalData & {
+  availability?: Availability;
+};
 
 export default function OwnerView() {
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "services" | "professionals" | "settings"
   >("dashboard");
-
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [modals, setModals] = useState({
     editService: false,
-    editProfessional: false,
+    editProfessionalUnified: false,
     editEstablishment: false,
-    editAvailability: false,
     editOperatingHours: false,
     deleteConfirm: false,
     success: false,
@@ -66,11 +67,9 @@ export default function OwnerView() {
   const handleCreateStripeAccount = async () => {
     try {
       const result = await stripeHook.createConnectedAccount();
-      // Após criar a conta, atualizamos os dados do estabelecimento para refletir a mudança
       if (result?.accountId) {
         await refreshEstablishment();
       }
-      // Se a função retornar uma URL, redirecionamos o usuário
       if (result?.url) {
         window.location.href = result.url;
       }
@@ -96,7 +95,6 @@ export default function OwnerView() {
     }
   };
 
-  // --- CORREÇÃO APLICADA AQUI ---
   const stripeData = {
     hasStripeAccount: !!establishment?.stripeAccountId,
     isStripeOnboarded: !!establishment?.stripeAccountOnboarded,
@@ -136,9 +134,10 @@ export default function OwnerView() {
       openModal("deleteConfirm");
     }
   };
+
   const handleCreateProfessional = () => {
     setSelectedProfessional(null);
-    openModal("editProfessional");
+    openModal("editProfessionalUnified");
   };
   const handleUpdateProfessional = (id: string) => {
     const professional = professionalsData.professionals.find(
@@ -146,7 +145,7 @@ export default function OwnerView() {
     );
     if (professional) {
       setSelectedProfessional(professional);
-      openModal("editProfessional");
+      openModal("editProfessionalUnified");
     }
   };
   const handleDeleteProfessional = (id: string) => {
@@ -159,11 +158,6 @@ export default function OwnerView() {
     }
   };
 
-  const handleManageAvailability = (professional: Professional) => {
-    setSelectedProfessional(professional);
-    openModal("editAvailability");
-  };
-
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -174,50 +168,31 @@ export default function OwnerView() {
     }
     closeModal("editService");
   };
-  const handleSaveProfessional = async (data: CreateProfessionalData) => {
+
+  const handleSaveProfessional = async (data: UnifiedProfessionalData) => {
+    // A tipagem 'UnifiedProfessionalData' não corresponde exatamente à 'CreateProfessionalData'
+    // que a função do hook espera, então removemos 'availability' antes de passar.
+    const { availability, ...professionalData } = data;
+    const dataToSave = { ...professionalData, availability };
+
     if (selectedProfessional) {
-      await professionalsData.updateProfessional(selectedProfessional.id, data);
+      await professionalsData.updateProfessional(
+        selectedProfessional.id,
+        dataToSave
+      );
       showSuccess("Profissional atualizado!");
     } else {
-      await professionalsData.createProfessional(data);
+      // A função 'create' pode precisar ser ajustada se não aceitar 'availability'
+      await professionalsData.createProfessional(dataToSave);
       showSuccess("Profissional criado!");
     }
-    closeModal("editProfessional");
+    closeModal("editProfessionalUnified");
   };
+
   const handleSaveEstablishment = async (data: UpdateEstablishmentData) => {
     await updateEstablishment(data);
     showSuccess("Estabelecimento atualizado!");
     closeModal("editEstablishment");
-  };
-
-  const handleSaveAvailability = async (data: AvailabilityData) => {
-    if (!selectedProfessional) return;
-    try {
-      const scheduleToSave: Availability = {};
-      data.weeklySchedule.forEach((day) => {
-        const dayKey = day.dayName
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace("-feira", "");
-        if (day.isOpen && day.timeSlots.length > 0) {
-          scheduleToSave[dayKey] = {
-            start: day.timeSlots[0].start,
-            end: day.timeSlots[0].end,
-          };
-        } else {
-          scheduleToSave[dayKey] = null;
-        }
-      });
-      await professionalsData.updateProfessional(selectedProfessional.id, {
-        availability: scheduleToSave,
-      });
-      showSuccess("Horários do profissional atualizados!");
-    } catch (error) {
-      console.error("OwnerView: Erro ao salvar disponibilidade:", error);
-    } finally {
-      closeModal("editAvailability");
-    }
   };
 
   const handleSaveOperatingHours = async (hours: OperatingHours) => {
@@ -307,7 +282,10 @@ export default function OwnerView() {
             createProfessional={handleCreateProfessional}
             updateProfessional={handleUpdateProfessional}
             deleteProfessional={handleDeleteProfessional}
-            onManageAvailability={handleManageAvailability}
+            onManageAvailability={(professional) => {
+              setSelectedProfessional(professional);
+              openModal("editProfessionalUnified");
+            }}
           />
         )}
         {activeTab === "settings" && (
@@ -321,9 +299,8 @@ export default function OwnerView() {
       </main>
       <ModalsManager
         isServiceOpen={modals.editService}
-        isProfessionalOpen={modals.editProfessional}
+        isProfessionalUnifiedOpen={modals.editProfessionalUnified}
         isEstablishmentOpen={modals.editEstablishment}
-        isAvailabilityOpen={modals.editAvailability}
         isOperatingHoursOpen={modals.editOperatingHours}
         isDeleteConfirmOpen={modals.deleteConfirm}
         isSuccessOpen={modals.success}
@@ -334,9 +311,8 @@ export default function OwnerView() {
         successMessage={successMessage}
         allServices={servicesData.services}
         onCloseService={() => closeModal("editService")}
-        onCloseProfessional={() => closeModal("editProfessional")}
+        onCloseProfessionalUnified={() => closeModal("editProfessionalUnified")}
         onCloseEstablishment={() => closeModal("editEstablishment")}
-        onCloseAvailability={() => closeModal("editAvailability")}
         onCloseOperatingHours={() => closeModal("editOperatingHours")}
         onCloseDeleteConfirm={() => closeModal("deleteConfirm")}
         onCloseSuccess={() => closeModal("success")}
@@ -344,7 +320,6 @@ export default function OwnerView() {
         onSaveService={handleSaveService}
         onSaveProfessional={handleSaveProfessional}
         onSaveEstablishment={handleSaveEstablishment}
-        onSaveAvailability={handleSaveAvailability}
         onSaveOperatingHours={handleSaveOperatingHours}
       />
     </div>

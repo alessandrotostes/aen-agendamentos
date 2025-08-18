@@ -4,6 +4,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 import { Timestamp } from "firebase-admin/firestore";
+import { differenceInHours } from "date-fns";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require("cors")({ origin: true });
@@ -13,16 +14,12 @@ admin.initializeApp();
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
+// Opções globais agora apenas definem a região.
 setGlobalOptions({
   region: "southamerica-east1",
 });
 
-let stripe: Stripe;
-const initializeStripe = () => {
-  if (!stripe) {
-    stripe = new Stripe(stripeSecretKey.value());
-  }
-};
+// A inicialização do Stripe agora acontece dentro de cada função para evitar erros de deploy.
 
 // ===== FUNÇÃO 1: PROCESSAR PAGAMENTO COM SPLIT (onRequest) =====
 export const createpaymentintent = onRequest(
@@ -30,7 +27,7 @@ export const createpaymentintent = onRequest(
   async (request, response) => {
     cors(request, response, async () => {
       try {
-        initializeStripe();
+        const stripe = new Stripe(stripeSecretKey.value());
         const authorization = request.headers.authorization;
         if (!authorization || !authorization.startsWith("Bearer ")) {
           throw new HttpsError(
@@ -55,6 +52,7 @@ export const createpaymentintent = onRequest(
           .doc(appointmentDetails.establishmentId)
           .get();
         if (!establishmentDoc.exists) {
+          // <-- SINTAXE CORRIGIDA
           throw new Error("Estabelecimento não encontrado.");
         }
         const stripeAccountId = establishmentDoc.data()?.stripeAccountId;
@@ -139,7 +137,7 @@ export const createconnectedaccount = onCall(
       throw new HttpsError("unauthenticated", "Você precisa estar logado.");
     }
 
-    initializeStripe();
+    const stripe = new Stripe(stripeSecretKey.value());
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
@@ -147,6 +145,7 @@ export const createconnectedaccount = onCall(
     const userDoc = await userDocRef.get();
 
     if (!userDoc.exists || userDoc.data()?.role !== "owner") {
+      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "permission-denied",
         "Apenas proprietários podem criar contas."
@@ -160,6 +159,7 @@ export const createconnectedaccount = onCall(
     const establishmentDoc = await establishmentRef.get();
 
     if (!establishmentDoc.exists) {
+      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "not-found",
         "Documento de estabelecimento não encontrado."
@@ -228,14 +228,14 @@ export const createconnectedaccount = onCall(
   }
 );
 
-// ===== FUNÇÃO 3: CRIAR LINK DE ONBOARDING (onCall) - MANTIDA POR SEGURANÇA =====
+// ===== FUNÇÃO 3: CRIAR LINK DE ONBOARDING (onCall) =====
 export const createaccountlink = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Você precisa estar logado.");
     }
-    initializeStripe();
+    const stripe = new Stripe(stripeSecretKey.value());
     const uid = request.auth.uid;
 
     const establishmentDoc = await admin
@@ -244,6 +244,7 @@ export const createaccountlink = onCall(
       .doc(uid)
       .get();
     if (!establishmentDoc.exists) {
+      // <-- SINTAXE CORRIGIDA
       throw new HttpsError(
         "not-found",
         "Documento de estabelecimento não encontrado."
@@ -281,7 +282,7 @@ export const createaccountlink = onCall(
 export const stripewebhook = onRequest(
   { secrets: [stripeSecretKey, stripeWebhookSecret] },
   async (request, response) => {
-    initializeStripe();
+    const stripe = new Stripe(stripeSecretKey.value());
     const webhookSecret = stripeWebhookSecret.value();
 
     if (!webhookSecret) {
@@ -342,5 +343,120 @@ export const stripewebhook = onRequest(
     }
 
     response.status(200).json({ received: true });
+  }
+);
+
+// ===== FUNÇÃO 5: CANCELAR E REEMBOLSAR AGENDAMENTO (onCall) =====
+export const cancelAndRefundAppointment = onCall(
+  { secrets: [stripeSecretKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Você precisa estar logado.");
+    }
+
+    const stripe = new Stripe(stripeSecretKey.value());
+    const uid = request.auth.uid;
+    const { appointmentId } = request.data;
+
+    if (typeof appointmentId !== "string" || !appointmentId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "O ID do agendamento é obrigatório."
+      );
+    }
+
+    try {
+      const appointmentRef = admin
+        .firestore()
+        .collection("appointments")
+        .doc(appointmentId);
+      const appointmentDoc = await appointmentRef.get();
+
+      if (!appointmentDoc.exists) {
+        throw new HttpsError("not-found", "Agendamento não encontrado.");
+      }
+
+      const appointment = appointmentDoc.data();
+
+      if (appointment?.clientId !== uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "Você não tem permissão para cancelar este agendamento."
+        );
+      }
+
+      const now = new Date();
+      const appointmentTime = (appointment?.dateTime as Timestamp).toDate();
+      if (differenceInHours(appointmentTime, now) < 6) {
+        throw new HttpsError(
+          "failed-precondition",
+          "O cancelamento só pode ser feito com 6 horas de antecedência."
+        );
+      }
+
+      const paymentIntentId = appointment?.paymentIntentId;
+      if (!paymentIntentId) {
+        await appointmentRef.update({ status: "cancelado" });
+        return {
+          success: true,
+          message:
+            "Agendamento cancelado. Nenhum pagamento associado para reembolsar.",
+        };
+      }
+
+      // --- INÍCIO DA CORREÇÃO ---
+
+      // 1. Obter os detalhes do Payment Intent original do Stripe
+      // Precisamos disto para saber o valor total e a taxa de aplicação cobrada.
+      console.log(`A obter detalhes do Payment Intent: ${paymentIntentId}`);
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        paymentIntentId
+      );
+
+      // 2. Calcular o valor do reembolso (valor total - taxa do app)
+      // Garantimos que o valor a reembolsar desconta a nossa taxa.
+      const applicationFeeAmount = paymentIntent.application_fee_amount || 0;
+      const amountToRefund = paymentIntent.amount - applicationFeeAmount;
+
+      console.log(
+        `A processar reembolso para ${paymentIntentId}. Valor total: ${paymentIntent.amount}, Taxa: ${applicationFeeAmount}, Valor a reembolsar: ${amountToRefund}`
+      );
+
+      if (amountToRefund <= 0) {
+        console.log(
+          "Valor do reembolso é zero ou negativo. Apenas a cancelar agendamento."
+        );
+        // Se não houver nada a reembolsar, apenas atualizamos o status.
+      } else {
+        // 3. Criar o reembolso com o valor parcial calculado
+        // Ao especificar o 'amount', dizemos ao Stripe exatamente quanto devolver ao cliente.
+        await stripe.refunds.create({
+          payment_intent: paymentIntentId,
+          amount: amountToRefund,
+        });
+        console.log(
+          `Reembolso de ${amountToRefund} para ${paymentIntentId} processado com sucesso.`
+        );
+      }
+
+      // --- FIM DA CORREÇÃO ---
+
+      await appointmentRef.update({ status: "cancelado" });
+
+      return {
+        success: true,
+        message: "Agendamento cancelado e reembolso processado com sucesso.",
+      };
+    } catch (error: any) {
+      console.error("Erro ao cancelar e reembolsar agendamento:", error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError(
+        "internal",
+        "Ocorreu um erro ao processar o cancelamento.",
+        error.message
+      );
+    }
   }
 );

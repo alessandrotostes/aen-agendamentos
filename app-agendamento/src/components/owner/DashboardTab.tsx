@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import StatsCard from "./common/StatsCard";
 import EmptyState from "./common/EmptyState";
 import { timestampUtils } from "../../lib/utils";
@@ -13,7 +13,7 @@ import LoadingSpinner from "./common/LoadingSpinner";
 
 interface Appointment {
   id: string;
-  status: "confirmado" | "pendente" | "cancelado";
+  status: "confirmado" | "cancelado";
   serviceName: string;
   clientName: string;
   professionalName: string;
@@ -24,15 +24,14 @@ interface Props {
   stats: {
     services: number;
     professionals: number;
-    today: number; // Representa a contagem para o dia selecionado
+    today: number;
   };
   appointmentsForDate?: Appointment[];
   selectedDate: Date;
-  onDateChange: (date: Date) => void; // Ajustado para não aceitar undefined
+  onDateChange: (date: Date) => void;
   loading: boolean;
 }
 
-// Função para criar um título dinâmico e amigável para a data
 const formatDateTitle = (date: Date): string => {
   if (isToday(date)) {
     return "Hoje";
@@ -50,13 +49,36 @@ export default function DashboardTab({
   onDateChange,
   loading,
 }: Props) {
-  // Criamos um handler seguro que verifica se a data não é undefined antes de chamar a função do estado.
-  // Isso resolve o erro de tipagem entre o DayPicker e o useState do React.
   const handleDaySelect: SelectSingleEventHandler = (date) => {
     if (date) {
       onDateChange(date);
     }
   };
+
+  const sortedAppointments = useMemo(() => {
+    const now = Date.now();
+
+    const getStatusRank = (app: Appointment) => {
+      if (app.status === "cancelado") {
+        return 3; // Cancelados ficam sempre por último
+      }
+      if (app.dateTime.toMillis() < now) {
+        return 2; // Concluídos (passados) ficam no meio
+      }
+      return 1; // Próximos agendamentos ficam no topo
+    };
+
+    return [...appointmentsForDate].sort((a, b) => {
+      const rankA = getStatusRank(a);
+      const rankB = getStatusRank(b);
+
+      if (rankA !== rankB) {
+        return rankA - rankB; // Ordena por categoria: Próximos -> Concluídos -> Cancelados
+      }
+
+      return a.dateTime.toMillis() - b.dateTime.toMillis();
+    });
+  }, [appointmentsForDate]);
 
   return (
     <div className="space-y-8">
@@ -89,7 +111,6 @@ export default function DashboardTab({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Coluna Principal: Agendamentos */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border">
           <div className="px-6 py-4 border-b flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -102,47 +123,99 @@ export default function DashboardTab({
               <div className="flex justify-center items-center h-full">
                 <LoadingSpinner />
               </div>
-            ) : appointmentsForDate.length > 0 ? (
+            ) : sortedAppointments.length > 0 ? (
               <div className="space-y-4">
-                {appointmentsForDate.map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className={`flex items-center justify-between py-3 px-4 rounded-lg transition-shadow ${
-                      appointment.status === "confirmado"
-                        ? "bg-emerald-50 border border-emerald-200"
-                        : "bg-yellow-50 border border-yellow-200"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className={`w-3 h-3 rounded-full ${
-                          appointment.status === "confirmado"
-                            ? "bg-emerald-500"
-                            : "bg-yellow-500"
-                        }`}
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {appointment.serviceName}
+                {sortedAppointments.map((appointment) => {
+                  const now = new Date();
+
+                  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
+                    appointment.status;
+                  if (
+                    appointment.status === "confirmado" &&
+                    appointment.dateTime.toDate() < now
+                  ) {
+                    virtualStatus = "concluido";
+                  }
+
+                  const statusStyles = {
+                    confirmado: {
+                      // Próximos agendamentos (Amarelo)
+                      bg: "bg-yellow-50",
+                      border: "border-yellow-200",
+                      indicator: "bg-yellow-500",
+                    },
+                    concluido: {
+                      // Agendamentos concluídos (Verde)
+                      bg: "bg-emerald-50",
+                      border: "border-emerald-200",
+                      indicator: "bg-emerald-500",
+                    },
+                    cancelado: {
+                      // Agendamentos cancelados (Vermelho)
+                      bg: "bg-red-50",
+                      border: "border-red-200",
+                      indicator: "bg-red-500",
+                    },
+                  };
+
+                  const currentStyle = statusStyles[virtualStatus];
+
+                  return (
+                    <div
+                      key={appointment.id}
+                      className={`flex items-center justify-between py-3 px-4 rounded-lg transition-shadow ${currentStyle.bg} ${currentStyle.border}`}
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div
+                          className={`w-3 h-3 rounded-full flex-shrink-0 ${currentStyle.indicator}`}
+                        />
+                        <div>
+                          <p
+                            className={`font-medium ${
+                              virtualStatus === "concluido"
+                                ? "text-gray-500"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {appointment.serviceName}
+                          </p>
+                          <p className="text-sm text-teal-600">
+                            {appointment.clientName || "Cliente"}
+                          </p>
+
+                          {virtualStatus === "cancelado" && (
+                            <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              Cancelado pelo cliente
+                            </span>
+                          )}
+                          {virtualStatus === "concluido" && (
+                            <span className="mt-1 inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              Concluído
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`font-semibold ${
+                            virtualStatus === "cancelado" ||
+                            virtualStatus === "concluido"
+                              ? "text-gray-500 line-through"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {timestampUtils.format(appointment.dateTime, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
-                        <p className="text-sm text-teal-600">
-                          {appointment.clientName || "Cliente"}
+                        <p className="text-sm text-indigo-600">
+                          {appointment.professionalName}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">
-                        {timestampUtils.format(appointment.dateTime, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                      <p className="text-sm text-indigo-600">
-                        {appointment.professionalName}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <EmptyState
@@ -153,7 +226,6 @@ export default function DashboardTab({
           </div>
         </div>
 
-        {/* Coluna Lateral: Calendário */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl shadow-sm border p-2 sm:p-4">
             <DayPicker

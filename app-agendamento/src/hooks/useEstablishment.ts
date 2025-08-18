@@ -185,23 +185,33 @@ export function useProfessionals(establishmentId?: string) {
       throw new Error("Usuário não autenticado");
 
     const { imageFile, ...restOfData } = data;
-    let finalPhotoURL = "";
+
+    // O objeto 'restOfData' já contém: name, email, phone, bio, serviceIds
+    // A sua lógica para a imagem está perfeita.
+    let finalPhotoURL = restOfData.photoURL || "";
     if (imageFile) {
+      // Usamos um ID temporário para a imagem, o que é ótimo.
       const tempId = doc(collection(db, "temp")).id;
       finalPhotoURL = await handleImageUpload(imageFile, tempId);
     }
+
+    // --- CORREÇÃO APLICADA AQUI ---
+    // O objeto final a ser salvo agora inclui todos os dados do formulário.
     const professionalData = {
-      ...restOfData,
+      ...restOfData, // Inclui name, email, phone, bio, e os serviceIds do form
       establishmentId: userData.uid,
-      serviceIds: [],
       photoURL: finalPhotoURL,
+      // A linha 'serviceIds: []' foi removida, pois ela estava a apagar os serviços selecionados.
     };
+
     await firestoreOperations.create<Omit<Professional, "id">>(
       collectionPath,
       professionalData
     );
   };
 
+  // A sua função 'updateProfessional' já está correta e vai salvar
+  // o email e telefone durante a edição, pois ela já usa o 'restOfData'.
   const updateProfessional = async (
     id: string,
     data: Partial<CreateProfessionalData>

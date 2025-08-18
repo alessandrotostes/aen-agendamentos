@@ -2,9 +2,8 @@
 
 import React from "react";
 import EditServiceModal from "./modals/EditServiceModal";
-import EditProfessionalModal from "./modals/EditProfessionalModal";
+import EditProfessionalUnifiedModal from "./modals/EditProfessionalUnifiedModal";
 import EditEstablishmentModal from "./modals/EditEstablishmentModal";
-import EditAvailabilityModal from "./modals/EditAvailabilityModal";
 import OperatingHoursModal from "./modals/OperatingHoursModal";
 import ConfirmationModal from "../shared/modals/ConfirmationModal";
 import SuccessModal from "../shared/modals/SuccessModal";
@@ -15,15 +14,18 @@ import type {
   CreateServiceData,
   CreateProfessionalData,
   UpdateEstablishmentData,
-  AvailabilityData,
   OperatingHours,
+  Availability,
 } from "../../types";
+
+type UnifiedProfessionalData = CreateProfessionalData & {
+  availability?: Availability;
+};
 
 interface ModalsManagerProps {
   isServiceOpen: boolean;
-  isProfessionalOpen: boolean;
+  isProfessionalUnifiedOpen: boolean;
   isEstablishmentOpen: boolean;
-  isAvailabilityOpen: boolean;
   isOperatingHoursOpen: boolean;
   isDeleteConfirmOpen: boolean;
   isSuccessOpen: boolean;
@@ -38,25 +40,22 @@ interface ModalsManagerProps {
   successMessage: string;
   allServices: Service[];
   onCloseService: () => void;
-  onCloseProfessional: () => void;
+  onCloseProfessionalUnified: () => void;
   onCloseEstablishment: () => void;
-  onCloseAvailability: () => void;
   onCloseOperatingHours: () => void;
   onCloseDeleteConfirm: () => void;
   onCloseSuccess: () => void;
   onConfirmDelete: () => Promise<void>;
   onSaveService: (data: CreateServiceData) => Promise<void>;
-  onSaveProfessional: (data: CreateProfessionalData) => Promise<void>;
+  onSaveProfessional: (data: UnifiedProfessionalData) => Promise<void>;
   onSaveEstablishment: (data: UpdateEstablishmentData) => Promise<void>;
-  onSaveAvailability: (data: AvailabilityData) => Promise<void>;
   onSaveOperatingHours: (hours: OperatingHours) => Promise<void>;
 }
 
 export default function ModalsManager({
   isServiceOpen,
-  isProfessionalOpen,
+  isProfessionalUnifiedOpen,
   isEstablishmentOpen,
-  isAvailabilityOpen,
   isOperatingHoursOpen,
   isDeleteConfirmOpen,
   isSuccessOpen,
@@ -67,9 +66,8 @@ export default function ModalsManager({
   successMessage,
   allServices,
   onCloseService,
-  onCloseProfessional,
+  onCloseProfessionalUnified,
   onCloseEstablishment,
-  onCloseAvailability,
   onCloseOperatingHours,
   onCloseDeleteConfirm,
   onCloseSuccess,
@@ -77,7 +75,6 @@ export default function ModalsManager({
   onSaveService,
   onSaveProfessional,
   onSaveEstablishment,
-  onSaveAvailability,
   onSaveOperatingHours,
 }: ModalsManagerProps) {
   return (
@@ -88,31 +85,29 @@ export default function ModalsManager({
         onSave={onSaveService}
         service={selectedService}
       />
-      <EditProfessionalModal
-        isOpen={isProfessionalOpen}
-        onClose={onCloseProfessional}
+
+      <EditProfessionalUnifiedModal
+        isOpen={isProfessionalUnifiedOpen}
+        onClose={onCloseProfessionalUnified}
         onSave={onSaveProfessional}
         professional={selectedProfessional}
         allServices={allServices}
       />
+
       <EditEstablishmentModal
         isOpen={isEstablishmentOpen}
         onClose={onCloseEstablishment}
         onSave={onSaveEstablishment}
         establishment={establishmentToEdit}
       />
-      <EditAvailabilityModal
-        isOpen={isAvailabilityOpen}
-        onClose={onCloseAvailability}
-        onSave={onSaveAvailability}
-        professional={selectedProfessional}
-      />
+
       <OperatingHoursModal
         isOpen={isOperatingHoursOpen}
         onClose={onCloseOperatingHours}
         onSave={onSaveOperatingHours}
         establishment={establishmentToEdit}
       />
+
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
         onClose={onCloseDeleteConfirm}
@@ -122,6 +117,7 @@ export default function ModalsManager({
         }`}
         message={`Tem certeza que deseja excluir "${deleteTarget?.name}"?`}
       />
+
       <SuccessModal
         isOpen={isSuccessOpen}
         onClose={onCloseSuccess}
