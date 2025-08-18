@@ -61,6 +61,7 @@ export interface Professional {
   establishmentId: string;
   name: string;
   email?: string;
+  authUid?: string;
   phone?: string;
   photoURL?: string;
   bio?: string;

@@ -15,6 +15,8 @@ import {
 } from "../../hooks/useEstablishment";
 import { useAppointmentsForDate } from "../../hooks/useAppointments";
 import { useStripeAccount } from "../../hooks/useStripe";
+import { getApp } from "firebase/app";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
   Service,
   Professional,
@@ -158,6 +160,25 @@ export default function OwnerView() {
     }
   };
 
+  const handleInviteProfessional = async (professionalId: string) => {
+    try {
+      const functions = getFunctions(getApp(), "southamerica-east1");
+      const inviteProfessional = httpsCallable(functions, "inviteProfessional");
+
+      console.log(`Enviando convite para o profissional ${professionalId}...`);
+      await inviteProfessional({ professionalId: professionalId });
+
+      showSuccess(
+        "Convite enviado com sucesso! O profissional receberá um email para definir a sua senha."
+      );
+
+      professionalsData.refresh();
+    } catch (error) {
+      console.error("Erro ao enviar convite:", error);
+      alert("Ocorreu um erro ao enviar o convite. Verifique o console.");
+    }
+  };
+
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -170,8 +191,6 @@ export default function OwnerView() {
   };
 
   const handleSaveProfessional = async (data: UnifiedProfessionalData) => {
-    // A tipagem 'UnifiedProfessionalData' não corresponde exatamente à 'CreateProfessionalData'
-    // que a função do hook espera, então removemos 'availability' antes de passar.
     const { availability, ...professionalData } = data;
     const dataToSave = { ...professionalData, availability };
 
@@ -182,7 +201,6 @@ export default function OwnerView() {
       );
       showSuccess("Profissional atualizado!");
     } else {
-      // A função 'create' pode precisar ser ajustada se não aceitar 'availability'
       await professionalsData.createProfessional(dataToSave);
       showSuccess("Profissional criado!");
     }
@@ -286,6 +304,7 @@ export default function OwnerView() {
               setSelectedProfessional(professional);
               openModal("editProfessionalUnified");
             }}
+            onInviteProfessional={handleInviteProfessional}
           />
         )}
         {activeTab === "settings" && (

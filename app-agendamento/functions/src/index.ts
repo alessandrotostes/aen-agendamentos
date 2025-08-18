@@ -5,7 +5,7 @@ import * as admin from "firebase-admin";
 import Stripe from "stripe";
 import { Timestamp } from "firebase-admin/firestore";
 import { differenceInHours } from "date-fns";
-
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require("cors")({ origin: true });
 
@@ -457,6 +457,144 @@ export const cancelAndRefundAppointment = onCall(
         "Ocorreu um erro ao processar o cancelamento.",
         error.message
       );
+    }
+  }
+);
+export const inviteProfessional = onCall(
+  { secrets: [stripeSecretKey] }, // Podemos manter os secrets se precisar de alguma info no futuro
+  async (request) => {
+    // 1. Validação de Segurança: Apenas 'owners' podem convidar
+    if (request.auth?.token.role !== "owner") {
+      throw new HttpsError(
+        "permission-denied",
+        "Apenas proprietários podem convidar profissionais."
+      );
+    }
+
+    const { professionalId } = request.data;
+    if (!professionalId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "O ID do profissional é obrigatório."
+      );
+    }
+
+    const ownerId = request.auth.uid;
+    const professionalRef = admin
+      .firestore()
+      .collection("establishments")
+      .doc(ownerId)
+      .collection("professionals")
+      .doc(professionalId);
+
+    const professionalDoc = await professionalRef.get();
+
+    if (!professionalDoc.exists) {
+      throw new HttpsError("not-found", "Profissional não encontrado.");
+    }
+
+    const professionalData = professionalDoc.data();
+    const email = professionalData?.email;
+
+    if (!email) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este profissional não tem um email cadastrado."
+      );
+    }
+
+    // 2. Verificar se já não foi convidado (se já tem um authUid)
+    if (professionalData?.authUid) {
+      throw new HttpsError(
+        "already-exists",
+        "Este profissional já foi convidado e tem uma conta de utilizador."
+      );
+    }
+
+    try {
+      // 3. Criar o utilizador no Firebase Authentication
+      console.log(`A criar utilizador de autenticação para ${email}...`);
+      const userRecord = await admin.auth().createUser({
+        email: email,
+        displayName: professionalData?.name,
+        // Podemos definir uma senha aleatória inicial que será trocada
+        password: Math.random().toString(36).slice(-8),
+      });
+      console.log("Utilizador criado com sucesso:", userRecord.uid);
+
+      // 4. Associar o novo ID de autenticação ao documento do profissional
+      await professionalRef.update({
+        authUid: userRecord.uid,
+      });
+
+      // 5. Gerar um link para o profissional definir a sua senha
+      // O Firebase enviará um email padrão para ele.
+      const passwordResetLink = await admin
+        .auth()
+        .generatePasswordResetLink(email);
+
+      console.log(
+        `Utilizador ${userRecord.uid} associado ao profissional ${professionalId}. O profissional pode usar o link de redefinição de senha para o primeiro login.`
+      );
+
+      // Embora o Firebase envie o email, ter o link pode ser útil para debug
+      return {
+        success: true,
+        message: "Convite enviado com sucesso!",
+        link: passwordResetLink,
+      };
+    } catch (error: any) {
+      console.error("Erro ao criar utilizador para profissional:", error);
+      if (error.code === "auth/email-already-exists") {
+        throw new HttpsError(
+          "already-exists",
+          "Este email já está a ser utilizado por outra conta na plataforma."
+        );
+      }
+      throw new HttpsError(
+        "internal",
+        "Ocorreu um erro inesperado ao processar o convite."
+      );
+    }
+  }
+);
+// ===== FUNÇÃO DE GATILHO: SINCRONIZAR CARGO DO UTILIZADOR =====
+// Esta função irá executar automaticamente sempre que um documento na coleção 'users'
+// for criado ou atualizado.
+export const onUserRoleChange = onDocumentWritten(
+  "users/{userId}",
+  async (event) => {
+    // Se o documento foi apagado, não fazemos nada.
+    if (!event.data?.after.exists) {
+      return null;
+    }
+
+    // Obtemos o novo 'role' do documento.
+    const newRole = event.data.after.data()?.role;
+    // Obtemos o 'role' antigo, se existia.
+    const oldRole = event.data.before.data()?.role;
+
+    // Se o 'role' não mudou, não precisamos de fazer nada.
+    if (newRole === oldRole) {
+      console.log(`Role for user ${event.params.userId} has not changed.`);
+      return null;
+    }
+
+    try {
+      const userId = event.params.userId;
+      console.log(
+        `Role changed for user ${userId} to '${newRole}'. Setting custom claim...`
+      );
+
+      // Usamos o Firebase Admin SDK para "carimbar" o cargo no token do utilizador.
+      // Se o cargo for removido (ex: newRole é undefined), as claims são limpas.
+      await admin.auth().setCustomUserClaims(userId, { role: newRole });
+
+      console.log(`Custom claim for user ${userId} successfully set.`);
+      return { success: true };
+    } catch (error) {
+      console.error("Error setting custom user claims:", error);
+      return { success: false, error: error };
     }
   }
 );

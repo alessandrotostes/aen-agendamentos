@@ -11,6 +11,7 @@ interface Props {
   updateProfessional: (id: string) => void;
   deleteProfessional: (id: string) => void;
   onManageAvailability: (professional: Professional) => void;
+  onInviteProfessional: (id: string) => void;
 }
 
 export default function ProfessionalsTab({
@@ -19,6 +20,7 @@ export default function ProfessionalsTab({
   updateProfessional,
   deleteProfessional,
   onManageAvailability,
+  onInviteProfessional,
 }: Props) {
   return (
     <div className="space-y-6">
@@ -78,27 +80,25 @@ export default function ProfessionalsTab({
                 </div>
               </div>
 
-              {p.specialties && p.specialties.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-2">
-                    {p.specialties.slice(0, 3).map((s, idx) => (
-                      <span
-                        key={`${p.id}-spec-${idx}`}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-teal-100 to-indigo-100 text-teal-700"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                    {p.specialties.length > 3 && (
-                      <span className="text-xs text-teal-600 font-medium px-2 py-1 bg-teal-50 rounded-full">
-                        +{p.specialties.length - 3}
-                      </span>
-                    )}
-                  </div>
-                </div>
+              {p.authUid ? (
+                <span className="mb-4 text-xs font-bold inline-flex items-center self-start px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md">
+                  ✔️ Convidado
+                </span>
+              ) : (
+                <span className="mb-4 text-xs font-bold inline-flex items-center self-start px-2 py-1 bg-yellow-100 text-yellow-700 rounded-md">
+                  ✉️ Convite Pendente
+                </span>
               )}
 
               <div className="mt-auto pt-4 border-t flex justify-end space-x-2">
+                {!p.authUid && p.email && (
+                  <button
+                    onClick={() => onInviteProfessional(p.id)}
+                    className="px-3 py-1 text-xs font-medium text-white bg-teal-500 hover:bg-teal-600 rounded-lg"
+                  >
+                    Convidar
+                  </button>
+                )}
                 <button
                   onClick={() => onManageAvailability(p)}
                   className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
