@@ -1,101 +1,171 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { useStripePayment, PaymentData } from "../../hooks/useStripe";
-import SuccessModal from "../shared/modals/SuccessModal";
+import React, { useEffect, useState } from "react";
+import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getApp } from "firebase/app";
+import AuthLayout from "../../components/shared/AuthLayout";
+import { ClientRoute } from "../../components/auth/ProtectedRoute";
 import { PendingAppointment } from "../../types";
+import { useAuth } from "@/contexts/AuthContext";
 
-const cardElementOptions = {
-  style: {
-    base: {
-      color: "#32325d",
-      fontSize: "16px",
-      "::placeholder": { color: "#aab7c4" },
-    },
-    invalid: { color: "#fa755a", iconColor: "#fa755a" },
-  },
-};
-
-interface CheckoutFormProps {
-  pendingAppointment: PendingAppointment;
-}
-
-export default function CheckoutForm({
+// Componente interno para o formulário de checkout, para manter a lógica organizada
+const MercadoPagoCheckoutForm = ({
   pendingAppointment,
-}: CheckoutFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const router = useRouter();
-  const { processPayment, loading, error } = useStripePayment();
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+}: {
+  pendingAppointment: PendingAppointment;
+}) => {
+  const { userData } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!stripe || !elements) return;
+  const initialization = {
+    amount: pendingAppointment.price,
+  };
 
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
+  // Personalização Visual para o formulário
+  const customization = {
+    visual: {
+      style: {
+        theme: "flat", // Tema mais moderno e minimalista
+        customVariables: {
+          formBackgroundColor: "#F9FAFB", // Fundo cinza claro
+          baseColor: "#0d9488", // Tom de verde/teal da sua aplicação
+          borderRadius: "0.5rem", // Bordas arredondadas
+          inputBackgroundColor: "#FFFFFF",
+        },
+      },
+    },
+  };
 
-    const { error: paymentMethodError, paymentMethod } =
-      await stripe.createPaymentMethod({
-        type: "card",
-        card: cardElement,
-      });
-
-    if (paymentMethodError || !paymentMethod) {
-      console.error(paymentMethodError);
-      return;
-    }
-
+  const onSubmit = async (formData: any) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      // CORREÇÃO: "Traduzimos" os dados para o formato que o hook espera
-      const paymentDataForHook: PaymentData = {
-        ...pendingAppointment,
-        dateTime: new Date(pendingAppointment.bookingTimestamp), // Converte a string para um objeto Date
+      const functions = getFunctions(getApp(), "southamerica-east1");
+      const createPayment = httpsCallable(
+        functions,
+        "createMercadoPagoPayment"
+      );
+
+      const paymentData = {
+        transaction_amount: pendingAppointment.price,
+        token: formData.token,
+        issuer_id: formData.issuer_id,
+        payment_method_id: formData.payment_method_id,
+        installments: formData.installments,
+        payer: {
+          email: userData?.email || "",
+          first_name: userData?.name || "Cliente",
+        },
+        appointmentDetails: pendingAppointment,
       };
 
-      const result = await processPayment(paymentMethod.id, paymentDataForHook);
+      const result: any = await createPayment(paymentData);
 
-      if (result.success) {
-        sessionStorage.removeItem("pendingAppointment");
-        setIsSuccessModalOpen(true);
+      if (result.data.success && result.data.status === "approved") {
+        alert("Pagamento aprovado e agendamento confirmado!");
+        window.location.href = "/client"; // Redireciona para o painel do cliente
+      } else {
+        throw new Error(
+          result.data.message || "O pagamento não pôde ser processado."
+        );
       }
-    } catch (err) {
-      console.error(err);
-      // O erro já é tratado e exibido pelo hook `useStripePayment`
+    } catch (err: any) {
+      console.error("Erro no pagamento:", err);
+      setError(err.message || "Ocorreu um erro. Por favor, tente novamente.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSuccess = () => {
-    setIsSuccessModalOpen(false);
-    router.push("/client");
+  const onError = async (error: any) => {
+    console.error("Erro no CardPayment Brick:", error);
+    setError(
+      "Ocorreu um erro ao carregar o formulário de pagamento. Verifique os seus dados."
+    );
+  };
+
+  const onReady = async () => {
+    console.log("CardPayment Brick está pronto.");
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4 p-3 border rounded-md bg-white">
-          <CardElement options={cardElementOptions} />
+    <div className="flex flex-col">
+      {/* Contentor com altura mínima para reservar o espaço e evitar sobreposição */}
+      <div className="w-full min-h-[320px]">
+        <CardPayment
+          initialization={initialization}
+          customization={customization}
+          onSubmit={onSubmit}
+          onError={onError}
+          onReady={onReady}
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+      {isLoading && (
+        <p className="text-gray-500 text-sm mt-2">
+          A processar o seu pagamento...
+        </p>
+      )}
+    </div>
+  );
+};
+
+export default function CheckoutPage() {
+  const [pendingAppointment, setPendingAppointment] =
+    useState<PendingAppointment | null>(null);
+  const [isMpReady, setIsMpReady] = useState(false);
+
+  useEffect(() => {
+    const appointmentData = sessionStorage.getItem("pendingAppointment");
+    if (appointmentData) {
+      setPendingAppointment(JSON.parse(appointmentData));
+    }
+
+    // Inicializamos o SDK do Mercado Pago com a nossa Public Key de teste
+    const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
+    if (mpPublicKey) {
+      initMercadoPago(mpPublicKey, {
+        locale: "pt-BR",
+      });
+      setIsMpReady(true);
+    } else {
+      console.error(
+        "Chave pública do Mercado Pago (NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) não encontrada nas variáveis de ambiente."
+      );
+    }
+  }, []);
+
+  return (
+    <ClientRoute>
+      <AuthLayout>
+        <div className="w-full">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Finalizar Pagamento
+          </h2>
+          {pendingAppointment && isMpReady ? (
+            <>
+              <p className="text-gray-600 mb-6">
+                Você está agendando{" "}
+                <span className="font-bold text-teal-600">
+                  {pendingAppointment.serviceName}
+                </span>{" "}
+                por{" "}
+                <span className="font-bold">
+                  R$ {pendingAppointment.price.toFixed(2)}
+                </span>
+                .
+              </p>
+              <MercadoPagoCheckoutForm
+                pendingAppointment={pendingAppointment}
+              />
+            </>
+          ) : (
+            <p className="text-gray-500">A carregar o checkout...</p>
+          )}
         </div>
-        {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-        <button
-          type="submit"
-          disabled={!stripe || loading}
-          className="w-full px-4 py-3 font-semibold text-white bg-gradient-to-r from-teal-500 to-indigo-400 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {loading
-            ? "Processando..."
-            : `Pagar R$ ${pendingAppointment.price.toFixed(2)}`}
-        </button>
-      </form>
-      <SuccessModal
-        isOpen={isSuccessModalOpen}
-        onClose={handleSuccess}
-        title="Agendamento Confirmado!"
-        message="Seu pagamento foi processado e seu horário foi agendado com sucesso."
-      />
-    </>
+      </AuthLayout>
+    </ClientRoute>
   );
 }

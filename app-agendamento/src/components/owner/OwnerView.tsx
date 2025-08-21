@@ -14,7 +14,6 @@ import {
   useProfessionals,
 } from "../../hooks/useEstablishment";
 import { useAppointmentsForDate } from "../../hooks/useAppointments";
-import { useStripeAccount } from "../../hooks/useStripe";
 import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
@@ -23,8 +22,8 @@ import type {
   CreateServiceData,
   CreateProfessionalData,
   UpdateEstablishmentData,
-  OperatingHours,
   Availability,
+  OperatingHours,
 } from "../../types";
 
 type UnifiedProfessionalData = CreateProfessionalData & {
@@ -59,58 +58,55 @@ export default function OwnerView() {
     establishment,
     loading: estLoading,
     updateEstablishment,
-    refreshEstablishment,
   } = useEstablishment();
   const servicesData = useServices();
   const professionalsData = useProfessionals();
   const appointmentsData = useAppointmentsForDate(selectedDate);
-  const stripeHook = useStripeAccount();
 
-  const handleCreateStripeAccount = async () => {
+  // --- LÓGICA DO STRIPE REMOVIDA ---
+
+  // --- NOVA LÓGICA PARA O MERCADO PAGO ONBOARDING ---
+  const [mpLoading, setMpLoading] = useState(false);
+  const [mpError, setMpError] = useState<string | null>(null);
+
+  const handleConnectMercadoPago = async () => {
+    setMpLoading(true);
+    setMpError(null);
     try {
-      const result = await stripeHook.createConnectedAccount();
-      if (result?.accountId) {
-        await refreshEstablishment();
-      }
-      if (result?.url) {
-        window.location.href = result.url;
-      }
-    } catch (error) {
-      console.error("Falha ao criar conta Stripe:", error);
-      alert(
-        "Ocorreu um erro ao conectar com o Stripe. Verifique o console para mais detalhes."
+      const functions = getFunctions(getApp(), "southamerica-east1");
+      const generateLink = httpsCallable(
+        functions,
+        "generateMercadoPagoOnboardingLink"
       );
+      const result: any = await generateLink();
+
+      if (result.data.url) {
+        // Redireciona o owner para a página de autorização do Mercado Pago
+        window.location.href = result.data.url;
+      } else {
+        throw new Error("A URL de onboarding não foi recebida.");
+      }
+    } catch (error: any) {
+      console.error("Erro ao gerar link de onboarding:", error);
+      setMpError(error.message || "Não foi possível iniciar a conexão.");
+    } finally {
+      setMpLoading(false);
     }
   };
 
-  const handleOnboardingRedirect = async () => {
-    try {
-      const url = await stripeHook.createAccountLink();
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (error) {
-      console.error("Falha ao obter o link de onboarding:", error);
-      alert(
-        "Ocorreu um erro ao gerar o link. Verifique o console para mais detalhes."
-      );
-    }
-  };
-
-  const stripeData = {
-    hasStripeAccount: !!establishment?.stripeAccountId,
-    isStripeOnboarded: !!establishment?.stripeAccountOnboarded,
-    loading: stripeHook.loading,
-    error: stripeHook.error,
-    createConnectedAccount: handleCreateStripeAccount,
-    createAccountLink: handleOnboardingRedirect,
+  const mpData = {
+    hasMpAccount: !!establishment?.mpCredentials,
+    loading: mpLoading,
+    connectMercadoPago: handleConnectMercadoPago,
+    error: mpError,
   };
 
   const isLoading =
     estLoading || servicesData.loading || professionalsData.loading;
 
-  const openModal = (name: keyof typeof modals) =>
-    setModals((prev) => ({ ...prev, [name]: true }));
+  const openModal = (
+    name: keyof Omit<typeof modals, "editProfessional" | "editAvailability">
+  ) => setModals((prev) => ({ ...prev, [name]: true }));
   const closeModal = (name: keyof typeof modals) =>
     setModals((prev) => ({ ...prev, [name]: false }));
   const showSuccess = (msg: string) => {
@@ -136,7 +132,6 @@ export default function OwnerView() {
       openModal("deleteConfirm");
     }
   };
-
   const handleCreateProfessional = () => {
     setSelectedProfessional(null);
     openModal("editProfessionalUnified");
@@ -160,44 +155,6 @@ export default function OwnerView() {
     }
   };
 
-  const handleInviteProfessional = async (professionalId: string) => {
-    try {
-      const functions = getFunctions(getApp(), "southamerica-east1");
-      const inviteProfessional = httpsCallable(functions, "inviteProfessional");
-
-      console.log(`Enviando convite para o profissional ${professionalId}...`);
-      await inviteProfessional({ professionalId: professionalId });
-
-      showSuccess(
-        "Convite enviado com sucesso! O profissional receberá um email para definir a sua senha."
-      );
-
-      professionalsData.refresh();
-    } catch (error) {
-      console.error("Erro ao enviar convite:", error);
-      alert("Ocorreu um erro ao enviar o convite. Verifique o console.");
-    }
-  };
-
-  const handleResendInvite = async (professionalId: string) => {
-    try {
-      const functions = getFunctions(getApp(), "southamerica-east1");
-      const resendInvite = httpsCallable(functions, "resendInvite");
-
-      console.log(
-        `Reenviando convite para o profissional ${professionalId}...`
-      );
-      await resendInvite({ professionalId: professionalId });
-
-      showSuccess(
-        "Convite reenviado com sucesso! O profissional receberá um novo email."
-      );
-    } catch (error) {
-      console.error("Erro ao reenviar convite:", error);
-      alert("Ocorreu um erro ao reenviar o convite. Verifique o console.");
-    }
-  };
-
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -210,17 +167,11 @@ export default function OwnerView() {
   };
 
   const handleSaveProfessional = async (data: UnifiedProfessionalData) => {
-    const { availability, ...professionalData } = data;
-    const dataToSave = { ...professionalData, availability };
-
     if (selectedProfessional) {
-      await professionalsData.updateProfessional(
-        selectedProfessional.id,
-        dataToSave
-      );
+      await professionalsData.updateProfessional(selectedProfessional.id, data);
       showSuccess("Profissional atualizado!");
     } else {
-      await professionalsData.createProfessional(dataToSave);
+      await professionalsData.createProfessional(data);
       showSuccess("Profissional criado!");
     }
     closeModal("editProfessionalUnified");
@@ -323,16 +274,15 @@ export default function OwnerView() {
               setSelectedProfessional(professional);
               openModal("editProfessionalUnified");
             }}
-            onInviteProfessional={handleInviteProfessional}
-            onResendInvite={handleResendInvite}
+            onInviteProfessional={() => {}} // Funções de convite serão adicionadas depois
+            onResendInvite={() => {}}
           />
         )}
         {activeTab === "settings" && (
           <SettingsTab
-            stripeData={stripeData}
+            mpData={mpData}
             onEditEstablishment={() => openModal("editEstablishment")}
             onManageOperatingHours={() => openModal("editOperatingHours")}
-            onRefreshStripeStatus={refreshEstablishment}
           />
         )}
       </main>

@@ -40,10 +40,17 @@ export interface Establishment {
   imageURL?: string;
   mainService?: string;
   rating?: number;
-  stripeAccountId?: string;
-  stripeAccountOnboarded?: boolean;
+  mpCredentials?: MpCredentials;
   availability?: Availability;
   operatingHours?: OperatingHours;
+}
+
+export interface MpCredentials {
+  mp_user_id: number;
+  mp_access_token: string;
+  mp_refresh_token: string;
+  mp_public_key: string;
+  mp_connected_at: Timestamp;
 }
 
 export interface Service {

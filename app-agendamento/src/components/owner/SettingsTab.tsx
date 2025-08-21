@@ -1,30 +1,25 @@
 "use client";
 
 import React from "react";
-import { Building, CreditCard, Clock, RefreshCw } from "lucide-react";
+import { Building, CreditCard, Clock } from "lucide-react";
 
-interface StripeData {
-  hasStripeAccount: boolean;
-  isStripeOnboarded: boolean;
+interface MpData {
+  hasMpAccount: boolean;
   loading: boolean;
-  createConnectedAccount: () => Promise<void>;
-  createAccountLink: () => Promise<void>;
-  error: string | null; // <-- Propriedade 'error' adicionada aqui
+  connectMercadoPago: () => Promise<void>;
+  error: string | null;
 }
 
 interface Props {
-  // establishment foi removido, pois não estava a ser usado.
-  stripeData: StripeData;
+  mpData: MpData;
   onEditEstablishment: () => void;
   onManageOperatingHours: () => void;
-  onRefreshStripeStatus: () => void;
 }
 
 export default function SettingsTab({
-  stripeData,
+  mpData,
   onEditEstablishment,
   onManageOperatingHours,
-  onRefreshStripeStatus,
 }: Props) {
   return (
     <div className="space-y-6">
@@ -41,7 +36,7 @@ export default function SettingsTab({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card de Informações do Estabelecimento */}
+        {/* Card de Informações do Estabelecimento (sem alterações) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border">
           <div className="flex items-center gap-3">
             <Building className="w-6 h-6 text-teal-600" />
@@ -60,7 +55,7 @@ export default function SettingsTab({
           </button>
         </div>
 
-        {/* Card de Horário de Funcionamento */}
+        {/* Card de Horário de Funcionamento (sem alterações) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border">
           <div className="flex items-center gap-3">
             <Clock className="w-6 h-6 text-teal-600" />
@@ -69,8 +64,7 @@ export default function SettingsTab({
             </h3>
           </div>
           <p className="text-sm text-slate-500 mt-2">
-            Defina os horários em que seu estabelecimento está aberto para os
-            clientes.
+            Defina os horários em que seu estabelecimento está aberto.
           </p>
           <button
             onClick={onManageOperatingHours}
@@ -80,7 +74,7 @@ export default function SettingsTab({
           </button>
         </div>
 
-        {/* Card de Configurações de Pagamento (Stripe) */}
+        {/* --- CARD DE PAGAMENTOS ATUALIZADO COM BOTÃO "TROCAR CONTA" --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border md:col-span-2">
           <div className="flex items-center gap-3">
             <CreditCard className="w-6 h-6 text-teal-600" />
@@ -89,53 +83,43 @@ export default function SettingsTab({
             </h3>
           </div>
           <div className="mt-4">
-            {stripeData.loading ? (
-              <p className="text-slate-500">A verificar status da conta...</p>
-            ) : stripeData.hasStripeAccount ? (
-              stripeData.isStripeOnboarded ? (
-                <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
-                  <p className="font-semibold">
-                    ✅ Sua conta de pagamentos está ativa.
-                  </p>
-                  <p className="text-sm">
-                    Você está pronto para receber pagamentos online.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center p-4 bg-amber-50 rounded-lg">
-                  <p className="text-amber-700 font-semibold mb-2">
-                    Sua conta precisa de mais informações.
-                  </p>
-                  <p className="text-sm text-amber-600 mb-4">
-                    Complete o cadastro no Stripe para começar a receber
-                    pagamentos.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <button
-                      onClick={stripeData.createAccountLink}
-                      className="px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg"
-                    >
-                      Completar Configuração
-                    </button>
-                  </div>
-                </div>
-              )
+            {mpData.loading ? (
+              <p className="text-slate-500">A processar...</p>
+            ) : mpData.hasMpAccount ? (
+              <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
+                <p className="font-semibold">
+                  ✅ Sua conta do Mercado Pago está conectada.
+                </p>
+                <p className="text-sm mt-1">
+                  Você está pronto para receber pagamentos online com split de
+                  taxas.
+                </p>
+                {/* BOTÃO ADICIONADO AQUI */}
+                <button
+                  onClick={mpData.connectMercadoPago}
+                  disabled={mpData.loading}
+                  className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-800 transition"
+                >
+                  Trocar de conta
+                </button>
+              </div>
             ) : (
               <div>
                 <p className="text-slate-500 mb-4">
-                  Conecte com o Stripe para receber pagamentos online dos seus
-                  clientes de forma segura.
+                  Conecte com o Mercado Pago para receber pagamentos online dos
+                  seus clientes e gerir o seu negócio.
                 </p>
                 <button
-                  onClick={stripeData.createConnectedAccount}
-                  className="w-full px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg"
+                  onClick={mpData.connectMercadoPago}
+                  disabled={mpData.loading}
+                  className="w-full px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition"
                 >
-                  Conectar com Stripe
+                  Conectar com Mercado Pago
                 </button>
               </div>
             )}
-            {stripeData.error && (
-              <p className="text-red-500 text-sm mt-2">{stripeData.error}</p>
+            {mpData.error && (
+              <p className="text-red-500 text-sm mt-2">{mpData.error}</p>
             )}
           </div>
         </div>
