@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
@@ -16,7 +17,9 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const { register } = useAuth();
+  const router = useRouter();
 
   const handleChange = (
     e:
@@ -51,16 +54,27 @@ export default function RegisterPage() {
       setError(validationError);
       return;
     }
+    setError("");
+    setLoading(true);
+
     try {
-      setError("");
-      setLoading(true);
-      await register(
+      const newUser = await register(
         formData.email,
         formData.password,
         formData.name,
         formData.role,
         formData.imageFile
       );
+
+      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
+
+      if (redirectUrl) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
+      } else {
+        const destination = newUser.role === "owner" ? "/owner" : "/client";
+        router.push(destination);
+      }
     } catch (err: unknown) {
       console.error("Erro no registro:", err);
       if (
@@ -75,7 +89,6 @@ export default function RegisterPage() {
       } else {
         setError(err instanceof Error ? err.message : "Erro ao registrar");
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -199,7 +212,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
         >
-          {loading ? "Cadastrando..." : "Registrar"}
+          {loading ? "A registar..." : "Registar"}
         </button>
       </form>
     </AuthLayout>

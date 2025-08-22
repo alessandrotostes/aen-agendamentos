@@ -1,29 +1,43 @@
 "use client";
 
-import React from "react"; // Removido 'ReactNode' do import para corrigir o aviso
-import { useRouter } from "next/navigation";
+import React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 
-// Um componente simples para ser exibido durante a verificação de autenticação.
 const AuthLoading = () => (
   <div className="flex h-screen w-full items-center justify-center bg-slate-50">
     <LoadingSpinner size="lg" />
   </div>
 );
 
-// Guardião para páginas que SÓ utilizadores LOGADOS podem ver (qualquer tipo)
-export function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { currentUser, loading } = useAuth();
+// Função auxiliar para guardar a rota de redirecionamento
+const handleRedirect = (router: any, pathname: string) => {
+  console.log("A guardar a rota de redirecionamento:", pathname);
+  // Usamos sessionStorage para guardar a URL que o utilizador queria aceder
+  sessionStorage.setItem("redirectAfterLogin", pathname);
+  router.push("/login");
+};
+
+// Guardião para páginas que SÓ utilizadores 'client' podem ver
+export function ClientRoute({ children }: { children: React.ReactNode }) {
+  const { userData, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
-    if (!loading && !currentUser) {
-      router.push("/login");
+    if (!loading && !userData) {
+      // Se não estiver logado, guarda a rota e redireciona
+      handleRedirect(router, pathname);
+    } else if (!loading && userData && userData.role !== "client") {
+      // Se estiver logado mas não for cliente, envia para a página do seu role
+      const destination =
+        userData.role === "owner" ? "/owner" : "/professional/dashboard";
+      router.push(destination);
     }
-  }, [loading, currentUser, router]);
+  }, [loading, userData, router, pathname]);
 
-  if (loading || !currentUser) {
+  if (loading || !userData || userData.role !== "client") {
     return <AuthLoading />;
   }
   return <>{children}</>;
@@ -33,32 +47,19 @@ export function AuthRoute({ children }: { children: React.ReactNode }) {
 export function OwnerRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
-    if (!loading && userData?.role !== "owner") {
-      router.push("/login");
+    if (!loading && !userData) {
+      handleRedirect(router, pathname);
+    } else if (!loading && userData && userData.role !== "owner") {
+      const destination =
+        userData.role === "client" ? "/client" : "/professional/dashboard";
+      router.push(destination);
     }
-  }, [loading, userData, router]);
+  }, [loading, userData, router, pathname]);
 
-  if (loading || userData?.role !== "owner") {
-    return <AuthLoading />;
-  }
-
-  return <>{children}</>;
-}
-
-// Guardião para páginas que SÓ utilizadores 'client' podem ver
-export function ClientRoute({ children }: { children: React.ReactNode }) {
-  const { userData, loading } = useAuth();
-  const router = useRouter();
-
-  React.useEffect(() => {
-    if (!loading && userData?.role !== "client") {
-      router.push("/login");
-    }
-  }, [loading, userData, router]);
-
-  if (loading || userData?.role !== "client") {
+  if (loading || !userData || userData.role !== "owner") {
     return <AuthLoading />;
   }
   return <>{children}</>;
@@ -68,33 +69,42 @@ export function ClientRoute({ children }: { children: React.ReactNode }) {
 export function ProfessionalRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
-    if (!loading && userData?.role !== "professional") {
-      router.push("/login");
+    if (!loading && !userData) {
+      handleRedirect(router, pathname);
+    } else if (!loading && userData && userData.role !== "professional") {
+      const destination = userData.role === "owner" ? "/owner" : "/client";
+      router.push(destination);
     }
-  }, [loading, userData, router]);
+  }, [loading, userData, router, pathname]);
 
-  if (loading || userData?.role !== "professional") {
+  if (loading || !userData || userData.role !== "professional") {
     return <AuthLoading />;
   }
 
   return <>{children}</>;
 }
 
-// Guardião para páginas que SÓ utilizadores NÃO LOGADOS podem ver
+// Guardião para páginas que SÓ utilizadores NÃO LOGADOS podem ver (ex: login, registo)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { currentUser, userData, loading } = useAuth();
+  const { userData, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!loading && currentUser && userData) {
-      const destination = userData.role === "owner" ? "/owner" : "/client";
+    if (!loading && userData) {
+      // Se o utilizador já está logado, envia para o seu respetivo painel
+      let destination = "/client";
+      if (userData.role === "owner") destination = "/owner";
+      if (userData.role === "professional")
+        destination = "/professional/dashboard";
       router.replace(destination);
     }
-  }, [loading, currentUser, userData, router]);
+  }, [loading, userData, router]);
 
-  if (loading || currentUser) {
+  // Enquanto carrega ou se já estiver logado, mostra o spinner
+  if (loading || userData) {
     return <AuthLoading />;
   }
 

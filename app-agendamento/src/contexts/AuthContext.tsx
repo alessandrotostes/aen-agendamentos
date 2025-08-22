@@ -15,31 +15,25 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { auth, db, storage } from "../lib/firebaseConfig";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-  type DocumentData,
-} from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
-// ===== INTERFACE ATUALIZADA AQUI =====
+// ===== INTERFACE ATUALIZADA =====
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
   loading: boolean;
-  // A função login agora retorna Promise<AuthUser>
   login: (email: string, password: string) => Promise<AuthUser>;
+  // A função register agora também retorna Promise<AuthUser>
   register: (
     email: string,
     password: string,
     name: string,
     role: "owner" | "client",
     imageFile?: File | null
-  ) => Promise<void>;
+  ) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
 }
@@ -76,13 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // ===== FUNÇÃO REGISTER ATUALIZADA =====
   async function register(
     email: string,
     password: string,
     name: string,
     role: "owner" | "client",
     imageFile?: File | null
-  ) {
+  ): Promise<AuthUser> {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -91,14 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password
       );
       const uid = userCredential.user.uid;
+      const createdAt = serverTimestamp();
 
-      await setDoc(doc(db, "users", uid), {
-        uid,
-        name,
-        email,
-        role,
-        createdAt: serverTimestamp(),
-      });
+      const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
+
+      await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
 
       if (role === "owner") {
         let imageURL = "";
@@ -117,17 +109,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           address: "",
           imageURL,
           rating: 0,
-          createdAt: serverTimestamp(),
+          createdAt,
         });
       }
-      // O listener onIdTokenChanged cuidará do redirecionamento
+
+      // Retornamos os dados do novo utilizador para a página de registo poder agir
+      return { ...newUser, createdAt: new Date() };
     } catch (error) {
       setLoading(false);
       throw error;
     }
   }
 
-  // ===== FUNÇÃO LOGIN ATUALIZADA =====
   async function login(email: string, password: string): Promise<AuthUser> {
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -146,8 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = userSnap.data() as AuthUser;
-      // O listener onIdTokenChanged vai atualizar o estado, mas retornamos os dados
-      // para que a página de login possa fazer o redirect imediatamente.
       return data;
     } catch (error) {
       console.error("Falha no login:", error);
@@ -155,17 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ===== FUNÇÕES LOGOUT E REFRESHUSERDATA ADICIONADAS =====
   async function logout() {
     await signOut(auth);
-    // O router.push é opcional aqui, pois o ProtectedRoute já faria o trabalho,
-    // mas pode dar uma resposta mais rápida.
     router.push("/login");
   }
 
   async function refreshUserData() {
     if (currentUser) {
-      await currentUser.getIdToken(true); // Isto vai acionar o onIdTokenChanged
+      await currentUser.getIdToken(true);
     }
   }
 
@@ -177,8 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         register,
-        logout, // Corrigido
-        refreshUserData, // Corrigido
+        logout,
+        refreshUserData,
       }}
     >
       {children}

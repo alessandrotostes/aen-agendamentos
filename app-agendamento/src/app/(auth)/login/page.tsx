@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // 👈 Importação adicionada
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
-  const router = useRouter(); // 👈 Hook do router adicionado
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -31,7 +31,6 @@ export default function LoginPage() {
     return null;
   };
 
-  // ===== FUNÇÃO handleSubmit ATUALIZADA =====
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateForm();
@@ -44,19 +43,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // A função login agora retorna os dados do utilizador
       const userData = await login(formData.email, formData.password);
 
-      // Com os dados em mãos, fazemos o redirecionamento
-      if (userData.role === "owner") {
-        router.push("/owner");
-      } else if (userData.role === "professional") {
-        router.push("/professional/dashboard"); // Exemplo de rota para profissional
+      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
+
+      if (redirectUrl) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
       } else {
-        router.push("/client");
+        let destination = "/client";
+        if (userData.role === "owner") destination = "/owner";
+        if (userData.role === "professional")
+          destination = "/professional/dashboard";
+        router.push(destination);
       }
-      // O botão permanecerá como "Entrando..." até que o redirecionamento comece.
-      // Não precisamos de setLoading(false) aqui no caminho de sucesso.
     } catch (err) {
       let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
       if (err instanceof FirebaseError) {
@@ -70,7 +70,7 @@ export default function LoginPage() {
       }
       console.error("Erro no login:", err);
       setError(errorMessage);
-      setLoading(false); // Desativamos o loading apenas em caso de erro
+      setLoading(false);
     }
   };
 
@@ -183,10 +183,6 @@ export default function LoginPage() {
               👤 Cliente
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Clique nos botões acima para preencher automaticamente dados de
-            teste
-          </p>
         </div>
       </form>
     </AuthLayout>
