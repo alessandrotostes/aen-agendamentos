@@ -5,7 +5,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useAppointments } from "../../hooks/useAppointments";
 import { db, functions } from "../../lib/firebaseConfig";
 import { httpsCallable } from "firebase/functions";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
 import EmptyState from "../owner/common/EmptyState";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
@@ -13,7 +20,6 @@ import AppointmentCard from "./AppointmentCard";
 import SalonCard from "./SalonCard";
 import { Plus } from "lucide-react";
 
-// Importe os novos modais que criámos
 import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
 import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 
@@ -36,7 +42,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   >(new Map());
   const [loading, setLoading] = useState(true);
 
-  // --- NOVOS ESTADOS PARA CONTROLAR O FLUXO DE CANCELAMENTO ---
   const [isInfoModalOpen, setInfoModalOpen] = useState(false);
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] =
@@ -44,26 +49,24 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
-    if (appointmentsLoading) return;
-
-    const fetchEstablishmentDetails = async () => {
-      if (appointments.length === 0) {
-        setLoading(false);
-        return;
-      }
-      const establishmentIds = [
-        ...new Set(appointments.map((a) => a.establishmentId)),
-      ];
-      if (establishmentIds.length === 0) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const q = query(
-          collection(db, "establishments"),
-          where("__name__", "in", establishmentIds)
-        );
-        const querySnapshot = await getDocs(q);
+    if (appointmentsLoading || appointments.length === 0) {
+      setLoading(false);
+      return;
+    }
+    const establishmentIds = [
+      ...new Set(appointments.map((a) => a.establishmentId)),
+    ];
+    if (establishmentIds.length === 0) {
+      setLoading(false);
+      return;
+    }
+    const q = query(
+      collection(db, "establishments"),
+      where("__name__", "in", establishmentIds)
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
         const establishmentsMap = new Map<string, Establishment>();
         querySnapshot.forEach((doc) => {
           establishmentsMap.set(doc.id, {
@@ -72,90 +75,111 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
           } as Establishment);
         });
         setEstablishments(establishmentsMap);
-      } catch (error) {
-        console.error("Erro ao buscar detalhes dos estabelecimentos:", error);
-      } finally {
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Erro ao ouvir detalhes dos estabelecimentos:", error);
         setLoading(false);
       }
-    };
-
-    fetchEstablishmentDetails();
+    );
+    return () => unsubscribe();
   }, [appointments, appointmentsLoading]);
 
+  // --- useEffect DE FAVORITOS SUBSTITUÍDO PELA VERSÃO CORRIGIDA ---
   useEffect(() => {
     if (!userData?.uid) {
       setFavoritesLoading(false);
       return;
     }
 
-    const fetchFavorites = async () => {
-      setFavoritesLoading(true);
-      try {
-        const favoritesQuery = query(
-          collection(db, `users/${userData.uid}/favorites`)
-        );
-        const favSnapshot = await getDocs(favoritesQuery);
+    setFavoritesLoading(true);
+
+    let unsubscribeEstablishments = () => {};
+
+    const favoritesQuery = query(
+      collection(db, `users/${userData.uid}/favorites`)
+    );
+    const unsubscribeFavorites = onSnapshot(
+      favoritesQuery,
+      (favSnapshot) => {
+        unsubscribeEstablishments();
+
         const favoriteIds = favSnapshot.docs.map((doc) => doc.id);
 
-        if (favoriteIds.length === 0) {
+        if (favoriteIds.length > 0) {
+          const establishmentsQuery = query(
+            collection(db, "establishments"),
+            where("__name__", "in", favoriteIds)
+          );
+
+          unsubscribeEstablishments = onSnapshot(
+            establishmentsQuery,
+            (estSnapshot) => {
+              const salons = estSnapshot.docs.map(
+                (doc) => ({ id: doc.id, ...doc.data() } as Establishment)
+              );
+              setFavoriteSalons(salons);
+              setFavoritesLoading(false);
+            },
+            (error) => {
+              console.error("Erro ao ouvir estabelecimentos favoritos:", error);
+              setFavoritesLoading(false);
+            }
+          );
+        } else {
           setFavoriteSalons([]);
-          return;
+          setFavoritesLoading(false);
         }
-
-        const establishmentsQuery = query(
-          collection(db, "establishments"),
-          where("__name__", "in", favoriteIds)
-        );
-        const estSnapshot = await getDocs(establishmentsQuery);
-        const salons = estSnapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Establishment)
-        );
-
-        setFavoriteSalons(salons);
-      } catch (error) {
-        console.error("Erro ao buscar favoritos:", error);
-      } finally {
+      },
+      (error) => {
+        console.error("Erro ao ouvir favoritos:", error);
         setFavoritesLoading(false);
       }
-    };
+    );
 
-    fetchFavorites();
+    return () => {
+      unsubscribeFavorites();
+      unsubscribeEstablishments();
+    };
   }, [userData]);
 
-  // --- LÓGICA DE CANCELAMENTO TOTALMENTE SUBSTITUÍDA ---
-
-  // Função para iniciar o fluxo ao clicar em "Cancelar"
   const handleOpenCancellationFlow = (appointment: Appointment) => {
     setAppointmentToCancel(appointment);
     setInfoModalOpen(true);
   };
 
-  // Função chamada pelo modal final para contactar o backend
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
-
     setIsCancelling(true);
     try {
-      const requestFn = httpsCallable(
-        functions,
-        "requestAppointmentCancellation"
-      );
-      await requestFn({
+      const cancelFn = httpsCallable(functions, "clientCancelAppointment");
+      await cancelFn({
         appointmentId: appointmentToCancel.id,
         establishmentId: appointmentToCancel.establishmentId,
-        acceptedPartialRefund: true,
       });
-      alert(
-        "A sua solicitação de cancelamento foi enviada ao estabelecimento!"
-      );
+      alert("O seu agendamento foi cancelado com sucesso.");
       setConfirmModalOpen(false);
-      refreshAppointments(); // Atualiza a lista de agendamentos
+      refreshAppointments();
     } catch (error: any) {
       console.error("Erro ao chamar a função de cancelamento:", error);
       alert(`Ocorreu um erro: ${error.message}`);
     } finally {
       setIsCancelling(false);
       setAppointmentToCancel(null);
+    }
+  };
+
+  const handleUnfavorite = async (salonId: string) => {
+    if (!userData?.uid) {
+      alert("Você precisa estar logado para desfavoritar.");
+      return;
+    }
+    try {
+      const favoriteRef = doc(db, "users", userData.uid, "favorites", salonId);
+      await deleteDoc(favoriteRef);
+    } catch (error) {
+      console.error("Erro ao desfavoritar:", error);
+      alert("Ocorreu um erro ao tentar desfavoritar o estabelecimento.");
     }
   };
 
@@ -228,7 +252,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={app.id}
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
-                  onCancel={() => {}} // Sem ação de cancelar para histórico
+                  onCancel={() => {}}
                 />
               ))}
             </div>
@@ -254,9 +278,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={salon.id}
                   salon={salon}
                   isFavorite={true}
-                  onToggleFavorite={() => {
-                    alert("Para desfavoritar, visite a página de busca.");
-                  }}
+                  onToggleFavorite={handleUnfavorite}
                 />
               ))}
             </div>
@@ -271,7 +293,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
         </section>
       </div>
 
-      {/* Renderização dos novos modais */}
       <CancellationInfoModal
         isOpen={isInfoModalOpen}
         onClose={() => setInfoModalOpen(false)}

@@ -29,24 +29,35 @@ export default function EstablishmentSearchView({
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
+    setIsLoading(true); // Garante que o loading seja ativado no início
+
+    const estQuery = query(collection(db, "establishments"));
     const estUnsub = onSnapshot(
-      query(collection(db, "establishments")),
+      estQuery,
       (snap) => {
+        // ===== LINHA DE DIAGNÓSTICO ADICIONADA AQUI =====
+        const source = snap.metadata.fromCache ? "cache local" : "servidor";
+        console.log(
+          `[DEBUG] Dados dos estabelecimentos recebidos de: ${source}`
+        );
+
         setEstablishments(
           snap.docs.map((d) => ({ id: d.id, ...d.data() } as Salon))
         );
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Erro ao ouvir estabelecimentos:", error);
         setIsLoading(false);
       }
     );
 
     let favUnsub = () => {};
     if (userData?.uid) {
-      favUnsub = onSnapshot(
-        collection(db, `users/${userData.uid}/favorites`),
-        (snap) => {
-          setFavorites(snap.docs.map((d) => d.id));
-        }
-      );
+      const favQuery = collection(db, `users/${userData.uid}/favorites`);
+      favUnsub = onSnapshot(favQuery, (snap) => {
+        setFavorites(snap.docs.map((d) => d.id));
+      });
     }
 
     return () => {

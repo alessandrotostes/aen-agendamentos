@@ -720,15 +720,19 @@ export const onFavoriteCreate = onDocumentCreated(
       .doc(establishmentId);
 
     try {
-      await establishmentRef.update({
-        favoritesCount: admin.firestore.FieldValue.increment(1),
+      await db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(establishmentRef);
+        // Pega o contador atual, ou assume 0 se não existir.
+        const currentCount = doc.data()?.favoritesCount || 0;
+        const newCount = currentCount + 1;
+        transaction.update(establishmentRef, { favoritesCount: newCount });
       });
       console.log(
-        `Contador de favoritos incrementado para o estabelecimento: ${establishmentId}`
+        `[TRANSACTION SUCCESS] Contador de favoritos incrementado para o estabelecimento: ${establishmentId}`
       );
     } catch (error) {
       console.error(
-        `Erro ao incrementar contador de favoritos para ${establishmentId}:`,
+        `[TRANSACTION ERROR] Erro ao incrementar contador para ${establishmentId}:`,
         error
       );
     }
@@ -748,15 +752,21 @@ export const onFavoriteDelete = onDocumentDeleted(
       .doc(establishmentId);
 
     try {
-      await establishmentRef.update({
-        favoritesCount: admin.firestore.FieldValue.increment(-1),
+      await db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(establishmentRef);
+        const currentCount = doc.data()?.favoritesCount || 0;
+
+        // A MÁGICA ESTÁ AQUI: garante que o resultado seja 0 ou maior.
+        const newCount = Math.max(0, currentCount - 1);
+
+        transaction.update(establishmentRef, { favoritesCount: newCount });
       });
       console.log(
-        `Contador de favoritos decrementado para o estabelecimento: ${establishmentId}`
+        `[TRANSACTION SUCCESS] Contador de favoritos decrementado para o estabelecimento: ${establishmentId}`
       );
     } catch (error) {
       console.error(
-        `Erro ao decrementar contador de favoritos para ${establishmentId}:`,
+        `[TRANSACTION ERROR] Erro ao decrementar contador para ${establishmentId}:`,
         error
       );
     }
