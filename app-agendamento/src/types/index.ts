@@ -36,7 +36,7 @@ export interface Establishment {
   name: string;
   description?: string;
   address: string;
-  phone: string;
+  phone?: string;
   imageURL?: string;
   mainService?: string;
   rating?: number;
@@ -195,6 +195,7 @@ export interface Salon {
   name: string;
   address: string;
   imageURL?: string;
+  phone?: string;
   rating?: number;
   favoritesCount?: number;
 }

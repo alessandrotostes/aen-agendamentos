@@ -5,7 +5,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Appointment, Establishment } from "@/types";
-import { Calendar, Clock, Map } from "lucide-react";
+import { Calendar, Clock, Map, Phone } from "lucide-react"; // <-- Adicionado ícone de Telefone
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -22,9 +22,6 @@ export default function AppointmentCard({
     appointment.status === "confirmado" &&
     appointment.dateTime.toDate() >= new Date();
 
-  // ===== CORREÇÃO APLICADA AQUI =====
-  // A URL agora é construída corretamente, executando a função encodeURIComponent
-  // e usando o formato de URL de busca do Google Maps.
   const mapsUrl = establishment?.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         establishment.address
@@ -41,12 +38,12 @@ export default function AppointmentCard({
       className={`bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 ${cardBorderStyle} flex flex-col sm:flex-row gap-3 sm:gap-5`}
     >
       {establishment?.imageURL && (
-        <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0">
+        <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0 bg-slate-100">
           <Image
             src={establishment.imageURL}
             alt={`Logo de ${establishment.name}`}
             fill
-            className="object-cover" // Mudado para 'cover' para preencher melhor
+            className="object-contain"
           />
         </div>
       )}
@@ -79,7 +76,7 @@ export default function AppointmentCard({
 
         <div className="border-t border-slate-100 !my-2"></div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-800">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-800">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
             <span>
@@ -103,6 +100,16 @@ export default function AppointmentCard({
               <span className="text-xs underline decoration-dotted">
                 Ver endereço
               </span>
+            </a>
+          )}
+          {/* --- NOVO BLOCO DO TELEFONE ADICIONADO AQUI --- */}
+          {establishment?.phone && (
+            <a
+              href={`tel:${establishment.phone}`}
+              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800"
+            >
+              <Phone className="w-4 h-4 shrink-0" />
+              <span className="text-xs underline decoration-dotted">Ligar</span>
             </a>
           )}
         </div>

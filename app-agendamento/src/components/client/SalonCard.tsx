@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Salon } from "../../types";
-import { Heart, MapPin } from "lucide-react"; // Ícone de Estrela (Star) foi removido
+import { Heart, MapPin, Phone } from "lucide-react";
 
 interface SalonCardProps {
   salon: Salon;
@@ -24,8 +24,17 @@ export default function SalonCard({
       : placeholder;
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Impede que o clique no coração navegue para a página do salão
+    e.preventDefault();
     onToggleFavorite(salon.id);
+  };
+
+  // --- NOVA FUNÇÃO PARA LIDAR COM O CLIQUE NO TELEFONE ---
+  const handlePhoneClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Impede a navegação do Link pai
+    e.stopPropagation(); // Impede que outros eventos de clique sejam disparados
+    if (salon.phone) {
+      window.location.href = `tel:${salon.phone}`;
+    }
   };
 
   return (
@@ -36,7 +45,7 @@ export default function SalonCard({
             src={imageSrc}
             alt={`Foto de ${salon.name}`}
             fill
-            className="object-contain" // Classe alterada aqui
+            className="object-contain"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           <button
@@ -60,7 +69,17 @@ export default function SalonCard({
             <span className="truncate">{salon.address}</span>
           </p>
 
-          {/* --- SEÇÃO DE RATING ALTERADA --- */}
+          {/* --- BLOCO DO TELEFONE CORRIGIDO --- */}
+          {salon.phone && (
+            <div
+              onClick={handlePhoneClick} // Usamos onClick em uma div
+              className="flex items-center gap-1.5 text-sm text-slate-500 mt-1 hover:text-teal-600 cursor-pointer" // Adicionado cursor-pointer
+            >
+              <Phone className="w-4 h-4 shrink-0" />
+              <span>{salon.phone}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-1.5 text-sm text-slate-600 mt-3">
             <Heart className="w-4 h-4 text-red-500" />
             <span className="font-semibold">{salon.favoritesCount ?? 0}</span>
