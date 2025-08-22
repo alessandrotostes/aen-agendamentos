@@ -2,31 +2,45 @@
 
 import React from "react";
 import Image from "next/image";
-import { format } from "date-fns";
+import { format, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Appointment, Establishment } from "@/types";
-import { Calendar, Clock, Map, Phone } from "lucide-react"; // <-- Adicionado ícone de Telefone
+import { Calendar, Clock, Map, Phone } from "lucide-react";
 
 interface AppointmentCardProps {
   appointment: Appointment;
   establishment?: Establishment;
   onCancel: (appointment: Appointment) => void;
+  onShowCancellationInfo: (title: string, message: string) => void;
 }
 
 export default function AppointmentCard({
   appointment,
   establishment,
   onCancel,
+  onShowCancellationInfo,
 }: AppointmentCardProps) {
+  const now = new Date();
+  const appointmentDate = appointment.dateTime.toDate();
+
   const isUpcoming =
-    appointment.status === "confirmado" &&
-    appointment.dateTime.toDate() >= new Date();
+    appointment.status === "confirmado" && appointmentDate >= now;
+
+  const hoursUntil = differenceInHours(appointmentDate, now);
+  const isCancellable = isUpcoming && hoursUntil >= 3;
 
   const mapsUrl = establishment?.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        establishment.address
-      )}`
+    ? `https://maps.google.com/?q=${encodeURIComponent(establishment.address)}`
     : "#";
+
+  let cancellationText = "CANCELADO";
+  if (appointment.status === "cancelado") {
+    if (appointment.cancelledBy === "owner") {
+      cancellationText = "CANCELADO PELO ESTABELECIMENTO";
+    } else if (appointment.cancelledBy === "client") {
+      cancellationText = "CANCELADO POR VOCÊ";
+    }
+  }
 
   const cardBorderStyle =
     appointment.status === "cancelado"
@@ -55,8 +69,8 @@ export default function AppointmentCard({
               {appointment.serviceName}
             </p>
             {appointment.status === "cancelado" && (
-              <span className="text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full ml-2 shrink-0">
-                CANCELADO
+              <span className="text-[10px] sm:text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full ml-2 shrink-0 text-center">
+                {cancellationText}
               </span>
             )}
           </div>
@@ -79,15 +93,11 @@ export default function AppointmentCard({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-800">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
-            <span>
-              {format(appointment.dateTime.toDate(), "dd/MM/yy", {
-                locale: ptBR,
-              })}
-            </span>
+            <span>{format(appointmentDate, "dd/MM/yy", { locale: ptBR })}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-teal-600 shrink-0" />
-            <span>{format(appointment.dateTime.toDate(), "HH:mm")}</span>
+            <span>{format(appointmentDate, "HH:mm")}</span>
           </div>
           {establishment?.address && (
             <a
@@ -102,7 +112,6 @@ export default function AppointmentCard({
               </span>
             </a>
           )}
-          {/* --- NOVO BLOCO DO TELEFONE ADICIONADO AQUI --- */}
           {establishment?.phone && (
             <a
               href={`tel:${establishment.phone}`}
@@ -118,8 +127,21 @@ export default function AppointmentCard({
       {isUpcoming && (
         <div className="border-t sm:border-none pt-3 sm:pt-0 sm:ml-auto flex items-center self-stretch sm:self-center">
           <button
-            onClick={() => onCancel(appointment)}
-            className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 transition"
+            onClick={() => {
+              if (isCancellable) {
+                onCancel(appointment);
+              } else {
+                onShowCancellationInfo(
+                  "Prazo de Cancelamento Expirado",
+                  "Não é possível cancelar agendamentos com menos de 3 horas de antecedência. Por favor, entre em contato diretamente com o estabelecimento caso queira continuar com o cancelamento."
+                );
+              }
+            }}
+            className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md transition ${
+              isCancellable
+                ? "text-red-700 bg-red-100 hover:bg-red-200"
+                : "text-gray-500 bg-gray-100 cursor-not-allowed"
+            }`}
           >
             Cancelar
           </button>

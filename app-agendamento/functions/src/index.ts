@@ -384,10 +384,9 @@ export const mercadoPagoWebhook = onRequest(
 );
 
 // ====================================================================================
-// ===== FUNÇÃO 5A: CLIENTE CANCELA AGENDAMENTO
+// ===== FUNÇÃO 5A: CLIENTE CANCELA AGENDAMENTO (COM REGRA DE 3 HORAS)
 // ====================================================================================
 export const clientCancelAppointment = onCall(async (request) => {
-  // CORREÇÃO: Adicionado try...catch para segurança
   try {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Você precisa estar logado.");
@@ -416,6 +415,22 @@ export const clientCancelAppointment = onCall(async (request) => {
         "Você não pode alterar este agendamento."
       );
     }
+
+    // --- LÓGICA DA REGRA DE 3 HORAS ADICIONADA AQUI ---
+    const appointmentTime = (
+      appointmentDoc.data()?.dateTime as Timestamp
+    ).toDate();
+    const now = new Date();
+    const hoursDifference =
+      (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDifference < 3) {
+      throw new HttpsError(
+        "failed-precondition",
+        "O cancelamento só é permitido com um mínimo de 3 horas de antecedência."
+      );
+    }
+    // --- FIM DA LÓGICA DA REGRA ---
 
     await appointmentRef.update({
       status: "cancelado",

@@ -22,6 +22,8 @@ import { Plus } from "lucide-react";
 
 import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
 import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
+import AlertModal from "../shared/modals/AlertModal";
+import SuccessModal from "../shared/modals/SuccessModal";
 
 interface Props {
   onNavigateToSearch: () => void;
@@ -47,6 +49,18 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const [isAlertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertModalContent, setAlertModalContent] = useState({
+    title: "",
+    message: "",
+  });
+
+  const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
+  const [successModalContent, setSuccessModalContent] = useState({
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     if (appointmentsLoading || appointments.length === 0) {
@@ -85,17 +99,13 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     return () => unsubscribe();
   }, [appointments, appointmentsLoading]);
 
-  // --- useEffect DE FAVORITOS SUBSTITUÍDO PELA VERSÃO CORRIGIDA ---
   useEffect(() => {
     if (!userData?.uid) {
       setFavoritesLoading(false);
       return;
     }
-
     setFavoritesLoading(true);
-
     let unsubscribeEstablishments = () => {};
-
     const favoritesQuery = query(
       collection(db, `users/${userData.uid}/favorites`)
     );
@@ -103,15 +113,12 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       favoritesQuery,
       (favSnapshot) => {
         unsubscribeEstablishments();
-
         const favoriteIds = favSnapshot.docs.map((doc) => doc.id);
-
         if (favoriteIds.length > 0) {
           const establishmentsQuery = query(
             collection(db, "establishments"),
             where("__name__", "in", favoriteIds)
           );
-
           unsubscribeEstablishments = onSnapshot(
             establishmentsQuery,
             (estSnapshot) => {
@@ -136,7 +143,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
         setFavoritesLoading(false);
       }
     );
-
     return () => {
       unsubscribeFavorites();
       unsubscribeEstablishments();
@@ -151,18 +157,29 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
     setIsCancelling(true);
+    setConfirmModalOpen(false);
     try {
       const cancelFn = httpsCallable(functions, "clientCancelAppointment");
       await cancelFn({
         appointmentId: appointmentToCancel.id,
         establishmentId: appointmentToCancel.establishmentId,
       });
-      alert("O seu agendamento foi cancelado com sucesso.");
-      setConfirmModalOpen(false);
+      setSuccessModalContent({
+        title: "Cancelamento Solicitado",
+        message:
+          "O seu agendamento foi cancelado com sucesso e o estabelecimento notificado.",
+      });
+      setSuccessModalOpen(true);
       refreshAppointments();
     } catch (error: any) {
       console.error("Erro ao chamar a função de cancelamento:", error);
-      alert(`Ocorreu um erro: ${error.message}`);
+      setAlertModalContent({
+        title: "Erro no Cancelamento",
+        message:
+          error.message ||
+          "Não foi possível cancelar o agendamento. Tente novamente.",
+      });
+      setAlertModalOpen(true);
     } finally {
       setIsCancelling(false);
       setAppointmentToCancel(null);
@@ -183,13 +200,17 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     }
   };
 
+  const handleShowAlert = (title: string, message: string) => {
+    setAlertModalContent({ title, message });
+    setAlertModalOpen(true);
+  };
+
   const upcomingAppointments = appointments.filter(
     (a) =>
       !a.cancellationRequest &&
       a.status === "confirmado" &&
       a.dateTime.toDate() > new Date()
   );
-
   const pastAppointments = appointments.filter(
     (a) =>
       a.cancellationRequest ||
@@ -230,6 +251,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
                   onCancel={handleOpenCancellationFlow}
+                  onShowCancellationInfo={handleShowAlert}
                 />
               ))}
             </div>
@@ -253,6 +275,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
                   onCancel={() => {}}
+                  onShowCancellationInfo={handleShowAlert}
                 />
               ))}
             </div>
@@ -306,6 +329,18 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
         onClose={() => setConfirmModalOpen(false)}
         onConfirm={handleConfirmCancellation}
         isLoading={isCancelling}
+      />
+      <AlertModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setAlertModalOpen(false)}
+        title={alertModalContent.title}
+        message={alertModalContent.message}
+      />
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title={successModalContent.title}
+        message={successModalContent.message}
       />
     </>
   );
