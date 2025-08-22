@@ -34,15 +34,22 @@ export default function HomePage() {
             Sou Cliente
           </Link>
           <Link
+            href="/login?role=professional"
+            className="flex items-center justify-center py-3 px-6 w-full bg-gradient-to-r from-indigo-400 to-teal-500 text-white text-lg font-medium rounded-lg hover:from-indigo-500 hover:to-teal-600 transition-all"
+          >
+            <span className="mr-2 text-2xl">🫂</span>
+            Sou Profissional Colaborador
+          </Link>
+          <Link
             href="/login?role=owner"
             className="flex items-center justify-center py-3 px-6 w-full bg-gradient-to-r from-indigo-400 to-teal-500 text-white text-lg font-medium rounded-lg hover:from-indigo-500 hover:to-teal-600 transition-all"
           >
-            <span className="mr-2 text-2xl">👨‍💼</span>
+            <span className="mr-2 text-2xl">👨‍💼💼</span>
             Sou Estabelecimento
           </Link>
         </div>
         <p className="mt-8 text-xs text-gray-600">
-          © {new Date().getFullYear()} Sistema de Agendamento. Todos os direitos
+          © {new Date().getFullYear()} A&N Agendamentos. Todos os direitos
           reservados.
         </p>
       </div>

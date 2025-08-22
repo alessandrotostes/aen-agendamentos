@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // 👈 Importação adicionada
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
+import { FirebaseError } from "firebase/app";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -12,6 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
+  const router = useRouter(); // 👈 Hook do router adicionado
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,6 +31,7 @@ export default function LoginPage() {
     return null;
   };
 
+  // ===== FUNÇÃO handleSubmit ATUALIZADA =====
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateForm();
@@ -35,15 +39,38 @@ export default function LoginPage() {
       setError(validationError);
       return;
     }
+
+    setError("");
+    setLoading(true);
+
     try {
-      setError("");
-      setLoading(true);
-      await login(formData.email, formData.password);
+      // A função login agora retorna os dados do utilizador
+      const userData = await login(formData.email, formData.password);
+
+      // Com os dados em mãos, fazemos o redirecionamento
+      if (userData.role === "owner") {
+        router.push("/owner");
+      } else if (userData.role === "professional") {
+        router.push("/professional/dashboard"); // Exemplo de rota para profissional
+      } else {
+        router.push("/client");
+      }
+      // O botão permanecerá como "Entrando..." até que o redirecionamento comece.
+      // Não precisamos de setLoading(false) aqui no caminho de sucesso.
     } catch (err) {
+      let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
+      if (err instanceof FirebaseError) {
+        if (
+          err.code === "auth/invalid-credential" ||
+          err.code === "auth/user-not-found" ||
+          err.code === "auth/wrong-password"
+        ) {
+          errorMessage = "Email ou senha inválidos.";
+        }
+      }
       console.error("Erro no login:", err);
-      setError(err instanceof Error ? err.message : "Erro ao fazer login");
-    } finally {
-      setLoading(false);
+      setError(errorMessage);
+      setLoading(false); // Desativamos o loading apenas em caso de erro
     }
   };
 

@@ -1,23 +1,31 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { useAppointments } from "../../hooks/useAppointments";
 import { db, functions } from "../../lib/firebaseConfig";
 import { httpsCallable } from "firebase/functions";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
-import { differenceInHours } from "date-fns";
 import EmptyState from "../owner/common/EmptyState";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 import AppointmentCard from "./AppointmentCard";
-import CancelAppointmentModal from "../shared/modals/CancelAppointmentModal";
+import SalonCard from "./SalonCard";
 import { Plus } from "lucide-react";
+
+// Importe os novos modais que criámos
+import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
+import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 
 interface Props {
   onNavigateToSearch: () => void;
 }
 
 export default function ClientDashboardView({ onNavigateToSearch }: Props) {
+  const { userData } = useAuth();
+  const [favoriteSalons, setFavoriteSalons] = useState<Establishment[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
+
   const {
     appointments,
     loading: appointmentsLoading,
@@ -28,9 +36,12 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   >(new Map());
   const [loading, setLoading] = useState(true);
 
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  // --- NOVOS ESTADOS PARA CONTROLAR O FLUXO DE CANCELAMENTO ---
+  const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+  const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     if (appointmentsLoading) return;
@@ -71,64 +82,98 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     fetchEstablishmentDetails();
   }, [appointments, appointmentsLoading]);
 
-  const handleCancelAppointment = (appointment: Appointment) => {
-    const now = new Date();
-    const appointmentTime = appointment.dateTime.toDate();
-
-    if (differenceInHours(appointmentTime, now) < 6) {
-      alert(
-        "O cancelamento deve ser feito com 6 horas de antecedência. Contate o estabelecimento caso ainda queira cancelar seu horário."
-      );
+  useEffect(() => {
+    if (!userData?.uid) {
+      setFavoritesLoading(false);
       return;
     }
 
+    const fetchFavorites = async () => {
+      setFavoritesLoading(true);
+      try {
+        const favoritesQuery = query(
+          collection(db, `users/${userData.uid}/favorites`)
+        );
+        const favSnapshot = await getDocs(favoritesQuery);
+        const favoriteIds = favSnapshot.docs.map((doc) => doc.id);
+
+        if (favoriteIds.length === 0) {
+          setFavoriteSalons([]);
+          return;
+        }
+
+        const establishmentsQuery = query(
+          collection(db, "establishments"),
+          where("__name__", "in", favoriteIds)
+        );
+        const estSnapshot = await getDocs(establishmentsQuery);
+        const salons = estSnapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Establishment)
+        );
+
+        setFavoriteSalons(salons);
+      } catch (error) {
+        console.error("Erro ao buscar favoritos:", error);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+
+    fetchFavorites();
+  }, [userData]);
+
+  // --- LÓGICA DE CANCELAMENTO TOTALMENTE SUBSTITUÍDA ---
+
+  // Função para iniciar o fluxo ao clicar em "Cancelar"
+  const handleOpenCancellationFlow = (appointment: Appointment) => {
     setAppointmentToCancel(appointment);
-    setIsCancelModalOpen(true);
+    setInfoModalOpen(true);
   };
 
-  // --- FUNÇÃO CORRIGIDA ---
+  // Função chamada pelo modal final para contactar o backend
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
 
+    setIsCancelling(true);
     try {
-      const cancelFunction = httpsCallable(
+      const requestFn = httpsCallable(
         functions,
-        "cancelAndRefundAppointment"
+        "requestAppointmentCancellation"
       );
-
-      console.log("A cancelar agendamento com os seguintes dados:", {
+      await requestFn({
         appointmentId: appointmentToCancel.id,
         establishmentId: appointmentToCancel.establishmentId,
+        acceptedPartialRefund: true,
       });
-
-      // Enviamos agora os dois IDs necessários para o backend
-      await cancelFunction({
-        appointmentId: appointmentToCancel.id,
-        establishmentId: appointmentToCancel.establishmentId,
-      });
-
-      console.log("Agendamento cancelado com sucesso!");
-      alert("Agendamento cancelado e reembolso iniciado com sucesso!");
-    } catch (error: unknown) {
+      alert(
+        "A sua solicitação de cancelamento foi enviada ao estabelecimento!"
+      );
+      setConfirmModalOpen(false);
+      refreshAppointments(); // Atualiza a lista de agendamentos
+    } catch (error: any) {
       console.error("Erro ao chamar a função de cancelamento:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Erro desconhecido";
-      alert(`Ocorreu um erro: ${errorMessage}`);
+      alert(`Ocorreu um erro: ${error.message}`);
     } finally {
-      setIsCancelModalOpen(false);
+      setIsCancelling(false);
       setAppointmentToCancel(null);
     }
   };
 
   const upcomingAppointments = appointments.filter(
-    (a) => a.status === "confirmado" && a.dateTime.toDate() > new Date()
+    (a) =>
+      !a.cancellationRequest &&
+      a.status === "confirmado" &&
+      a.dateTime.toDate() > new Date()
   );
 
   const pastAppointments = appointments.filter(
-    (a) => a.status !== "confirmado" || a.dateTime.toDate() < new Date()
+    (a) =>
+      a.cancellationRequest ||
+      a.status !== "confirmado" ||
+      a.dateTime.toDate() < new Date()
   );
 
-  if (loading) {
+  if (loading || appointmentsLoading) {
     return <LoadingSpinner />;
   }
 
@@ -153,7 +198,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
               <span>Novo Agendamento</span>
             </button>
           </div>
-
           {upcomingAppointments.length > 0 ? (
             <div className="space-y-4">
               {upcomingAppointments.map((app) => (
@@ -161,7 +205,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={app.id}
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
-                  onCancel={handleCancelAppointment}
+                  onCancel={handleOpenCancellationFlow}
                 />
               ))}
             </div>
@@ -184,7 +228,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={app.id}
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
-                  onCancel={() => {}}
+                  onCancel={() => {}} // Sem ação de cancelar para histórico
                 />
               ))}
             </div>
@@ -201,17 +245,46 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
           <h2 className="text-3xl font-bold text-slate-900 mb-6">
             Seus Favoritos
           </h2>
-          <EmptyState
-            message="A funcionalidade de favoritos será implementada em breve."
-            icon="❤️"
-          />
+          {favoritesLoading ? (
+            <LoadingSpinner />
+          ) : favoriteSalons.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {favoriteSalons.map((salon) => (
+                <SalonCard
+                  key={salon.id}
+                  salon={salon}
+                  isFavorite={true}
+                  onToggleFavorite={() => {
+                    alert("Para desfavoritar, visite a página de busca.");
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              message="Você ainda não favoritou nenhum estabelecimento."
+              icon="❤️"
+              actionText="Encontrar Estabelecimentos"
+              onAction={onNavigateToSearch}
+            />
+          )}
         </section>
       </div>
 
-      <CancelAppointmentModal
-        isOpen={isCancelModalOpen}
-        onClose={() => setIsCancelModalOpen(false)}
+      {/* Renderização dos novos modais */}
+      <CancellationInfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+        onConfirm={() => {
+          setInfoModalOpen(false);
+          setConfirmModalOpen(true);
+        }}
+      />
+      <RefundConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
         onConfirm={handleConfirmCancellation}
+        isLoading={isCancelling}
       />
     </>
   );

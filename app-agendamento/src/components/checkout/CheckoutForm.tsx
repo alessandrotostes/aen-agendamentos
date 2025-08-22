@@ -162,7 +162,7 @@ export default function CheckoutPage() {
               />
             </>
           ) : (
-            <p className="text-gray-500">A carregar o checkout...</p>
+            <p className="text-gray-500">Carregando o checkout...</p>
           )}
         </div>
       </AuthLayout>

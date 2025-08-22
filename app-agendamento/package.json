@@ -24,6 +24,7 @@
     "react-day-picker": "^9.8.1",
     "react-dom": "19.1.0",
     "react-toastify": "^11.0.5",
+    "react-transition-group": "^4.4.5",
     "stripe": "^18.4.0",
     "uid": "^2.0.2"
   },
@@ -33,6 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-toastify": "^4.0.2",
+    "@types/react-transition-group": "^4.4.12",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",

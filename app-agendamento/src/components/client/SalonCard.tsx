@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Salon } from "../../types";
-import { Heart, MapPin, Star } from "lucide-react"; // Importando os novos ícones
+import { Heart, MapPin } from "lucide-react"; // Ícone de Estrela (Star) foi removido
 
 interface SalonCardProps {
   salon: Salon;
@@ -31,12 +31,12 @@ export default function SalonCard({
   return (
     <Link href={`/client/salon/${salon.id}`} className="group block">
       <div className="bg-white rounded-xl shadow-md overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
-        <div className="relative w-full h-40">
+        <div className="relative w-full h-40 bg-slate-100">
           <Image
             src={imageSrc}
             alt={`Foto de ${salon.name}`}
             fill
-            className="object-cover"
+            className="object-contain" // Classe alterada aqui
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           <button
@@ -59,14 +59,14 @@ export default function SalonCard({
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{salon.address}</span>
           </p>
-          <div className="flex items-center gap-1 text-sm text-slate-600 mt-3">
-            <Star className="w-4 h-4 text-amber-400 fill-current" />
-            <span className="font-semibold">
-              {salon.rating?.toFixed(1) ?? "Novo"}
-            </span>
-            <span className="text-slate-400">(25 avaliações)</span>{" "}
-            {/* Placeholder */}
+
+          {/* --- SEÇÃO DE RATING ALTERADA --- */}
+          <div className="flex items-center gap-1.5 text-sm text-slate-600 mt-3">
+            <Heart className="w-4 h-4 text-red-500" />
+            <span className="font-semibold">{salon.favoritesCount ?? 0}</span>
+            <span className="text-slate-400">Favoritos</span>
           </div>
+
           <div className="mt-auto pt-4">
             <div className="w-full text-center bg-teal-600 text-white font-semibold py-2.5 rounded-lg transition-colors group-hover:bg-teal-700">
               Ver Serviços

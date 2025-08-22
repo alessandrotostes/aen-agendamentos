@@ -89,8 +89,16 @@ export interface Appointment {
   duration: number;
   price: number;
   status: "confirmado" | "cancelado";
+  cancelledBy?: "owner" | "client";
   serviceName: string;
   professionalName: string;
+  cancellationRequest?: CancellationRequest;
+}
+
+export interface CancellationRequest {
+  requestedBy: "client" | "owner";
+  timestamp: Timestamp;
+  acceptedPartialRefund: boolean;
 }
 
 // FORM & API DATA TYPES
@@ -186,6 +194,7 @@ export interface Salon {
   id: string;
   name: string;
   address: string;
-  imageURL: string;
-  rating: number;
+  imageURL?: string;
+  rating?: number;
+  favoritesCount?: number;
 }
