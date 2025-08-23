@@ -104,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: "owner" | "client",
     imageFile?: File | null
   ) {
-    // CORREÇÃO: O tipo de retorno foi removido para inferir Promise<void>
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -139,23 +138,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt,
         });
       }
-      // CORREÇÃO: A declaração 'return' foi removida.
-      // A atualização do estado será feita pelo onIdTokenChanged.
     } catch (error) {
       throw error;
     } finally {
-      setLoading(false); // Garante que o loading termine
+      setLoading(false);
     }
   }
 
+  // --- FUNÇÃO login CORRIGIDA ---
   async function login(email: string, password: string) {
-    // CORREÇÃO: O tipo de retorno foi removido para inferir Promise<void>
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // CORREÇÃO: A declaração 'return' foi removida.
-      // O onIdTokenChanged fará a gestão do estado do utilizador.
+      // Sucesso! O onIdTokenChanged vai tratar do resto.
     } catch (error) {
-      console.error("Falha no login:", error);
+      console.error("Falha no login (dentro do AuthContext):", error);
+      // IMPORTANTE: Relançamos o erro para que a página de login o possa apanhar.
       throw error;
     }
   }
