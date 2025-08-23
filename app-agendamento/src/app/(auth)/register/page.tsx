@@ -209,7 +209,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
           >
-            {loading ? "Registrando..." : "Registar"}
+            {loading ? "A registar..." : "Registar"}
           </button>
         </form>
       </AuthLayout>
