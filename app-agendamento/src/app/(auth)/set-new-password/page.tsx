@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { verifyPasswordResetCode, confirmPasswordReset } from "firebase/auth";
 import { auth } from "../../../lib/firebaseConfig"; // Verifique o caminho
 import AuthLayout from "../../../components/shared/AuthLayout";
@@ -20,7 +20,6 @@ export default function SetNewPasswordPage() {
 
 // Componente que contém toda a lógica
 function SetNewPasswordForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const oobCode = searchParams.get("oobCode"); // Pega o código da URL
 
