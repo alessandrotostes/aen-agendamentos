@@ -15,6 +15,8 @@ interface EditProfessionalModalProps {
 
 interface FormErrors {
   name?: string;
+  email?: string;
+  phone?: string;
 }
 
 export default function EditProfessionalModal({
@@ -25,8 +27,11 @@ export default function EditProfessionalModal({
   allServices,
 }: EditProfessionalModalProps) {
   const isEdit = !!professional;
+
   const [formData, setFormData] = useState<CreateProfessionalData>({
     name: "",
+    email: "",
+    phone: "",
     photoURL: "",
     bio: "",
     serviceIds: [],
@@ -40,6 +45,8 @@ export default function EditProfessionalModal({
       if (professional) {
         setFormData({
           name: professional.name,
+          email: professional.email || "",
+          phone: professional.phone || "",
           photoURL: professional.photoURL || "",
           bio: professional.bio || "",
           serviceIds: professional.serviceIds || [],
@@ -48,6 +55,8 @@ export default function EditProfessionalModal({
       } else {
         setFormData({
           name: "",
+          email: "",
+          phone: "",
           photoURL: "",
           bio: "",
           serviceIds: [],
@@ -63,6 +72,7 @@ export default function EditProfessionalModal({
   ) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFormData((prev) => ({ ...prev, imageFile: e.target.files![0] }));
@@ -85,12 +95,11 @@ export default function EditProfessionalModal({
       await onSave(formData);
     } catch (error) {
       console.error("Erro ao salvar profissional:", error);
+      // Opcional: Adicionar feedback de erro para o usuário aqui
     } finally {
       setLoading(false);
     }
   };
-
-  if (!isOpen) return null;
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -147,6 +156,58 @@ export default function EditProfessionalModal({
                       <p className="mt-1 text-xs text-red-600">{errors.name}</p>
                     )}
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Email (para convite)
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={loading || isEdit}
+                        className={`w-full px-3 py-2 border rounded-lg shadow-sm ${
+                          errors.email ? "border-red-300" : "border-gray-300"
+                        } ${isEdit ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                      />
+                      {errors.email && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.email}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="phone"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Telefone
+                      </label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className={`w-full px-3 py-2 border rounded-lg shadow-sm ${
+                          errors.phone ? "border-red-300" : "border-gray-300"
+                        }`}
+                      />
+                      {errors.phone && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label
                       htmlFor="imageFile"
