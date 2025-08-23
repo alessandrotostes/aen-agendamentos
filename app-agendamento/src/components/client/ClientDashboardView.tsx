@@ -171,13 +171,16 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       });
       setSuccessModalOpen(true);
       refreshAppointments();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      // CORRIGIDO AQUI
       console.error("Erro ao chamar a função de cancelamento:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível cancelar o agendamento. Tente novamente.";
       setAlertModalContent({
         title: "Erro no Cancelamento",
-        message:
-          error.message ||
-          "Não foi possível cancelar o agendamento. Tente novamente.",
+        message: message,
       });
       setAlertModalOpen(true);
     } finally {

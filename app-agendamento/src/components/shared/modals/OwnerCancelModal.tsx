@@ -18,11 +18,10 @@ export default function OwnerCancelModal({
   isLoading,
   appointment,
 }: Props) {
-  if (!isOpen || !appointment) return null;
-
   const [accepted, setAccepted] = useState(false);
 
-  // Reseta o checkbox quando o modal é fechado
+  if (!isOpen || !appointment) return null;
+
   const handleClose = () => {
     setAccepted(false);
     onClose();

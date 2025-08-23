@@ -1,13 +1,21 @@
-// src/app/owner/mp-redirect/page.tsx
-
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import {
+  getFunctions,
+  httpsCallable,
+  HttpsCallableResult,
+} from "firebase/functions";
 import { getApp } from "firebase/app";
 import { OwnerRoute } from "../../../components/auth/ProtectedRoute";
 import LoadingSpinner from "../../../components/owner/common/LoadingSpinner";
+
+// CORREÇÃO: Interface para tipar a resposta da Cloud Function
+interface ExchangeResultData {
+  success: boolean;
+  message?: string;
+}
 
 export default function MercadoPagoRedirectPage() {
   const router = useRouter();
@@ -21,7 +29,7 @@ export default function MercadoPagoRedirectPage() {
   useEffect(() => {
     const exchangeAuthCode = async () => {
       const code = searchParams.get("code");
-      const state = searchParams.get("state"); // O 'state' também é retornado
+      const state = searchParams.get("state");
 
       if (!code) {
         setErrorMessage(
@@ -38,25 +46,30 @@ export default function MercadoPagoRedirectPage() {
           "exchangeCodeForCredentials"
         );
 
-        const result: any = await exchangeCodeFn({ code, state });
+        // CORREÇÃO: Tipagem do resultado
+        const result = (await exchangeCodeFn({
+          code,
+          state,
+        })) as HttpsCallableResult<ExchangeResultData>;
 
         if (result.data.success) {
           setStatus("success");
-          // Após 3 segundos, redireciona para a página de configurações
           setTimeout(() => {
-            router.push("/owner?tab=settings"); // Redireciona para a dashboard na aba de configurações
+            router.push("/owner?tab=settings");
           }, 3000);
         } else {
           throw new Error(
             result.data.message || "Não foi possível completar a conexão."
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        // CORREÇÃO: Uso do 'unknown'
         console.error("Erro ao trocar código por credenciais:", err);
-        setErrorMessage(
-          err.message ||
-            "Ocorreu um erro inesperado. Por favor, tente novamente."
-        );
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Ocorreu um erro inesperado. Por favor, tente novamente.";
+        setErrorMessage(message);
         setStatus("error");
       }
     };

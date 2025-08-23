@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import {
+  getFunctions,
+  httpsCallable,
+  HttpsCallableResult,
+} from "firebase/functions"; // HttpsCallableResult importado
 import { getApp } from "firebase/app";
 import ContentLayout from "../../components/shared/ContentLayout";
 import { ClientRoute } from "../../components/auth/ProtectedRoute";
@@ -9,12 +13,18 @@ import { PendingAppointment } from "../../types";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 
-// Componente para o selo de segurança do Mercado Pago (mantido)
+// Interface para tipar a resposta da nossa Cloud Function
+interface PreferenceResultData {
+  success: boolean;
+  init_point?: string;
+  message?: string;
+}
+
 const MercadoPagoBadge = () => (
   <div className="flex justify-center items-center gap-2 mt-8 border-t pt-6">
     <p className="text-xs text-gray-500">Pagamento seguro com</p>
     <Image
-      src="/images/mercado-pago-logo.svg" // Caminho para a imagem
+      src="/images/mercado-pago-logo.svg"
       alt="Logo do Mercado Pago"
       width={200}
       height={50}
@@ -30,7 +40,6 @@ export default function CheckoutPage() {
     useState<PendingAppointment | null>(null);
 
   useEffect(() => {
-    // Recupera os dados do agendamento
     const appointmentData = sessionStorage.getItem("pendingAppointment");
     if (appointmentData) {
       setPendingAppointment(JSON.parse(appointmentData));
@@ -41,7 +50,6 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    // Inicia o processo de pagamento assim que os dados do agendamento e do utilizador estiverem disponíveis
     if (!pendingAppointment || !userData) {
       return;
     }
@@ -66,19 +74,26 @@ export default function CheckoutPage() {
           appointmentDetails: pendingAppointment,
         };
 
-        const result: any = await createPreference(preferenceData);
+        // CORREÇÃO 1: Tipagem do resultado
+        const result = (await createPreference(
+          preferenceData
+        )) as HttpsCallableResult<PreferenceResultData>;
 
         if (result.data.success && result.data.init_point) {
-          // Redireciona o utilizador para o Checkout Pro
           window.location.href = result.data.init_point;
         } else {
           throw new Error(
             result.data.message || "Não foi possível gerar o link de pagamento."
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        // CORREÇÃO 2: Uso do 'unknown'
         console.error("Erro ao criar preferência de pagamento:", err);
-        setError(err.message || "Ocorreu um erro. Por favor, tente novamente.");
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Ocorreu um erro. Por favor, tente novamente.";
+        setError(message);
         setIsLoading(false);
       }
     };

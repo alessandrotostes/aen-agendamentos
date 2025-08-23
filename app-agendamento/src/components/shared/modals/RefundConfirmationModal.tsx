@@ -1,5 +1,3 @@
-// src/components/modals/RefundConfirmationModal.tsx
-
 "use client";
 import React, { useState } from "react";
 
@@ -16,9 +14,9 @@ export default function RefundConfirmationModal({
   onClose,
   isLoading,
 }: Props) {
-  if (!isOpen) return null;
-
   const [accepted, setAccepted] = useState(false);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex justify-center items-center p-4">

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; // Removido o 'AppRouterInstance'
 import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 
@@ -11,15 +11,16 @@ const AuthLoading = () => (
   </div>
 );
 
-// Função auxiliar para guardar a rota de redirecionamento
-const handleRedirect = (router: any, pathname: string) => {
+// CORREÇÃO: Usamos o tipo inferido do próprio hook useRouter
+const handleRedirect = (
+  router: ReturnType<typeof useRouter>,
+  pathname: string
+) => {
   console.log("A guardar a rota de redirecionamento:", pathname);
-  // Usamos sessionStorage para guardar a URL que o utilizador queria aceder
   sessionStorage.setItem("redirectAfterLogin", pathname);
   router.push("/login");
 };
 
-// Guardião para páginas que SÓ utilizadores 'client' podem ver
 export function ClientRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
@@ -27,10 +28,8 @@ export function ClientRoute({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!loading && !userData) {
-      // Se não estiver logado, guarda a rota e redireciona
       handleRedirect(router, pathname);
     } else if (!loading && userData && userData.role !== "client") {
-      // Se estiver logado mas não for cliente, envia para a página do seu role
       const destination =
         userData.role === "owner" ? "/owner" : "/professional/dashboard";
       router.push(destination);
@@ -43,7 +42,6 @@ export function ClientRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Guardião para páginas que SÓ utilizadores 'owner' podem ver
 export function OwnerRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
@@ -65,7 +63,6 @@ export function OwnerRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Guardião para páginas que SÓ utilizadores 'professional' podem ver
 export function ProfessionalRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
@@ -87,14 +84,12 @@ export function ProfessionalRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Guardião para páginas que SÓ utilizadores NÃO LOGADOS podem ver (ex: login, registo)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
   const { userData, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
     if (!loading && userData) {
-      // Se o utilizador já está logado, envia para o seu respetivo painel
       let destination = "/client";
       if (userData.role === "owner") destination = "/owner";
       if (userData.role === "professional")
@@ -103,7 +98,6 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
     }
   }, [loading, userData, router]);
 
-  // Enquanto carrega ou se já estiver logado, mostra o spinner
   if (loading || userData) {
     return <AuthLoading />;
   }

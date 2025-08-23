@@ -2,14 +2,31 @@
 
 import React, { useEffect, useState } from "react";
 import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import {
+  getFunctions,
+  httpsCallable,
+  HttpsCallableResult,
+} from "firebase/functions";
 import { getApp } from "firebase/app";
 import AuthLayout from "../../components/shared/AuthLayout";
 import { ClientRoute } from "../../components/auth/ProtectedRoute";
 import { PendingAppointment } from "../../types";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Componente interno para o formulário de checkout, para manter a lógica organizada
+// CORREÇÃO: Interfaces para tipagem
+interface CardPaymentFormData {
+  token: string;
+  issuer_id: string;
+  payment_method_id: string;
+  installments: number;
+}
+
+interface PaymentResultData {
+  success: boolean;
+  status?: string;
+  message?: string;
+}
+
 const MercadoPagoCheckoutForm = ({
   pendingAppointment,
 }: {
@@ -23,22 +40,21 @@ const MercadoPagoCheckoutForm = ({
     amount: pendingAppointment.price,
   };
 
-  // Personalização Visual para o formulário
   const customization = {
     visual: {
       style: {
-        theme: "flat", // Tema mais moderno e minimalista
+        theme: "flat",
         customVariables: {
-          formBackgroundColor: "#F9FAFB", // Fundo cinza claro
-          baseColor: "#0d9488", // Tom de verde/teal da sua aplicação
-          borderRadius: "0.5rem", // Bordas arredondadas
+          formBackgroundColor: "#F9FAFB",
+          baseColor: "#0d9488",
+          borderRadius: "0.5rem",
           inputBackgroundColor: "#FFFFFF",
         },
       },
     },
   };
 
-  const onSubmit = async (formData: any) => {
+  const onSubmit = async (formData: CardPaymentFormData) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -61,25 +77,31 @@ const MercadoPagoCheckoutForm = ({
         appointmentDetails: pendingAppointment,
       };
 
-      const result: any = await createPayment(paymentData);
+      const result = (await createPayment(
+        paymentData
+      )) as HttpsCallableResult<PaymentResultData>;
 
       if (result.data.success && result.data.status === "approved") {
         alert("Pagamento aprovado e agendamento confirmado!");
-        window.location.href = "/client"; // Redireciona para o painel do cliente
+        window.location.href = "/client";
       } else {
         throw new Error(
           result.data.message || "O pagamento não pôde ser processado."
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Erro no pagamento:", err);
-      setError(err.message || "Ocorreu um erro. Por favor, tente novamente.");
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocorreu um erro. Por favor, tente novamente.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onError = async (error: any) => {
+  const onError = async (error: unknown) => {
     console.error("Erro no CardPayment Brick:", error);
     setError(
       "Ocorreu um erro ao carregar o formulário de pagamento. Verifique os seus dados."
@@ -92,7 +114,6 @@ const MercadoPagoCheckoutForm = ({
 
   return (
     <div className="flex flex-col">
-      {/* Contentor com altura mínima para reservar o espaço e evitar sobreposição */}
       <div className="w-full min-h-[320px]">
         <CardPayment
           initialization={initialization}
@@ -123,7 +144,6 @@ export default function CheckoutPage() {
       setPendingAppointment(JSON.parse(appointmentData));
     }
 
-    // Inicializamos o SDK do Mercado Pago com a nossa Public Key de teste
     const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
     if (mpPublicKey) {
       initMercadoPago(mpPublicKey, {
@@ -162,7 +182,7 @@ export default function CheckoutPage() {
               />
             </>
           ) : (
-            <p className="text-gray-500">Carregando o checkout...</p>
+            <p className="text-gray-500">Carregando checkout...</p>
           )}
         </div>
       </AuthLayout>

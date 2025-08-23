@@ -17,7 +17,7 @@ import {
 import { useAppointmentsForDate } from "../../hooks/useAppointments";
 import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { Share2 } from "lucide-react"; // 👈 Importe o ícone de partilha
+import { Share2 } from "lucide-react";
 import type {
   Service,
   Professional,
@@ -89,9 +89,13 @@ export default function OwnerView() {
       } else {
         throw new Error("A URL de onboarding não foi recebida.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao gerar link de onboarding:", error);
-      setMpError(error.message || "Não foi possível iniciar a conexão.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível iniciar a conexão.";
+      setMpError(message);
     } finally {
       setMpLoading(false);
     }
@@ -114,8 +118,12 @@ export default function OwnerView() {
       const inviteFn = httpsCallable(functions, "inviteProfessional");
       await inviteFn({ professionalId });
       showSuccess("Convite enviado com sucesso!");
-    } catch (error: any) {
-      alert(`Erro ao enviar convite: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro desconhecido.";
+      alert(`Erro ao enviar convite: ${message}`);
       console.error(error);
     } finally {
       setIsActionLoading(null);
@@ -129,8 +137,12 @@ export default function OwnerView() {
       const resendFn = httpsCallable(functions, "resendInvite");
       await resendFn({ professionalId });
       showSuccess("Convite reenviado com sucesso!");
-    } catch (error: any) {
-      alert(`Erro ao reenviar convite: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro desconhecido.";
+      alert(`Erro ao reenviar convite: ${message}`);
       console.error(error);
     } finally {
       setIsActionLoading(null);
@@ -153,8 +165,12 @@ export default function OwnerView() {
         establishmentId: establishment.id,
       });
       showSuccess("Agendamento cancelado com sucesso e horário liberado!");
-    } catch (error: any) {
-      alert(`Erro ao cancelar agendamento: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro desconhecido.";
+      alert(`Erro ao cancelar agendamento: ${message}`);
       console.error(error);
     } finally {
       setIsActionLoading(null);
@@ -253,14 +269,9 @@ export default function OwnerView() {
     closeModal("deleteConfirm");
   };
 
-  // ===== NOVA FUNÇÃO PARA PARTILHAR O LINK =====
   const handleShareLink = () => {
     if (!establishment) return;
-
-    // Constrói a URL completa usando a origem da janela atual e o caminho correto
     const url = `${window.location.origin}/client/salon/${establishment.id}`;
-
-    // Usa a API do navegador para copiar para a área de transferência
     navigator.clipboard
       .writeText(url)
       .then(() => {
@@ -315,7 +326,6 @@ export default function OwnerView() {
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* ===== BOTÃO DE PARTILHA ADICIONADO AQUI ===== */}
         <div className="flex justify-end">
           <button
             onClick={handleShareLink}
