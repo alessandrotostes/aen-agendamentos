@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import OwnerHeader from "./OwnerHeader";
 import DashboardTab from "./DashboardTab";
 import ServicesTab from "./ServicesTab";
@@ -37,12 +37,16 @@ type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
 };
 
-// Interface para a resposta da função de onboarding do MP
 interface OnboardingLinkData {
   url: string;
 }
 
 export default function OwnerView() {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "services" | "professionals" | "settings"
   >("dashboard");
@@ -93,7 +97,6 @@ export default function OwnerView() {
         "generateMercadoPagoOnboardingLink"
       );
 
-      // CORREÇÃO: Tipagem do resultado
       const result =
         (await generateLink()) as HttpsCallableResult<OnboardingLinkData>;
 
@@ -296,7 +299,7 @@ export default function OwnerView() {
       });
   };
 
-  if (isLoading) {
+  if (!hasMounted || isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <LoadingSpinner size="lg" />
