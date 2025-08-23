@@ -17,7 +17,7 @@ const db = admin.firestore(); // Definindo o db uma vez aqui para ser usado glob
 db.settings({ ignoreUndefinedProperties: true });
 
 // Use a URL do seu túnel aqui para os testes
-const aplicationBaseUrl = "https://meuappdev123.loca.lt";
+const aplicationBaseUrl = "https://aenagendamentos.vercel.app/";
 
 // Definição de todos os segredos necessários
 const mercadoPagoAccessToken = defineSecret("MERCADOPAGO_ACCESS_TOKEN");
