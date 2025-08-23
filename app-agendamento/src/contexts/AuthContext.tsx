@@ -56,8 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCurrentUser(user);
         if (user) {
           const tokenResult = await user.getIdTokenResult(true);
-          console.log("Token Claims:", tokenResult.claims);
-
           const userDocRef = doc(db, "users", user.uid);
           const userSnap = await getDoc(userDocRef);
 
@@ -82,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               `Utilizador autenticado (uid: ${user.uid}) mas sem documento no Firestore.`
             );
             setUserData(null);
+            await signOut(auth); // Força o logout se o documento não existe
           }
         } else {
           setUserData(null);
@@ -97,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // --- FUNÇÃO register ATUALIZADA COM REDIRECIONAMENTO EXPLÍCITO ---
   async function register(
     email: string,
     password: string,
@@ -104,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: "owner" | "client",
     imageFile?: File | null
   ) {
-    setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -113,9 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       const uid = userCredential.user.uid;
       const createdAt = serverTimestamp();
-
       const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
-
       await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
 
       if (role === "owner") {
@@ -138,21 +135,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt,
         });
       }
+
+      // Após o registo, o onIdTokenChanged será acionado e fará o resto.
+      // A navegação será tratada pelo ProtectedRoute após o estado ser atualizado.
     } catch (error) {
+      console.error("Erro no registo:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   }
 
-  // --- FUNÇÃO login CORRIGIDA ---
+  // --- FUNÇÃO login ATUALIZADA COM REDIRECIONAMENTO EXPLÍCITO ---
   async function login(email: string, password: string) {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Sucesso! O onIdTokenChanged vai tratar do resto.
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Após o login, buscamos imediatamente os dados e o cargo para decidir para onde ir.
+      const userDocRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        await signOut(auth); // Se não há documento, força o logout.
+        throw new Error("Não foi possível encontrar os dados do utilizador.");
+      }
+
+      const role = userSnap.data().role;
+
+      // Verifica se há uma rota de redirecionamento guardada
+      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
+      if (redirectUrl) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
+      } else {
+        // Se não houver, vai para o painel padrão do cargo
+        let destination = "/client";
+        if (role === "owner") destination = "/owner";
+        if (role === "professional") destination = "/professional/dashboard";
+        router.push(destination);
+      }
     } catch (error) {
       console.error("Falha no login (dentro do AuthContext):", error);
-      // IMPORTANTE: Relançamos o erro para que a página de login o possa apanhar.
       throw error;
     }
   }
