@@ -7,9 +7,7 @@ import {
   Heart as HeartIcon,
   Search as MagnifyingGlassIcon,
   LogOut as LogOutIcon,
-  User as UserIcon,
 } from "lucide-react";
-import Link from "next/link";
 
 type ClientHeaderProps = {
   onSearchClick: () => void;

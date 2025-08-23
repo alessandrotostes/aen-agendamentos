@@ -16,7 +16,11 @@ import {
 } from "../../hooks/useEstablishment";
 import { useAppointmentsForDate } from "../../hooks/useAppointments";
 import { getApp } from "firebase/app";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import {
+  getFunctions,
+  httpsCallable,
+  HttpsCallableResult,
+} from "firebase/functions";
 import { Share2 } from "lucide-react";
 import type {
   Service,
@@ -32,6 +36,11 @@ import type {
 type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
 };
+
+// Interface para a resposta da função de onboarding do MP
+interface OnboardingLinkData {
+  url: string;
+}
 
 export default function OwnerView() {
   const [activeTab, setActiveTab] = useState<
@@ -83,7 +92,11 @@ export default function OwnerView() {
         functions,
         "generateMercadoPagoOnboardingLink"
       );
-      const result: any = await generateLink();
+
+      // CORREÇÃO: Tipagem do resultado
+      const result =
+        (await generateLink()) as HttpsCallableResult<OnboardingLinkData>;
+
       if (result.data.url) {
         window.location.href = result.data.url;
       } else {

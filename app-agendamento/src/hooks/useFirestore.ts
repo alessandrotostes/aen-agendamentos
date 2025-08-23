@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // useMemo importado
 import {
   collection,
   doc,
@@ -14,7 +14,6 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  Timestamp,
   Query,
   DocumentData,
   QueryConstraint,
@@ -66,9 +65,13 @@ export function useFirestore<T extends { id: string }>(
     whereConditions = [],
   } = options;
 
+  // CORREÇÃO: Usamos useMemo para evitar uma expressão complexa no array de dependências
+  const conditionsString = useMemo(
+    () => JSON.stringify(whereConditions),
+    [whereConditions]
+  );
+
   useEffect(() => {
-    // CORREÇÃO: A verificação agora permite que a busca prossiga se houver um nome de coleção,
-    // mesmo que não haja filtros 'where', como é o caso dos serviços e profissionais.
     if (!collectionName) {
       setData([]);
       setLoading(false);
@@ -76,7 +79,7 @@ export function useFirestore<T extends { id: string }>(
     }
 
     const buildQuery = (): Query<DocumentData> => {
-      const q: Query<DocumentData> = collection(db, collectionName);
+      let q: Query<DocumentData> = collection(db, collectionName);
 
       const queryConstraints: QueryConstraint[] = whereConditions.map(
         ({ field, operator, value }) => where(field, operator, value)
@@ -86,11 +89,31 @@ export function useFirestore<T extends { id: string }>(
         queryConstraints.push(orderBy(orderByField, orderDirection));
       }
 
-      return query(q, ...queryConstraints);
+      // Verifica se existem restrições para aplicar
+      if (queryConstraints.length > 0) {
+        return query(q, ...queryConstraints);
+      }
+      return q;
     };
 
     const q = buildQuery();
     setLoading(true);
+
+    const fetchData = async () => {
+      try {
+        const snapshot = await getDocs(q);
+        const results: T[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as T[];
+        setData(results);
+      } catch (err: unknown) {
+        console.error(`Erro ao buscar ${collectionName}:`, err);
+        setError(errorUtils.getFirebaseErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    };
 
     if (realtime) {
       const unsubscribe = onSnapshot(
@@ -104,7 +127,7 @@ export function useFirestore<T extends { id: string }>(
           setLoading(false);
           setError(null);
         },
-        (err) => {
+        (err: unknown) => {
           console.error(`Erro no listener de ${collectionName}:`, err);
           setError(errorUtils.getFirebaseErrorMessage(err));
           setLoading(false);
@@ -112,29 +135,15 @@ export function useFirestore<T extends { id: string }>(
       );
       return () => unsubscribe();
     } else {
-      const fetchData = async () => {
-        try {
-          const snapshot = await getDocs(q);
-          const results: T[] = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as T[];
-          setData(results);
-        } catch (err) {
-          console.error(`Erro ao buscar ${collectionName}:`, err);
-          setError(errorUtils.getFirebaseErrorMessage(err));
-        } finally {
-          setLoading(false);
-        }
-      };
       fetchData();
     }
+    // CORREÇÃO: O array de dependências agora usa a variável memorizada
   }, [
     collectionName,
     realtime,
     orderByField,
     orderDirection,
-    JSON.stringify(whereConditions),
+    conditionsString,
   ]);
 
   const refresh = async () => {};

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 // CORREÇÃO: Caminho de importação ajustado
 import { Establishment, UpdateEstablishmentData } from "../../../types";
-import { validationUtils } from "../../../lib/utils";
 
 interface EditEstablishmentModalProps {
   isOpen: boolean;

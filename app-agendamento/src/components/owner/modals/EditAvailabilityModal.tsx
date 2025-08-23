@@ -7,7 +7,6 @@ import type {
   WeeklyDay,
   TimeSlot,
   Professional,
-  Availability,
 } from "../../../types";
 
 interface EditAvailabilityModalProps {
