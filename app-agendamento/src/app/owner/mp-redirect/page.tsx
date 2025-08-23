@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react"; // Suspense importado
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   getFunctions,
@@ -11,13 +11,23 @@ import { getApp } from "firebase/app";
 import { OwnerRoute } from "../../../components/auth/ProtectedRoute";
 import LoadingSpinner from "../../../components/owner/common/LoadingSpinner";
 
-// CORREÇÃO: Interface para tipar a resposta da Cloud Function
+// Interface para a resposta da Cloud Function
 interface ExchangeResultData {
   success: boolean;
   message?: string;
 }
 
+// O componente principal agora só renderiza a fronteira de Suspense
 export default function MercadoPagoRedirectPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <RedirectHandler />
+    </Suspense>
+  );
+}
+
+// Toda a lógica que depende de `useSearchParams` foi movida para este componente interno
+function RedirectHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -46,7 +56,6 @@ export default function MercadoPagoRedirectPage() {
           "exchangeCodeForCredentials"
         );
 
-        // CORREÇÃO: Tipagem do resultado
         const result = (await exchangeCodeFn({
           code,
           state,
@@ -63,7 +72,6 @@ export default function MercadoPagoRedirectPage() {
           );
         }
       } catch (err: unknown) {
-        // CORREÇÃO: Uso do 'unknown'
         console.error("Erro ao trocar código por credenciais:", err);
         const message =
           err instanceof Error
@@ -84,7 +92,7 @@ export default function MercadoPagoRedirectPage() {
           <>
             <LoadingSpinner size="lg" />
             <h2 className="text-2xl font-bold text-gray-800 mt-4">
-              A finalizar a conexão com o Mercado Pago...
+              Finalizando a conexão com o Mercado Pago...
             </h2>
             <p className="text-gray-600 mt-2">
               Isto pode levar alguns segundos. Por favor, não feche esta página.
@@ -99,7 +107,7 @@ export default function MercadoPagoRedirectPage() {
               Conta conectada com sucesso!
             </h2>
             <p className="text-gray-600 mt-2">
-              Tudo pronto para receber pagamentos. A redirecionar para o seu
+              Tudo pronto para receber pagamentos. Redirecionando para o seu
               painel...
             </p>
           </>
@@ -133,3 +141,11 @@ export default function MercadoPagoRedirectPage() {
     </OwnerRoute>
   );
 }
+
+// Componente de carregamento para o fallback do Suspense
+const PageLoading = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center p-4">
+    <LoadingSpinner size="lg" />
+    <h2 className="text-2xl font-bold text-gray-800 mt-4">Carregando...</h2>
+  </div>
+);
