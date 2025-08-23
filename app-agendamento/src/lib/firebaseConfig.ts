@@ -4,6 +4,18 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
+// --- INÍCIO DO CÓDIGO DE DIAGNÓSTICO ---
+console.log("--- DEBUG DE VARIÁVEIS DE AMBIENTE (Vercel) ---");
+console.log(
+  "API Key (lida do process.env):",
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+);
+console.log(
+  "Project ID (lido do process.env):",
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+);
+// --- FIM DO CÓDIGO DE DIAGNÓSTICO ---
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,7 +25,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Lógica para evitar reinicialização do app no ambiente de desenvolvimento
+// Log adicional para ver o objeto final
+console.log("Objeto firebaseConfig a ser usado:", firebaseConfig);
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
