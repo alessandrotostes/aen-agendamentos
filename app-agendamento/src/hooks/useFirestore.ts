@@ -11,12 +11,12 @@ import {
   getDocs,
   getDoc,
   addDoc,
-  updateDoc,
   deleteDoc,
   serverTimestamp,
   Query,
   DocumentData,
   QueryConstraint,
+  setDoc, // Adicionado 'setDoc' à importação
 } from "firebase/firestore";
 import { db } from "../lib/firebaseConfig";
 import { errorUtils } from "../lib/utils";
@@ -127,9 +127,8 @@ export function useFirestore<T extends { id: string }>(
       fetchData();
     }
 
-    // A CORREÇÃO PRINCIPAL ESTÁ AQUI:
-    // Removemos 'whereConditions' do array de dependências para evitar o loop infinito.
-    // A 'conditionsString' já garante que a busca seja refeita apenas quando as condições realmente mudarem.
+    // Desabilitamos a regra do ESlint para esta linha específica
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     collectionName,
     realtime,
@@ -145,8 +144,6 @@ export function useFirestore<T extends { id: string }>(
   return { data, loading, error, refresh };
 }
 
-// As suas operações do Firestore (criar, atualizar, etc.) não precisam de alteração.
-// Cole o seu objeto 'firestoreOperations' original aqui.
 export const firestoreOperations = {
   create: async <T>(
     collectionName: string,
@@ -176,7 +173,8 @@ export const firestoreOperations = {
         ...data,
         updatedAt: serverTimestamp(),
       };
-      await updateDoc(doc(db, collectionName, id), updateData);
+      // Usando setDoc com merge para criar ou atualizar o documento
+      await setDoc(doc(db, collectionName, id), updateData, { merge: true });
     } catch (error: unknown) {
       console.error(`Erro ao atualizar ${collectionName}:`, error);
       throw new Error(errorUtils.getFirebaseErrorMessage(error));
