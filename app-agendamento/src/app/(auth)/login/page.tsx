@@ -2,10 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-<<<<<<< HEAD
 import { useRouter } from "next/navigation";
-=======
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
@@ -16,10 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
-<<<<<<< HEAD
   const router = useRouter();
-=======
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -43,8 +37,11 @@ export default function LoginPage() {
       setError(validationError);
       return;
     }
+
+    setError("");
+    setLoading(true);
+
     try {
-<<<<<<< HEAD
       const userData = await login(formData.email, formData.password);
 
       const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
@@ -72,15 +69,6 @@ export default function LoginPage() {
       }
       console.error("Erro no login:", err);
       setError(errorMessage);
-=======
-      setError("");
-      setLoading(true);
-      await login(formData.email, formData.password);
-    } catch (err) {
-      console.error("Erro no login:", err);
-      setError(err instanceof Error ? err.message : "Erro ao fazer login");
-    } finally {
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
       setLoading(false);
     }
   };

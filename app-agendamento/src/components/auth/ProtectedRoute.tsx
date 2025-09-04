@@ -1,106 +1,113 @@
 "use client";
 
-import React from "react";
-import { useRouter, usePathname } from "next/navigation"; // Removido o 'AppRouterInstance'
+import React, { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 
+// Componente de loading centralizado
 const AuthLoading = () => (
   <div className="flex h-screen w-full items-center justify-center bg-slate-50">
     <LoadingSpinner size="lg" />
   </div>
 );
 
-// CORREÇÃO: Usamos o tipo inferido do próprio hook useRouter
-const handleRedirect = (
-  router: ReturnType<typeof useRouter>,
-  pathname: string
-) => {
-  console.log("A guardar a rota de redirecionamento:", pathname);
-  sessionStorage.setItem("redirectAfterLogin", pathname);
-  router.push("/login");
-};
+// Tipo para as roles permitidas
+type UserRole = "client" | "owner" | "professional";
 
-export function ClientRoute({ children }: { children: React.ReactNode }) {
-  const { userData, loading } = useAuth();
+// ========================================================================
+// NOSSO NOVO COMPONENTE GENÉRICO E INTELIGENTE
+// ========================================================================
+function ProtectedRoute({
+  children,
+  role,
+}: {
+  children: React.ReactNode;
+  role: UserRole;
+}) {
+  // 1. Usamos o novo 'authLoading' do nosso AuthContext corrigido
+  const { userData, authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  React.useEffect(() => {
-    if (!loading && !userData) {
-      handleRedirect(router, pathname);
-    } else if (!loading && userData && userData.role !== "client") {
-      const destination =
-        userData.role === "owner" ? "/owner" : "/professional/dashboard";
-      router.push(destination);
+  useEffect(() => {
+    // 2. A lógica de redirecionamento SÓ RODA quando o loading da autenticação TERMINOU.
+    if (!authLoading) {
+      if (!userData) {
+        // Se não há usuário, salva a rota atual e redireciona para o login
+        console.log("Usuário não logado. Redirecionando para /login...");
+        sessionStorage.setItem("redirectAfterLogin", pathname);
+        router.push("/login");
+      } else if (userData.role !== role) {
+        // Se o usuário está logado mas tem a role errada, redireciona para o painel correto dele
+        console.log(
+          `Role incorreta. Usuário é '${userData.role}', rota exige '${role}'. Redirecionando...`
+        );
+        const destination = {
+          owner: "/owner",
+          client: "/client", // Supondo que a rota do cliente seja /client
+          professional: "/professional/dashboard",
+        }[userData.role];
+        router.push(destination);
+      }
     }
-  }, [loading, userData, router, pathname]);
+  }, [authLoading, userData, router, pathname, role]);
 
-  if (loading || !userData || userData.role !== "client") {
-    return <AuthLoading />;
-  }
-  return <>{children}</>;
-}
-
-export function OwnerRoute({ children }: { children: React.ReactNode }) {
-  const { userData, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  React.useEffect(() => {
-    if (!loading && !userData) {
-      handleRedirect(router, pathname);
-    } else if (!loading && userData && userData.role !== "owner") {
-      const destination =
-        userData.role === "client" ? "/client" : "/professional/dashboard";
-      router.push(destination);
-    }
-  }, [loading, userData, router, pathname]);
-
-  if (loading || !userData || userData.role !== "owner") {
-    return <AuthLoading />;
-  }
-  return <>{children}</>;
-}
-
-export function ProfessionalRoute({ children }: { children: React.ReactNode }) {
-  const { userData, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  React.useEffect(() => {
-    if (!loading && !userData) {
-      handleRedirect(router, pathname);
-    } else if (!loading && userData && userData.role !== "professional") {
-      const destination = userData.role === "owner" ? "/owner" : "/client";
-      router.push(destination);
-    }
-  }, [loading, userData, router, pathname]);
-
-  if (loading || !userData || userData.role !== "professional") {
+  // 3. Lógica de renderização simplificada:
+  // Se a autenticação ainda está carregando, mostramos o spinner.
+  if (authLoading) {
     return <AuthLoading />;
   }
 
-  return <>{children}</>;
+  // Se o loading terminou e o usuário tem a permissão correta, mostramos a página.
+  if (userData && userData.role === role) {
+    return <>{children}</>;
+  }
+
+  // Em todos os outros casos (sem usuário, role errada), não renderizamos nada,
+  // pois o useEffect já está cuidando do redirecionamento. Isso evita o "flash".
+  return null;
 }
 
+// ========================================================================
+// ROTA PÚBLICA ATUALIZADA
+// ========================================================================
 export function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { userData, loading } = useAuth();
+  const { userData, authLoading } = useAuth();
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (!loading && userData) {
-      let destination = "/client";
-      if (userData.role === "owner") destination = "/owner";
-      if (userData.role === "professional")
-        destination = "/professional/dashboard";
+  useEffect(() => {
+    if (!authLoading && userData) {
+      // Se o loading terminou e EXISTE um usuário, redireciona para fora da página pública
+      const destination = {
+        owner: "/owner",
+        client: "/client",
+        professional: "/professional/dashboard",
+      }[userData.role];
       router.replace(destination);
     }
-  }, [loading, userData, router]);
+  }, [authLoading, userData, router]);
 
-  if (loading || userData) {
+  if (authLoading || userData) {
     return <AuthLoading />;
   }
 
   return <>{children}</>;
 }
+
+// ========================================================================
+// EXPORTS ANTIGOS MANTIDOS COMO "ATALHOS" (NÃO PRECISA MUDAR NADA NAS PÁGINAS)
+// ========================================================================
+export const ClientRoute = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute role="client">{children}</ProtectedRoute>
+);
+
+export const OwnerRoute = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute role="owner">{children}</ProtectedRoute>
+);
+
+export const ProfessionalRoute = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => <ProtectedRoute role="professional">{children}</ProtectedRoute>;

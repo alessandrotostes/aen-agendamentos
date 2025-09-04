@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.tsx
 "use client";
 
 import React, {
@@ -20,20 +21,11 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
-<<<<<<< HEAD
-// ===== INTERFACE ATUALIZADA =====
-=======
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
-  loading: boolean;
-<<<<<<< HEAD
+  authLoading: boolean; // Estado de loading unificado e mais claro
   login: (email: string, password: string) => Promise<AuthUser>;
-  // A função register agora também retorna Promise<AuthUser>
-=======
-  login: (email: string, password: string) => Promise<void>;
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
   register: (
     email: string,
     password: string,
@@ -50,45 +42,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true); // Começa como true
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      setCurrentUser(user);
       if (user) {
-        const tokenResult = await user.getIdTokenResult(true);
-        console.log("Token Claims:", tokenResult.claims);
-
+        // Se há um usuário no Auth, buscamos seus dados no Firestore
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
 
         if (userSnap.exists()) {
-          const data = userSnap.data() as DocumentData;
-          const finalRole =
-            (tokenResult.claims.role as "owner" | "client" | "professional") ||
-            data.role;
-
-          const fetchedUser: AuthUser = {
-            uid: user.uid,
-            name: data.name,
-            email: data.email,
-            role: finalRole,
-            createdAt: data.createdAt?.toDate() ?? null,
-          };
-          setUserData(fetchedUser);
+          // Se encontramos os dados, atualizamos ambos os estados
+          const data = userSnap.data() as AuthUser;
+          setUserData(data);
+          setCurrentUser(user);
         } else {
+          // Caso raro: usuário existe no Auth mas não no DB. Limpamos tudo.
+          console.error(
+            "Usuário autenticado não encontrado no Firestore. Fazendo logout."
+          );
+          await signOut(auth);
           setUserData(null);
+          setCurrentUser(null);
         }
       } else {
+        // Se não há usuário no Auth, limpamos tudo
         setUserData(null);
+        setCurrentUser(null);
       }
-      setLoading(false);
+      // O loading só termina DEPOIS de todo o processo estar concluído.
+      setAuthLoading(false);
     });
-    return unsubscribe;
+
+    // Limpa o "ouvinte" quando o componente é desmontado
+    return () => unsubscribe();
   }, []);
 
-  // ===== FUNÇÃO REGISTER ATUALIZADA =====
   async function register(
     email: string,
     password: string,
@@ -96,67 +86,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: "owner" | "client",
     imageFile?: File | null
   ): Promise<AuthUser> {
-    setLoading(true);
-<<<<<<< HEAD
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const uid = userCredential.user.uid;
-      const createdAt = serverTimestamp();
-
-      const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
-
-      await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
-
-      if (role === "owner") {
-        let imageURL = "";
-        if (imageFile) {
-          const imageRef = ref(
-            storage,
-            `establishments/${uid}/${imageFile.name}`
-          );
-          await uploadBytes(imageRef, imageFile);
-          imageURL = await getDownloadURL(imageRef);
-        }
-        await setDoc(doc(db, "establishments", uid), {
-          ownerId: uid,
-          name,
-          email,
-          address: "",
-          imageURL,
-          rating: 0,
-          createdAt,
-        });
-      }
-
-      // Retornamos os dados do novo utilizador para a página de registo poder agir
-      return { ...newUser, createdAt: new Date() };
-    } catch (error) {
-      setLoading(false);
-      throw error;
-=======
-
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
       password
     );
     const uid = userCredential.user.uid;
+    const createdAt = serverTimestamp();
 
-    await setDoc(doc(db, "users", uid), {
-      uid,
-      name,
-      email,
-      role,
-      createdAt: serverTimestamp(),
-    });
+    const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
+
+    await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
 
     if (role === "owner") {
       let imageURL = "";
-
       if (imageFile) {
         const imageRef = ref(
           storage,
@@ -165,7 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await uploadBytes(imageRef, imageFile);
         imageURL = await getDownloadURL(imageRef);
       }
-
       await setDoc(doc(db, "establishments", uid), {
         ownerId: uid,
         name,
@@ -173,93 +115,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         address: "",
         imageURL,
         rating: 0,
-        createdAt: serverTimestamp(),
+        createdAt,
       });
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     }
 
-    setLoading(false);
-    router.push(role === "owner" ? "/owner" : "/client");
+    // Retornamos os dados do novo usuário para a página de registro poder agir
+    return { ...newUser, createdAt: new Date() }; // Retorna um objeto AuthUser completo
   }
 
-<<<<<<< HEAD
   async function login(email: string, password: string): Promise<AuthUser> {
-=======
-  async function login(email: string, password: string) {
-    setLoading(true);
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const user = userCredential.user;
 
-      const userDocRef = doc(db, "users", userCredential.user.uid);
-      const userSnap = await getDoc(userDocRef);
+    const userDocRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userDocRef);
 
-      if (userSnap.exists()) {
-        const userRole = userSnap.data().role;
-
-<<<<<<< HEAD
-      const data = userSnap.data() as AuthUser;
-      return data;
-=======
-        if (userRole === "owner") {
-          router.push("/owner");
-        } else if (userRole === "professional") {
-          router.push("/professional/dashboard");
-        } else {
-          router.push("/client");
-        }
-      } else {
-        console.error(
-          "Documento do utilizador não encontrado no Firestore após login."
-        );
-        await signOut(auth);
-        router.push("/login");
-      }
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
-    } catch (error) {
-      console.error("Erro no login:", error);
-      throw error;
-    } finally {
-      setLoading(false);
+    if (!userSnap.exists()) {
+      await signOut(auth);
+      throw new Error("Dados do usuário não encontrados.");
     }
+
+    const data = userSnap.data() as AuthUser;
+    return data;
   }
 
   async function logout() {
     await signOut(auth);
+    setUserData(null);
+    setCurrentUser(null);
     router.push("/login");
   }
 
   async function refreshUserData() {
     if (currentUser) {
+      // Força a atualização do token e re-aciona o onIdTokenChanged
       await currentUser.getIdToken(true);
     }
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        userData,
-        loading,
-        login,
-        register,
-        logout,
-        refreshUserData,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    currentUser,
+    userData,
+    authLoading,
+    login,
+    register,
+    logout,
+    refreshUserData,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
   return context;
 }

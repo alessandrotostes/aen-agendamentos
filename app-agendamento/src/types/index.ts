@@ -1,3 +1,4 @@
+//src/types/index.ts
 import { Timestamp } from "firebase/firestore";
 
 // USER & AUTH
@@ -89,8 +90,16 @@ export interface Appointment {
   duration: number;
   price: number;
   status: "confirmado" | "cancelado";
+  cancelledBy?: "owner" | "client";
   serviceName: string;
   professionalName: string;
+  cancellationRequest?: CancellationRequest;
+}
+
+export interface CancellationRequest {
+  requestedBy: "client" | "owner";
+  timestamp: Timestamp;
+  acceptedPartialRefund: boolean;
 }
 
 // FORM & API DATA TYPES
@@ -186,13 +195,8 @@ export interface Salon {
   id: string;
   name: string;
   address: string;
-<<<<<<< HEAD
   imageURL?: string;
   phone?: string;
   rating?: number;
   favoritesCount?: number;
-=======
-  imageURL: string;
-  rating: number;
->>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 }

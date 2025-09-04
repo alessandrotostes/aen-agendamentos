@@ -1,152 +1,161 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-// ✅ Removido import não usado: Image
+import Image from "next/image";
+import { CSSTransition, SwitchTransition } from "react-transition-group";
+import {
+  CalendarDays,
+  CreditCard,
+  LayoutDashboard,
+  BarChart2,
+} from "lucide-react";
 
-interface AuthLayoutProps {
+// Componente para o selo de segurança do Mercado Pago, agora usando a imagem da pasta 'public'
+const MercadoPagoBadge = () => (
+  <div className="flex justify-center items-center gap-2 mt-8 border-t pt-6">
+    <p className="text-xs text-gray-500">Pagamento seguro com</p>
+    <Image
+      src="/images/mercado-pago-logo.svg" // Caminho para a imagem
+      alt="Logo do Mercado Pago"
+      width={200}
+      height={50}
+    />
+  </div>
+);
+
+// Lista de funcionalidades para a animação
+const features = [
+  {
+    Icon: CalendarDays,
+    title: "Agendamentos online automáticos",
+    description:
+      "Permita que seus clientes marquem horários 24/7, sem precisar de ligar, ou depender de respostas manuais.",
+  },
+  {
+    Icon: CreditCard,
+    title: "Pagamentos seguros integrados",
+    description:
+      "Receba pagamentos online com segurança através do Mercado Pago.",
+  },
+  {
+    Icon: LayoutDashboard,
+    title: "Dashboard completo de gestão",
+    description:
+      "Tenha uma visão completa dos seus agendamentos, serviços e equipe.",
+  },
+  {
+    Icon: BarChart2,
+    title: "Dashboard para profissionais do estabelecimento",
+    description:
+      "Profissionais que trabalham no seu estabelecimento terão acesso ao próprio dashboard, podendo acompanhar suas agendas individuais no dia a dia.",
+  },
+];
+
+export default function AuthLayout({
+  children,
+}: {
   children: React.ReactNode;
-}
+}) {
+  const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+  const nodeRef = useRef(null);
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentFeatureIndex((prevIndex) => (prevIndex + 1) % features.length);
+    }, 5000); // Muda a cada 5 segundos
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentFeature = features[currentFeatureIndex];
+
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Form */}
+      {/* Lado Esquerdo - Formulário */}
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
-          {/* Logo */}
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center space-x-2">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">S&B</span>
+              <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center animate-float">
+                <span className="text-white font-bold text-xl">A&N</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Salões & Barbearias
-                </h1>
+                <h1 className="text-xl font-bold text-gray-900">All & None</h1>
                 <p className="text-sm text-gray-500">Sistema de Agendamento</p>
               </div>
             </Link>
           </div>
-
-          {/* Form Content */}
           <div>{children}</div>
-
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-xs text-gray-500">
-              © 2025 Sistema de Agendamento. Todos os direitos reservados.
-            </p>
-          </div>
+          <MercadoPagoBadge />
         </div>
       </div>
 
-      {/* Right side - Hero Image/Info */}
-      <div className="hidden lg:block relative flex-1">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700">
-          <div className="absolute inset-0 bg-black opacity-20" />
-        </div>
+      {/* Lado Direito - Showcase de Funcionalidades */}
+      <div className="hidden lg:block relative flex-1 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700" />
 
-        {/* Content overlay */}
+        <div
+          className="absolute top-10 -left-10 w-48 h-48 bg-white/10 rounded-full animate-float"
+          style={{ animationDelay: "1s" }}
+        />
+        <div
+          className="absolute bottom-10 -right-10 w-72 h-72 bg-white/10 rounded-full animate-float"
+          style={{ animationDelay: "3s" }}
+        />
+
         <div className="relative z-10 flex flex-col justify-center h-full p-12 text-white">
           <div className="max-w-md">
-            <h2 className="text-3xl font-bold mb-6">
+            <h2 className="text-4xl font-bold mb-8">
               Gerencie seu negócio com facilidade
             </h2>
 
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <span>Agendamentos online automáticos</span>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <span>Pagamentos seguros integrados</span>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <span>Dashboard completo de gestão</span>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <span>Relatórios e análises detalhadas</span>
-              </div>
+            <div className="relative h-48">
+              <SwitchTransition>
+                <CSSTransition
+                  key={currentFeature.title}
+                  nodeRef={nodeRef}
+                  timeout={400}
+                  classNames={{
+                    enter: "opacity-0 transform -translate-y-4",
+                    enterActive:
+                      "opacity-100 transform translate-y-0 transition-all duration-300",
+                    exit: "opacity-100 transform translate-y-0",
+                    exitActive:
+                      "opacity-0 transform translate-y-4 transition-all duration-300 absolute w-full",
+                  }}
+                >
+                  <div ref={nodeRef} className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                      <currentFeature.Icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {currentFeature.title}
+                      </h3>
+                      <p className="mt-1 text-white text-opacity-80">
+                        {currentFeature.description}
+                      </p>
+                    </div>
+                  </div>
+                </CSSTransition>
+              </SwitchTransition>
             </div>
 
-            <div className="mt-8 p-4 bg-white bg-opacity-10 rounded-lg backdrop-blur-sm">
-              <p className="text-sm">
-                {/* ✅ Aspas escapadas corretamente */}
-                <strong>&ldquo;Revolucionou minha barbearia!&rdquo;</strong>
-                <br />
-                &ldquo;Desde que comecei a usar, meus agendamentos aumentaram
-                300% e não perco mais nenhum cliente.&rdquo;
-              </p>
-              <p className="text-xs mt-2 opacity-80">
-                — João Silva, Barbearia Central
-              </p>
+            <div className="mt-12 p-6 bg-white bg-opacity-10 rounded-lg backdrop-blur-sm border border-white border-opacity-20">
+              <h4 className="font-bold text-lg">Por que All & None?</h4>
+              <div className="mt-4 space-y-3 text-sm">
+                <p>
+                  <strong className="text-white">All:</strong> Todas as
+                  ferramentas que você precisa para gerir e crescer o seu
+                  negócio, na palma da sua mão.
+                </p>
+                <p>
+                  <strong className="text-white">None:</strong> Nenhuma das
+                  preocupações com agendamentos perdidos ou pagamentos
+                  complicados. Nós cuidamos de tudo por você.
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* Background pattern */}
-        <div className="absolute bottom-0 right-0 p-8 opacity-10">
-          <div className="grid grid-cols-6 gap-4">
-            {[...Array(24)].map((_, i) => (
-              <div
-                key={i}
-                className="w-3 h-3 bg-white rounded-full"
-                style={{ animationDelay: `${i * 0.1}s` }}
-              />
-            ))}
           </div>
         </div>
       </div>
