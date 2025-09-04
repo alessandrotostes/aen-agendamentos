@@ -4,23 +4,15 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { verifyPasswordResetCode, confirmPasswordReset } from "firebase/auth";
-import { FirebaseError } from "firebase/app"; // Importação corrigida
-import { auth } from "../../../lib/firebaseConfig";
+import { auth } from "../../../lib/firebaseConfig"; // Verifique o caminho
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { Lock, CheckCircle, AlertTriangle } from "lucide-react";
 import LoadingSpinner from "../../../components/owner/common/LoadingSpinner";
 
-// Componente de carregamento para o fallback do Suspense
-const PageLoading = () => (
-  <AuthLayout>
-    <LoadingSpinner />
-  </AuthLayout>
-);
-
 // Componente principal que usa Suspense para aguardar os parâmetros da URL
 export default function SetNewPasswordPage() {
   return (
-    <Suspense fallback={<PageLoading />}>
+    <Suspense fallback={<LoadingSpinner />}>
       <SetNewPasswordForm />
     </Suspense>
   );
@@ -29,7 +21,7 @@ export default function SetNewPasswordPage() {
 // Componente que contém toda a lógica
 function SetNewPasswordForm() {
   const searchParams = useSearchParams();
-  const oobCode = searchParams.get("oobCode");
+  const oobCode = searchParams.get("oobCode"); // Pega o código da URL
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +29,11 @@ function SetNewPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Estado para controlar a validação do código
   const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(true);
 
+  // Efeito para verificar o código assim que a página carrega
   useEffect(() => {
     const verifyCode = async () => {
       if (!oobCode) {
@@ -47,18 +41,20 @@ function SetNewPasswordForm() {
         setIsVerifyingCode(false);
         return;
       }
+
       try {
         await verifyPasswordResetCode(auth, oobCode);
-        setIsCodeVerified(true);
-      } catch (err: unknown) {
-        console.error("Erro ao verificar código:", err);
+        setIsCodeVerified(true); // Código válido!
+      } catch (err) {
         setError(
           "O link de redefinição é inválido ou já expirou. Por favor, solicite um novo."
         );
+        console.error("Erro ao verificar código:", err);
       } finally {
         setIsVerifyingCode(false);
       }
     };
+
     verifyCode();
   }, [oobCode]);
 
@@ -83,21 +79,17 @@ function SetNewPasswordForm() {
     try {
       await confirmPasswordReset(auth, oobCode, password);
       setSuccess(true);
-    } catch (err: unknown) {
+    } catch (err) {
+      setError(
+        "Ocorreu um erro ao redefinir a senha. O link pode ter expirado."
+      );
       console.error("Erro ao confirmar reset:", err);
-      let errorMessage =
-        "Ocorreu um erro ao redefinir a senha. O link pode ter expirado.";
-      if (err instanceof FirebaseError) {
-        if (err.code === "auth/weak-password") {
-          errorMessage = "A senha é muito fraca. Tente uma mais forte.";
-        }
-      }
-      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  // Tela de carregamento enquanto o código é verificado
   if (isVerifyingCode) {
     return (
       <AuthLayout>
@@ -106,6 +98,7 @@ function SetNewPasswordForm() {
     );
   }
 
+  // Se o código for inválido ou o processo foi concluído com sucesso
   if (!isCodeVerified || success) {
     return (
       <AuthLayout>
@@ -117,7 +110,7 @@ function SetNewPasswordForm() {
                 Senha Redefinida!
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                A sua senha foi alterada com sucesso. Agora você já pode fazer
+                Sua senha foi alterada com sucesso. Agora você já pode fazer
                 login.
               </p>
               <Link
@@ -150,6 +143,7 @@ function SetNewPasswordForm() {
     );
   }
 
+  // Formulário para digitar a nova senha (se o código for válido)
   return (
     <AuthLayout>
       <div className="text-center mb-6">
@@ -210,7 +204,7 @@ function SetNewPasswordForm() {
           disabled={loading}
           className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {loading ? "Aguarde..." : "Redefinir Senha"}
+          {loading ? "Aguardando..." : "Redefinir Senha"}
         </button>
       </form>
     </AuthLayout>

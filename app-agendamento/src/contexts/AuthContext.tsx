@@ -15,29 +15,25 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { auth, db, storage } from "../lib/firebaseConfig";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-  type DocumentData,
-} from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
+// ===== INTERFACE ATUALIZADA =====
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  // A função register agora também retorna Promise<AuthUser>
   register: (
     email: string,
     password: string,
     name: string,
     role: "owner" | "client",
     imageFile?: File | null
-  ) => Promise<void>;
+  ) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
 }
@@ -52,58 +48,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      try {
-        setCurrentUser(user);
-        if (user) {
-          const tokenResult = await user.getIdTokenResult();
-          const userDocRef = doc(db, "users", user.uid);
-          const userSnap = await getDoc(userDocRef);
-
-          if (userSnap.exists()) {
-            const data = userSnap.data() as DocumentData;
-            const finalRole =
-              (tokenResult.claims.role as
-                | "owner"
-                | "client"
-                | "professional") || data.role;
-
-            const fetchedUser: AuthUser = {
-              uid: user.uid,
-              name: data.name,
-              email: data.email,
-              role: finalRole,
-              createdAt: data.createdAt?.toDate() ?? null,
-            };
-            setUserData(fetchedUser);
-          } else {
-            console.warn(
-              `Utilizador autenticado (uid: ${user.uid}) mas sem documento no Firestore.`
-            );
-            setUserData(null);
-            await signOut(auth); // Força o logout se o documento não existe
-          }
+      setLoading(true);
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data() as AuthUser;
+          setUserData(data);
+          setCurrentUser(user);
         } else {
+          await signOut(auth);
           setUserData(null);
+          setCurrentUser(null);
         }
-      } catch (error) {
-        console.error("Erro durante a verificação de autenticação:", error);
-        setCurrentUser(null);
+      } else {
         setUserData(null);
-      } finally {
-        setLoading(false);
+        setCurrentUser(null);
       }
+      setLoading(false);
     });
     return unsubscribe;
   }, []);
 
-  // --- FUNÇÃO register ATUALIZADA COM REDIRECIONAMENTO EXPLÍCITO ---
+  // ===== FUNÇÃO REGISTER ATUALIZADA =====
   async function register(
     email: string,
     password: string,
     name: string,
     role: "owner" | "client",
     imageFile?: File | null
-  ) {
+  ): Promise<AuthUser> {
+    setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -112,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       const uid = userCredential.user.uid;
       const createdAt = serverTimestamp();
+
       const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
+
       await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
 
       if (role === "owner") {
@@ -136,16 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Após o registo, o onIdTokenChanged será acionado e fará o resto.
-      // A navegação será tratada pelo ProtectedRoute após o estado ser atualizado.
+      // Retornamos os dados do novo utilizador para a página de registo poder agir
+      return { ...newUser, createdAt: new Date() };
     } catch (error) {
-      console.error("Erro no registo:", error);
+      setLoading(false);
       throw error;
     }
   }
 
-  // --- FUNÇÃO login ATUALIZADA COM REDIRECIONAMENTO EXPLÍCITO ---
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<AuthUser> {
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -154,31 +130,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       const user = userCredential.user;
 
-      // Após o login, buscamos imediatamente os dados e o cargo para decidir para onde ir.
       const userDocRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userDocRef);
 
       if (!userSnap.exists()) {
-        await signOut(auth); // Se não há documento, força o logout.
-        throw new Error("Não foi possível encontrar os dados do utilizador.");
+        await signOut(auth);
+        throw new Error("Dados do utilizador não encontrados.");
       }
 
-      const role = userSnap.data().role;
-
-      // Verifica se há uma rota de redirecionamento guardada
-      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
-      if (redirectUrl) {
-        sessionStorage.removeItem("redirectAfterLogin");
-        router.push(redirectUrl);
-      } else {
-        // Se não houver, vai para o painel padrão do cargo
-        let destination = "/client";
-        if (role === "owner") destination = "/owner";
-        if (role === "professional") destination = "/professional/dashboard";
-        router.push(destination);
-      }
+      const data = userSnap.data() as AuthUser;
+      return data;
     } catch (error) {
-      console.error("Falha no login (dentro do AuthContext):", error);
+      console.error("Falha no login:", error);
       throw error;
     }
   }

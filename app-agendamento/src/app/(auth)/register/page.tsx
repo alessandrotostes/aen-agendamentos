@@ -2,11 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
-import { FirebaseError } from "firebase/app";
-import { PublicRoute } from "../../../components/auth/ProtectedRoute";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -20,6 +19,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const { register } = useAuth();
+  const router = useRouter();
 
   const handleChange = (
     e:
@@ -27,8 +27,7 @@ export default function RegisterPage() {
       | React.ChangeEvent<HTMLSelectElement>
   ) => {
     const { name, value, files } = e.target as HTMLInputElement;
-    if (name === "imageFile") {
-      // Corrigido para corresponder ao estado
+    if (name === "image") {
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -59,160 +58,163 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Apenas chamamos a função, não esperamos um retorno
-      await register(
+      const newUser = await register(
         formData.email,
         formData.password,
         formData.name,
         formData.role,
         formData.imageFile
       );
-      // Sucesso! Não é preciso fazer mais nada.
-      // O AuthContext vai detetar o novo utilizador e o PublicRoute
-      // encarregar-se-á do redirecionamento automático.
+
+      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
+
+      if (redirectUrl) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
+      } else {
+        const destination = newUser.role === "owner" ? "/owner" : "/client";
+        router.push(destination);
+      }
     } catch (err: unknown) {
       console.error("Erro no registro:", err);
       if (
-        err instanceof FirebaseError &&
-        err.code === "auth/email-already-in-use"
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code?: string }).code === "auth/email-already-in-use"
       ) {
         setError(
           "Este email já está em uso. Faça login ou redefina sua senha."
         );
       } else {
-        const message =
-          err instanceof Error ? err.message : "Erro ao registrar";
-        setError(message);
+        setError(err instanceof Error ? err.message : "Erro ao registrar");
       }
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <PublicRoute>
-      <AuthLayout>
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Criar nova conta</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Ou{" "}
-            <Link
-              href="/login"
-              className="font-medium text-indigo-600 hover:text-indigo-500"
-            >
-              entrar na sua conta
-            </Link>
-          </p>
+    <AuthLayout>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Criar nova conta</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Ou{" "}
+          <Link
+            href="/login"
+            className="font-medium text-indigo-600 hover:text-indigo-500"
+          >
+            entrar na sua conta
+          </Link>
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
+        <div>
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Nome
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="mt-1 block w-full px-3 py-2 border"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Nome
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Senha
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="role"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Sou
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border rounded-md"
-            >
-              <option value="client">Cliente</option>
-              <option value="owner">Estabelecimento</option>
-            </select>
-          </div>
-
-          {formData.role === "owner" && (
-            <div>
-              <label
-                htmlFor="imageFile"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Foto do Estabelecimento
-              </label>
-              <input
-                id="imageFile"
-                name="imageFile"
-                type="file"
-                accept="image/*"
-                onChange={handleChange}
-                className="mt-1 block w-full text-sm"
-              />
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+        <div>
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700"
           >
-            {loading ? "A registar..." : "Registar"}
-          </button>
-        </form>
-      </AuthLayout>
-    </PublicRoute>
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="mt-1 block w-full px-3 py-2 border"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Senha
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            className="mt-1 block w-full px-3 py-2 border"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Sou
+          </label>
+          <select
+            id="role"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            className="mt-1 block w-full px-3 py-2 border"
+          >
+            <option value="client">Cliente</option>
+            <option value="owner">Estabelecimento</option>
+          </select>
+        </div>
+
+        {formData.role === "owner" && (
+          <div>
+            <label
+              htmlFor="image"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Foto do Estabelecimento
+            </label>
+            <input
+              id="image"
+              name="image"
+              type="file"
+              accept="image/*"
+              onChange={handleChange}
+              className="mt-1 block w-full text-sm"
+            />
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {loading ? "A registar..." : "Registar"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

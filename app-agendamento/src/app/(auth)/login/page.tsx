@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
-import { FirebaseError } from "firebase/app";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -29,7 +30,6 @@ export default function LoginPage() {
     return null;
   };
 
-  // --- FUNÇÃO handleSubmit CORRIGIDA ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateForm();
@@ -42,13 +42,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      // Sucesso! Não fazemos mais nada aqui.
-      // O AuthContext vai detetar o login e o ProtectedRoute vai fazer o redirecionamento.
+      const userData = await login(formData.email, formData.password);
+
+      const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
+
+      if (redirectUrl) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
+      } else {
+        let destination = "/client";
+        if (userData.role === "owner") destination = "/owner";
+        if (userData.role === "professional")
+          destination = "/professional/dashboard";
+        router.push(destination);
+      }
     } catch (err: unknown) {
-      // Corrigido para unknown
       let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
-      if (err instanceof FirebaseError) {
+      if (err instanceof Error && "code" in err) {
         if (
           err.code === "auth/invalid-credential" ||
           err.code === "auth/user-not-found" ||
@@ -59,8 +69,6 @@ export default function LoginPage() {
       }
       console.error("Erro no login:", err);
       setError(errorMessage);
-    } finally {
-      // Garante que o loading seja desativado, quer o login tenha sucesso ou falhe
       setLoading(false);
     }
   };

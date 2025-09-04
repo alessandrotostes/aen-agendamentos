@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   collection,
   doc,
@@ -18,9 +18,10 @@ import {
   DocumentData,
   QueryConstraint,
 } from "firebase/firestore";
-import { db } from "../lib/firebaseConfig";
-import { errorUtils } from "../lib/utils";
+import { db } from "../lib/firebaseConfig"; // Verifique se o caminho está correto
+import { errorUtils } from "../lib/utils"; // Verifique se o caminho está correto
 
+// Interface para as opções do hook
 interface UseFirestoreOptions {
   realtime?: boolean;
   orderByField?: string;
@@ -41,6 +42,7 @@ interface UseFirestoreOptions {
   }>;
 }
 
+// Interface para o estado retornado pelo hook
 interface FirestoreState<T> {
   data: T[];
   loading: boolean;
@@ -63,10 +65,29 @@ export function useFirestore<T extends { id: string }>(
     whereConditions = [],
   } = options;
 
+  // 1. Estabiliza o `whereConditions` transformando-o em uma string.
   const conditionsString = useMemo(
     () => JSON.stringify(whereConditions),
     [whereConditions]
   );
+
+  // 2. Otimização com `useCallback` para memorizar a função que constrói a query.
+  const buildQuery = useCallback(() => {
+    if (!collectionName) return null;
+
+    const collectionRef = collection(db, collectionName);
+    const conditions = JSON.parse(conditionsString) as typeof whereConditions;
+
+    const queryConstraints: QueryConstraint[] = conditions.map(
+      ({ field, operator, value }) => where(field, operator, value)
+    );
+
+    if (orderByField) {
+      queryConstraints.push(orderBy(orderByField, orderDirection));
+    }
+
+    return query(collectionRef, ...queryConstraints);
+  }, [collectionName, conditionsString, orderByField, orderDirection]);
 
   useEffect(() => {
     if (!collectionName) {
@@ -75,30 +96,16 @@ export function useFirestore<T extends { id: string }>(
       return;
     }
 
-    const buildQuery = (): Query<DocumentData> => {
-      const collectionRef = collection(db, collectionName);
-
-      const queryConstraints: QueryConstraint[] = whereConditions.map(
-        ({ field, operator, value }) => where(field, operator, value)
-      );
-
-      if (orderByField) {
-        queryConstraints.push(orderBy(orderByField, orderDirection));
-      }
-
-      // CORREÇÃO 1: 'q' agora é 'const' e a query é construída de uma vez
-      const q = query(collectionRef, ...queryConstraints);
-      return q;
-    };
-
     const q = buildQuery();
+    if (!q) return;
+
     setLoading(true);
 
     if (realtime) {
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          const results: T[] = snapshot.docs.map((doc) => ({
+          const results = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as T[];
@@ -117,7 +124,7 @@ export function useFirestore<T extends { id: string }>(
       const fetchData = async () => {
         try {
           const snapshot = await getDocs(q);
-          const results: T[] = snapshot.docs.map((doc) => ({
+          const results = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as T[];
@@ -131,17 +138,12 @@ export function useFirestore<T extends { id: string }>(
       };
       fetchData();
     }
-    // CORREÇÃO 2: A dependência agora usa a variável memorizada e está correta
-  }, [
-    collectionName,
-    realtime,
-    orderByField,
-    orderDirection,
-    conditionsString,
-    whereConditions,
-  ]);
+    // 3. Array de dependências corrigido e otimizado.
+  }, [collectionName, realtime, buildQuery]);
 
-  const refresh = async () => {};
+  const refresh = async () => {
+    // Implementar a lógica de refresh se necessário
+  };
 
   return { data, loading, error, refresh };
 }
@@ -160,7 +162,7 @@ export const firestoreOperations = {
       };
       const docRef = await addDoc(collection(db, collectionName), docData);
       return docRef.id;
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(`Erro ao criar ${collectionName}:`, error);
       throw new Error(errorUtils.getFirebaseErrorMessage(error));
     }
@@ -177,7 +179,7 @@ export const firestoreOperations = {
         updatedAt: serverTimestamp(),
       };
       await updateDoc(doc(db, collectionName, id), updateData);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(`Erro ao atualizar ${collectionName}:`, error);
       throw new Error(errorUtils.getFirebaseErrorMessage(error));
     }
@@ -186,7 +188,7 @@ export const firestoreOperations = {
   delete: async (collectionName: string, id: string): Promise<void> => {
     try {
       await deleteDoc(doc(db, collectionName, id));
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(`Erro ao deletar ${collectionName}:`, error);
       throw new Error(errorUtils.getFirebaseErrorMessage(error));
     }
@@ -205,7 +207,7 @@ export const firestoreOperations = {
         } as T;
       }
       return null;
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(`Erro ao buscar ${collectionName} por ID:`, error);
       throw new Error(errorUtils.getFirebaseErrorMessage(error));
     }
