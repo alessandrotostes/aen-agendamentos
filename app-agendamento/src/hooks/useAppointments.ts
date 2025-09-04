@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 import {
   Timestamp,
-  collection,
   collectionGroup,
   query,
   where,
   onSnapshot,
-  getDocs,
 } from "firebase/firestore";
 import { Appointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
-import { db } from "../lib/firebaseConfig";
+import { useFirestore } from "./useFirestore";
+import { db } from "../lib/firebaseConfig"; // Import db para a consulta collectionGroup
 import { errorUtils, timestampUtils } from "../lib/utils";
+import { getAuth } from "firebase/auth";
 
-// HOOK PARA O CLIENTE
+// ========== APPOINTMENTS HOOK (LÓGICA CORRIGIDA PARA O CLIENTE) ==========
 export function useAppointments() {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -30,6 +30,8 @@ export function useAppointments() {
     }
 
     setLoading(true);
+    // Usamos uma consulta 'collectionGroup' para buscar em todas as subcoleções 'appointments'
+    // onde o cliente é o mesmo. Esta é a forma correta de fazer esta busca.
     const q = query(
       collectionGroup(db, "appointments"),
       where("clientId", "==", userData.uid)
@@ -41,6 +43,7 @@ export function useAppointments() {
         const apps = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
         );
+        // Ordena por data descendente para mostrar os mais recentes primeiro
         apps.sort((a, b) => b.dateTime.toMillis() - a.dateTime.toMillis());
         setAppointments(apps);
         setLoading(false);
@@ -59,115 +62,70 @@ export function useAppointments() {
     appointments,
     loading,
     error,
-    refresh: () => {},
+    refresh: () => {}, // O onSnapshot já atualiza em tempo real
   };
 }
 
-// HOOK PARA O OWNER
+// ========== APPOINTMENTS FOR DATE HOOK (LÓGICA CORRIGIDA PARA O OWNER) ==========
 export function useAppointmentsForDate(date: Date) {
   const { userData } = useAuth();
-  const [appointmentsForDate, setAppointmentsForDate] = useState<Appointment[]>(
-    []
+
+  // A lógica para definir o início e o fim do dia está perfeita.
+  const startOfDay = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const endOfDay = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
 
-  useEffect(() => {
-    if (!userData?.uid || userData.role !== "owner" || !date) {
-      setLoading(false);
-      setAppointmentsForDate([]);
-      return;
-    }
+  // AQUI ESTÁ A MUDANÇA: Apontamos para a subcoleção dentro do estabelecimento do owner.
+  const collectionPath = userData?.uid
+    ? `establishments/${userData.uid}/appointments`
+    : null;
 
-    setLoading(true);
-    setError(null);
+  const {
+    data: appointments,
+    loading,
+    error,
+    refresh,
+  } = useFirestore<Appointment>(collectionPath, {
+    realtime: true,
+    whereConditions:
+      userData?.uid && userData.role === "owner"
+        ? [
+            {
+              field: "dateTime",
+              operator: ">=",
+              value: Timestamp.fromDate(startOfDay),
+            },
+            {
+              field: "dateTime",
+              operator: "<=",
+              value: Timestamp.fromDate(endOfDay),
+            },
+          ]
+        : [],
+    orderByField: "dateTime",
+    orderDirection: "asc",
+  });
 
-    const startOfDay = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate()
-    );
-    const endOfDay = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-      999
-    );
-    const collectionPath = `establishments/${userData.uid}/appointments`;
-
-    const q = query(
-      collection(db, collectionPath),
-      where("dateTime", ">=", Timestamp.fromDate(startOfDay)),
-      where("dateTime", "<=", Timestamp.fromDate(endOfDay))
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      async (snapshot) => {
-        if (snapshot.empty) {
-          setAppointmentsForDate([]);
-          setLoading(false);
-          return;
-        }
-
-        const appointmentsData = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
-        );
-
-        const clientIds = [
-          ...new Set(
-            appointmentsData.map((app) => app.clientId).filter((id) => !!id)
-          ),
-        ];
-
-        if (clientIds.length > 0) {
-          try {
-            const usersQuery = query(
-              collection(db, "users"),
-              where("uid", "in", clientIds)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
-
-            const usersMap = new Map<string, string>();
-            usersSnapshot.forEach((doc) => {
-              usersMap.set(doc.id, doc.data().name);
-            });
-
-            const enrichedAppointments = appointmentsData.map((app) => ({
-              ...app,
-              clientName:
-                usersMap.get(app.clientId) || app.clientName || "Cliente",
-            }));
-
-            setAppointmentsForDate(enrichedAppointments);
-          } catch (err) {
-            console.error("Erro ao buscar nomes dos clientes:", err);
-            setError("Não foi possível carregar os nomes dos clientes.");
-            setAppointmentsForDate(appointmentsData);
-          }
-        } else {
-          setAppointmentsForDate(appointmentsData);
-        }
-
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Erro no listener de appointments (owner):", err);
-        setError(errorUtils.getFirebaseErrorMessage(err));
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userData, date]);
-
-  return { appointmentsForDate, loading, error, refresh: () => {} };
+  return {
+    appointmentsForDate: appointments,
+    loading,
+    error,
+    refresh,
+  };
 }
 
-// UTILITIES
+// ========== APPOINTMENT UTILITIES (SEM ALTERAÇÕES) ==========
 export const appointmentUtils = {
   filterByStatus: (
     appointments: Appointment[],
@@ -175,9 +133,11 @@ export const appointmentUtils = {
   ) => {
     return appointments.filter((app) => app.status === status);
   },
+
   filterToday: (appointments: Appointment[]) => {
     return appointments.filter((app) => timestampUtils.isToday(app.dateTime));
   },
+
   groupByDate: (appointments: Appointment[]) => {
     const groups: Record<string, Appointment[]> = {};
     appointments.forEach((app) => {
@@ -193,6 +153,7 @@ export const appointmentUtils = {
     });
     return groups;
   },
+
   isTimeSlotAvailable: (
     appointments: Appointment[],
     dateTime: Date,
@@ -209,6 +170,7 @@ export const appointmentUtils = {
       return targetStart < appEnd && targetEnd > appStart;
     });
   },
+
   getAvailableTimeSlots: (
     appointments: Appointment[],
     date: Date,
@@ -240,8 +202,7 @@ export const appointmentUtils = {
     return slots;
   },
 };
-
-// HOOK PARA O PROFISSIONAL
+// ========== HOOK PARA BUSCAR AGENDAMENTOS DO PROFISSIONAL LOGADO ==========
 export function useAppointmentsForProfessional(date: Date) {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -249,14 +210,15 @@ export function useAppointmentsForProfessional(date: Date) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Só executa se tivermos um utilizador e se ele for um profissional
     if (!userData?.uid || userData.role !== "professional") {
       setLoading(false);
-      setAppointments([]);
       return;
     }
-    setLoading(true);
-    setError(null);
 
+    setLoading(true);
+
+    // Define o início e o fim do dia para a consulta
     const startOfDay = new Date(
       date.getFullYear(),
       date.getMonth(),
@@ -272,64 +234,25 @@ export function useAppointmentsForProfessional(date: Date) {
       999
     );
 
+    // Consulta 'collectionGroup' para buscar em todos os agendamentos da plataforma
     const q = query(
       collectionGroup(db, "appointments"),
+      // Filtra para trazer apenas os agendamentos deste profissional
       where("professionalAuthUid", "==", userData.uid),
+      // Filtra pelo dia selecionado
       where("dateTime", ">=", Timestamp.fromDate(startOfDay)),
       where("dateTime", "<=", Timestamp.fromDate(endOfDay))
     );
 
     const unsubscribe = onSnapshot(
       q,
-      async (snapshot) => {
-        if (snapshot.empty) {
-          setAppointments([]);
-          setLoading(false);
-          return;
-        }
-
-        const appointmentsData = snapshot.docs.map(
+      (snapshot) => {
+        const apps = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
         );
-
-        const clientIds = [
-          ...new Set(
-            appointmentsData.map((app) => app.clientId).filter((id) => !!id)
-          ),
-        ];
-
-        if (clientIds.length > 0) {
-          try {
-            const usersQuery = query(
-              collection(db, "users"),
-              where("uid", "in", clientIds)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
-            const usersMap = new Map<string, string>();
-            usersSnapshot.forEach((doc) => {
-              usersMap.set(doc.id, doc.data().name);
-            });
-            const enrichedAppointments = appointmentsData.map((app) => ({
-              ...app,
-              clientName:
-                usersMap.get(app.clientId) || app.clientName || "Cliente",
-            }));
-            enrichedAppointments.sort(
-              (a, b) => a.dateTime.toMillis() - b.dateTime.toMillis()
-            );
-            setAppointments(enrichedAppointments);
-          } catch (err) {
-            console.error(
-              "Erro ao buscar nomes de clientes (professional):",
-              err
-            );
-            setError("Não foi possível carregar os nomes dos clientes.");
-            setAppointments(appointmentsData);
-          }
-        } else {
-          setAppointments(appointmentsData);
-        }
-
+        // Ordena por hora
+        apps.sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
+        setAppointments(apps);
         setLoading(false);
       },
       (err) => {
@@ -340,6 +263,7 @@ export function useAppointmentsForProfessional(date: Date) {
     );
 
     return () => unsubscribe();
+    // Re-executa sempre que o profissional ou a data selecionada mudar
   }, [userData, date]);
 
   return { appointments, loading, error };

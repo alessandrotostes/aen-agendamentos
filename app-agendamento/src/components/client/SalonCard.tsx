@@ -4,7 +4,11 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Salon } from "../../types";
+<<<<<<< HEAD
 import { Heart, MapPin, Phone } from "lucide-react";
+=======
+import { Heart, MapPin, Star } from "lucide-react"; // Importando os novos ícones
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 
 interface SalonCardProps {
   salon: Salon;
@@ -40,12 +44,16 @@ export default function SalonCard({
   return (
     <Link href={`/client/salon/${salon.id}`} className="group block">
       <div className="bg-white rounded-xl shadow-md overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
-        <div className="relative w-full h-40 bg-slate-100">
+        <div className="relative w-full h-40">
           <Image
             src={imageSrc}
             alt={`Foto de ${salon.name}`}
             fill
+<<<<<<< HEAD
             className="object-contain"
+=======
+            className="object-cover"
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           <button
@@ -68,6 +76,7 @@ export default function SalonCard({
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{salon.address}</span>
           </p>
+<<<<<<< HEAD
 
           {/* --- BLOCO DO TELEFONE CORRIGIDO --- */}
           {salon.phone && (
@@ -84,8 +93,16 @@ export default function SalonCard({
             <Heart className="w-4 h-4 text-red-500" />
             <span className="font-semibold">{salon.favoritesCount ?? 0}</span>
             <span className="text-slate-400">Favoritos</span>
+=======
+          <div className="flex items-center gap-1 text-sm text-slate-600 mt-3">
+            <Star className="w-4 h-4 text-amber-400 fill-current" />
+            <span className="font-semibold">
+              {salon.rating?.toFixed(1) ?? "Novo"}
+            </span>
+            <span className="text-slate-400">(25 avaliações)</span>{" "}
+            {/* Placeholder */}
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
           </div>
-
           <div className="mt-auto pt-4">
             <div className="w-full text-center bg-teal-600 text-white font-semibold py-2.5 rounded-lg transition-colors group-hover:bg-teal-700">
               Ver Serviços

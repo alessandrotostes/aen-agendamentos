@@ -3,18 +3,18 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-// Importações de gatilhos de documento do Firestore v2
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import {
-  onDocumentWritten,
-  onDocumentCreated,
-  onDocumentDeleted,
-} from "firebase-functions/v2/firestore";
-import { MercadoPagoConfig, OAuth, Preference, Payment } from "mercadopago";
+  MercadoPagoConfig,
+  OAuth,
+  Preference,
+  Payment,
+  PaymentRefund,
+} from "mercadopago";
 import * as crypto from "crypto";
 
 admin.initializeApp();
-const db = admin.firestore(); // Definindo o db uma vez aqui para ser usado globalmente
-db.settings({ ignoreUndefinedProperties: true });
+admin.firestore().settings({ ignoreUndefinedProperties: true });
 
 // Use a URL do seu túnel aqui para os testes
 const aplicationBaseUrl =
@@ -52,7 +52,8 @@ export const generateMercadoPagoOnboardingLink = onCall(
     const ownerId = request.auth.uid;
     const state = `owner_${ownerId}_${Date.now()}`;
 
-    await db
+    await admin
+      .firestore()
       .collection("establishments")
       .doc(ownerId)
       .update({ mpAuthState: state });
@@ -87,7 +88,10 @@ export const exchangeCodeForCredentials = onCall(
       );
     }
     const ownerId = request.auth.uid;
-    const establishmentRef = db.collection("establishments").doc(ownerId);
+    const establishmentRef = admin
+      .firestore()
+      .collection("establishments")
+      .doc(ownerId);
     const doc = await establishmentRef.get();
     const savedState = doc.data()?.mpAuthState;
 
@@ -158,54 +162,8 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   }
   const { transaction_amount, payer, appointmentDetails } = request.data;
 
-  try {
-    const { establishmentId, professionalId, bookingTimestamp, duration } =
-      appointmentDetails;
-    const requestedStartTime = new Date(bookingTimestamp).getTime();
-    const requestedEndTime = requestedStartTime + duration * 60 * 1000;
-
-    const appointmentsRef = db
-      .collection("establishments")
-      .doc(establishmentId)
-      .collection("appointments");
-    const snapshot = await appointmentsRef
-      .where("professionalId", "==", professionalId)
-      .where("status", "==", "confirmado")
-      .get();
-
-    let isSlotTaken = false;
-    if (!snapshot.empty) {
-      snapshot.forEach((doc) => {
-        const booking = doc.data();
-        const existingStartTime = (booking.dateTime as Timestamp).toMillis();
-        const existingEndTime =
-          existingStartTime + booking.duration * 60 * 1000;
-
-        if (
-          requestedStartTime < existingEndTime &&
-          requestedEndTime > existingStartTime
-        ) {
-          isSlotTaken = true;
-        }
-      });
-    }
-
-    if (isSlotTaken) {
-      throw new HttpsError(
-        "already-exists",
-        "Desculpe, este horário acabou de ser reservado. Por favor, escolha outro."
-      );
-    }
-  } catch (error: any) {
-    if (error instanceof HttpsError) throw error;
-    console.error("Erro ao verificar disponibilidade:", error);
-    throw new HttpsError(
-      "internal",
-      "Erro ao verificar a disponibilidade do horário."
-    );
-  }
-
-  const establishmentDoc = await db
+  const establishmentDoc = await admin
+    .firestore()
     .collection("establishments")
     .doc(appointmentDetails.establishmentId)
     .get();
@@ -252,8 +210,8 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       marketplace_fee: application_fee,
       metadata: { appointmentDetails, clientId: request.auth.uid },
       external_reference: `APP_${request.auth.uid}_${Date.now()}`,
-      notification_url:
-        "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/mercadoPagoWebhook",
+
+      // A linha 'notification_url' foi REMOVIDA daqui, como sugerido pela sua pesquisa.
     };
 
     const preferenceResponse = await preference.create({
@@ -319,11 +277,14 @@ export const mercadoPagoWebhook = onRequest(
           paymentInfo.status === "approved" &&
           paymentInfo.metadata?.appointment_details
         ) {
+          // ===== CORREÇÃO APLICADA AQUI =====
+          // Lemos os campos em snake_case do objeto retornado pelo Mercado Pago
           const appointmentDetailsFromMP = paymentInfo.metadata
             .appointment_details as any;
           const clientId = paymentInfo.metadata.client_id as string;
 
-          const appointmentsRef = db
+          const appointmentsRef = admin
+            .firestore()
             .collection("establishments")
             .doc(appointmentDetailsFromMP.establishment_id)
             .collection("appointments");
@@ -337,10 +298,12 @@ export const mercadoPagoWebhook = onRequest(
               `O agendamento para o pagamento ${paymentId} já existe. A ignorar.`
             );
           } else {
+            // Usamos os campos em snake_case para criar o novo documento
             const bookingDate = new Date(
               appointmentDetailsFromMP.booking_timestamp
             );
-            const professionalDoc = await db
+            const professionalDoc = await admin
+              .firestore()
               .collection("establishments")
               .doc(appointmentDetailsFromMP.establishment_id)
               .collection("professionals")
@@ -383,6 +346,7 @@ export const mercadoPagoWebhook = onRequest(
     }
   }
 );
+<<<<<<< HEAD
 
 // ====================================================================================
 // ===== FUNÇÃO 5A: CLIENTE CANCELA AGENDAMENTO (COM REGRA DE 3 HORAS)
@@ -448,71 +412,74 @@ export const clientCancelAppointment = onCall(async (request) => {
     if (error instanceof HttpsError) {
       throw error;
     }
+=======
+// =========================================================================
+// ===== FUNÇÃO 5: CANCELAR E REEMBOLSAR AGENDAMENTO
+// =========================================================================
+export const cancelAndRefundAppointment = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Você precisa estar logado.");
+  }
+  const { appointmentId, establishmentId } = request.data;
+  if (!appointmentId || !establishmentId) {
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     throw new HttpsError(
-      "internal",
-      "Ocorreu um erro ao cancelar o agendamento."
+      "invalid-argument",
+      "IDs do agendamento e do estabelecimento são obrigatórios."
     );
   }
-});
 
-// =================================================================================
-// ===== FUNÇÃO 5B: OWNER CANCELA AGENDAMENTO
-// =================================================================================
-export const ownerCancelAppointment = onCall(async (request) => {
-  // CORREÇÃO: Adicionado try...catch para segurança
-  try {
-    if (request.auth?.token.role !== "owner") {
-      throw new HttpsError(
-        "permission-denied",
-        "Apenas o proprietário do estabelecimento pode cancelar agendamentos."
-      );
-    }
-    const { appointmentId, establishmentId } = request.data;
-    if (!appointmentId || !establishmentId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "IDs do agendamento e do estabelecimento são obrigatórios."
-      );
-    }
-
-    if (request.auth.uid !== establishmentId) {
-      throw new HttpsError(
-        "permission-denied",
-        "Você não tem permissão sobre este estabelecimento."
-      );
-    }
-
-    const appointmentRef = db
+  const appointmentRef = admin
+    .firestore()
+    .collection("establishments")
+    .doc(establishmentId)
+    .collection("appointments")
+    .doc(appointmentId);
+  const appointmentDoc = await appointmentRef.get();
+  if (!appointmentDoc.exists) {
+    throw new HttpsError("not-found", "Agendamento não encontrado.");
+  }
+  const appointment = appointmentDoc.data();
+  if (appointment?.clientId !== request.auth.uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Você não tem permissão para cancelar este agendamento."
+    );
+  }
+  if (
+    appointment.paymentId &&
+    appointment.paymentProvider?.startsWith("mercadopago")
+  ) {
+    const establishmentDoc = await admin
+      .firestore()
       .collection("establishments")
       .doc(establishmentId)
-      .collection("appointments")
-      .doc(appointmentId);
+      .get();
+    const ownerAccessToken =
+      establishmentDoc.data()?.mpCredentials?.mp_access_token;
 
-    const appointmentDoc = await appointmentRef.get();
-    if (!appointmentDoc.exists) {
-      throw new HttpsError("not-found", "Agendamento não encontrado.");
+    if (!ownerAccessToken) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Credenciais do vendedor não encontradas para o reembolso."
+      );
     }
 
-    await appointmentRef.update({
-      status: "cancelado",
-      cancelledBy: "owner",
-      cancellationTimestamp: Timestamp.now(),
-    });
-
-    return {
-      success: true,
-      message: "Agendamento cancelado e horário liberado com sucesso.",
-    };
-  } catch (error) {
-    console.error("Erro em ownerCancelAppointment:", error);
-    if (error instanceof HttpsError) {
-      throw error;
+    const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
+    const refund = new PaymentRefund(client);
+    try {
+      await refund.create({ payment_id: String(appointment.paymentId) });
+      console.log("Reembolso processado com sucesso via Mercado Pago.");
+    } catch (error) {
+      console.error("Erro ao processar reembolso no Mercado Pago:", error);
+      throw new HttpsError("internal", "Falha ao processar o reembolso.");
     }
-    throw new HttpsError(
-      "internal",
-      "Ocorreu um erro ao cancelar o agendamento."
-    );
   }
+  await appointmentRef.update({ status: "cancelado" });
+  return {
+    success: true,
+    message: "Agendamento cancelado e reembolso processado.",
+  };
 });
 
 // ============================================================================
@@ -537,7 +504,8 @@ export const getProfessionalAvailability = onCall(async (request) => {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-    const q = db
+    const q = admin
+      .firestore()
       .collection("establishments")
       .doc(establishmentId)
       .collection("appointments")
@@ -611,7 +579,8 @@ export const inviteProfessional = onCall(async (request) => {
     );
   }
   const ownerId = request.auth.uid;
-  const professionalRef = db
+  const professionalRef = admin
+    .firestore()
     .collection("establishments")
     .doc(ownerId)
     .collection("professionals")
@@ -640,7 +609,7 @@ export const inviteProfessional = onCall(async (request) => {
       displayName: professionalData?.name,
       password: Math.random().toString(36).slice(-8),
     });
-    await db.collection("users").doc(userRecord.uid).set({
+    await admin.firestore().collection("users").doc(userRecord.uid).set({
       uid: userRecord.uid,
       name: professionalData?.name,
       email: email,
@@ -684,7 +653,8 @@ export const resendInvite = onCall(async (request) => {
     );
   }
   const ownerId = request.auth.uid;
-  const professionalRef = db
+  const professionalRef = admin
+    .firestore()
     .collection("establishments")
     .doc(ownerId)
     .collection("professionals")
@@ -719,6 +689,7 @@ export const resendInvite = onCall(async (request) => {
     );
   }
 });
+<<<<<<< HEAD
 
 // ====================================================================
 // ===== FUNÇÃO 10: CONTADOR DE FAVORITOS
@@ -788,3 +759,5 @@ export const onFavoriteDelete = onDocumentDeleted(
     }
   }
 );
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)

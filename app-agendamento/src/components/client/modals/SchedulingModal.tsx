@@ -343,7 +343,7 @@ export default function SchedulingModal({
                       <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto pr-2">
                         {isLoadingSlots ? (
                           <p className="col-span-full text-center text-gray-500 p-4">
-                            Carregando horários disponíveis...
+                            A carregar horários...
                           </p>
                         ) : availableTimeSlots.length > 0 ? (
                           availableTimeSlots.map((time) => (

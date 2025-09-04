@@ -8,7 +8,6 @@ import ProfessionalsTab from "./ProfessionalsTab";
 import SettingsTab from "./SettingsTab";
 import ModalsManager from "./ModalsManager";
 import LoadingSpinner from "./common/LoadingSpinner";
-import OwnerCancelModal from "../shared/modals/OwnerCancelModal";
 import {
   useEstablishment,
   useServices,
@@ -16,12 +15,16 @@ import {
 } from "../../hooks/useEstablishment";
 import { useAppointmentsForDate } from "../../hooks/useAppointments";
 import { getApp } from "firebase/app";
+<<<<<<< HEAD
 import {
   getFunctions,
   httpsCallable,
   HttpsCallableResult,
 } from "firebase/functions";
 import { Share2 } from "lucide-react";
+=======
+import { getFunctions, httpsCallable } from "firebase/functions";
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 import type {
   Service,
   Professional,
@@ -30,7 +33,6 @@ import type {
   UpdateEstablishmentData,
   Availability,
   OperatingHours,
-  Appointment,
 } from "../../types";
 
 type UnifiedProfessionalData = CreateProfessionalData & {
@@ -55,9 +57,7 @@ export default function OwnerView() {
     editOperatingHours: false,
     deleteConfirm: false,
     success: false,
-    ownerCancel: false,
   });
-
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedProfessional, setSelectedProfessional] =
     useState<Professional | null>(null);
@@ -67,9 +67,6 @@ export default function OwnerView() {
     name: string;
   } | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
-  const [appointmentToCancel, setAppointmentToCancel] =
-    useState<Appointment | null>(null);
 
   const {
     establishment,
@@ -80,6 +77,9 @@ export default function OwnerView() {
   const professionalsData = useProfessionals();
   const appointmentsData = useAppointmentsForDate(selectedDate);
 
+  // --- LÓGICA DO STRIPE REMOVIDA ---
+
+  // --- NOVA LÓGICA PARA O MERCADO PAGO ONBOARDING ---
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
 
@@ -92,12 +92,17 @@ export default function OwnerView() {
         functions,
         "generateMercadoPagoOnboardingLink"
       );
+<<<<<<< HEAD
 
       // CORREÇÃO: Tipagem do resultado
       const result =
         (await generateLink()) as HttpsCallableResult<OnboardingLinkData>;
+=======
+      const result: any = await generateLink();
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 
       if (result.data.url) {
+        // Redireciona o owner para a página de autorização do Mercado Pago
         window.location.href = result.data.url;
       } else {
         throw new Error("A URL de onboarding não foi recebida.");
@@ -124,6 +129,7 @@ export default function OwnerView() {
   const isLoading =
     estLoading || servicesData.loading || professionalsData.loading;
 
+<<<<<<< HEAD
   const handleInviteProfessional = async (professionalId: string) => {
     setIsActionLoading(professionalId);
     try {
@@ -194,6 +200,11 @@ export default function OwnerView() {
 
   const openModal = (name: keyof typeof modals) =>
     setModals((prev) => ({ ...prev, [name]: true }));
+=======
+  const openModal = (
+    name: keyof Omit<typeof modals, "editProfessional" | "editAvailability">
+  ) => setModals((prev) => ({ ...prev, [name]: true }));
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
   const closeModal = (name: keyof typeof modals) =>
     setModals((prev) => ({ ...prev, [name]: false }));
   const showSuccess = (msg: string) => {
@@ -241,6 +252,7 @@ export default function OwnerView() {
       openModal("deleteConfirm");
     }
   };
+
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -251,6 +263,7 @@ export default function OwnerView() {
     }
     closeModal("editService");
   };
+
   const handleSaveProfessional = async (data: UnifiedProfessionalData) => {
     if (selectedProfessional) {
       await professionalsData.updateProfessional(selectedProfessional.id, data);
@@ -261,15 +274,18 @@ export default function OwnerView() {
     }
     closeModal("editProfessionalUnified");
   };
+
   const handleSaveEstablishment = async (data: UpdateEstablishmentData) => {
     await updateEstablishment(data);
     showSuccess("Estabelecimento atualizado!");
     closeModal("editEstablishment");
   };
+
   const handleSaveOperatingHours = async (hours: OperatingHours) => {
     await updateEstablishment({ operatingHours: hours });
     showSuccess("Horário de funcionamento atualizado!");
   };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.type === "service") {
@@ -282,6 +298,7 @@ export default function OwnerView() {
     closeModal("deleteConfirm");
   };
 
+<<<<<<< HEAD
   const handleShareLink = () => {
     if (!establishment) return;
     const url = `${window.location.origin}/client/salon/${establishment.id}`;
@@ -296,6 +313,8 @@ export default function OwnerView() {
       });
   };
 
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -319,7 +338,7 @@ export default function OwnerView() {
       />
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6">
-          <ul className="flex justify-around sm:justify-start sm:space-x-6 py-4 overflow-x-auto">
+          <ul className="flex space-x-2 sm:space-x-6 py-4 overflow-x-auto">
             {navItems.map((tab) => (
               <li key={tab.key}>
                 <button
@@ -339,6 +358,7 @@ export default function OwnerView() {
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+<<<<<<< HEAD
         <div className="flex justify-end">
           <button
             onClick={handleShareLink}
@@ -349,6 +369,8 @@ export default function OwnerView() {
           </button>
         </div>
 
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
         {activeTab === "dashboard" && (
           <DashboardTab
             stats={{
@@ -360,7 +382,6 @@ export default function OwnerView() {
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
             loading={appointmentsData.loading}
-            onOwnerCancelAppointment={handleOpenOwnerCancelModal}
           />
         )}
         {activeTab === "services" && (
@@ -381,8 +402,8 @@ export default function OwnerView() {
               setSelectedProfessional(professional);
               openModal("editProfessionalUnified");
             }}
-            onInviteProfessional={handleInviteProfessional}
-            onResendInvite={handleResendInvite}
+            onInviteProfessional={() => {}} // Funções de convite serão adicionadas depois
+            onResendInvite={() => {}}
           />
         )}
         {activeTab === "settings" && (
@@ -417,13 +438,6 @@ export default function OwnerView() {
         onSaveProfessional={handleSaveProfessional}
         onSaveEstablishment={handleSaveEstablishment}
         onSaveOperatingHours={handleSaveOperatingHours}
-      />
-      <OwnerCancelModal
-        isOpen={modals.ownerCancel}
-        onClose={() => closeModal("ownerCancel")}
-        onConfirm={handleConfirmOwnerCancel}
-        isLoading={!!isActionLoading}
-        appointment={appointmentToCancel}
       />
     </div>
   );

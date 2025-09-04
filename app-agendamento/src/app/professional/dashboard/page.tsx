@@ -1,128 +1,43 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { ProfessionalRoute } from "../../../components/auth/ProtectedRoute";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useAppointmentsForProfessional } from "../../../hooks/useAppointments";
+// --- MUDANÇA 1: Importamos o tipo 'Appointment' ---
 import { Appointment } from "../../../types";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import LoadingSpinner from "../../../components/owner/common/LoadingSpinner";
-import { LogOut } from "lucide-react"; // Ícone para o botão de sair
 
-// NOVO AppointmentCard com lógica de status visual
-const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
-  // Lógica para determinar o status visual (igual a do painel do Owner)
-  const now = new Date();
-  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
-    appointment.status;
-  if (
-    appointment.status === "confirmado" &&
-    appointment.dateTime.toDate() < now
-  ) {
-    virtualStatus = "concluido";
-  }
-
-  const statusStyles = {
-    confirmado: {
-      // Próximos (Amarelo)
-      bg: "bg-yellow-50",
-      border: "border-yellow-200",
-      indicator: "bg-yellow-500",
-      textColor: "text-gray-900",
-      lineThrough: "",
-    },
-    concluido: {
-      // Concluídos (Verde)
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      indicator: "bg-emerald-500",
-      textColor: "text-gray-500",
-      lineThrough: "line-through",
-    },
-    cancelado: {
-      // Cancelados (Vermelho)
-      bg: "bg-red-50",
-      border: "border-red-200",
-      indicator: "bg-red-500",
-      textColor: "text-gray-500",
-      lineThrough: "line-through",
-    },
-  };
-
-  const currentStyle = statusStyles[virtualStatus];
-
-  return (
-    <div
-      className={`flex items-center justify-between py-3 px-4 rounded-lg transition-shadow ${currentStyle.bg} border ${currentStyle.border}`}
-    >
-      <div className="flex items-center space-x-4">
-        <div
-          className={`w-3 h-3 rounded-full flex-shrink-0 ${currentStyle.indicator}`}
-        />
-        <div>
-          <p className={`font-bold truncate ${currentStyle.textColor}`}>
-            {appointment.serviceName}
-          </p>
-          <p
-            className={`text-sm text-gray-600 truncate ${currentStyle.lineThrough}`}
-          >
-            Cliente: {appointment.clientName || "Não informado"}
-          </p>
-          {virtualStatus === "cancelado" && (
-            <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-              Cancelado
-            </span>
-          )}
-        </div>
-      </div>
-      <div
-        className={`text-lg font-semibold text-right ${currentStyle.textColor} ${currentStyle.lineThrough}`}
-      >
-        {format(appointment.dateTime.toDate(), "HH:mm")}
-      </div>
+// --- MUDANÇA 2: Usamos o tipo 'Appointment' em vez de 'any' ---
+const AppointmentCard = ({ appointment }: { appointment: Appointment }) => (
+  <div className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center">
+    <div>
+      <p className="font-bold text-gray-800">{appointment.serviceName}</p>
+      <p className="text-sm text-gray-600">Cliente: {appointment.clientName}</p>
     </div>
-  );
-};
+    <div className="text-lg font-semibold text-teal-600">
+      {format(appointment.dateTime.toDate(), "HH:mm")}
+    </div>
+  </div>
+);
 
 function ProfessionalDashboardView() {
-  const { userData, logout } = useAuth(); // Adicionamos a função logout
+  const { userData } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const { appointments, loading } =
     useAppointmentsForProfessional(selectedDate);
 
-  // Lógica para ordenar os agendamentos por status e hora
-  const sortedAppointments = useMemo(() => {
-    const now = Date.now();
-    const getStatusRank = (app: Appointment) => {
-      if (app.status === "cancelado") return 3; // Cancelados por último
-      if (app.dateTime.toMillis() < now) return 2; // Concluídos no meio
-      return 1; // Próximos primeiro
-    };
-    return [...appointments].sort((a, b) => {
-      const rankA = getStatusRank(a);
-      const rankB = getStatusRank(b);
-      if (rankA !== rankB) return rankA - rankB;
-      return a.dateTime.toMillis() - b.dateTime.toMillis();
-    });
-  }, [appointments]);
-
   return (
     <div className="bg-gray-50 min-h-screen">
-      <header className="bg-white shadow-sm p-4 border-b flex justify-between items-center">
+      <header className="bg-white shadow-sm p-4 border-b">
         <h1 className="text-xl font-semibold text-gray-800">
           Painel do Profissional
         </h1>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sair
-        </button>
       </header>
 
       <main className="p-4 sm:p-6 lg:p-8">
@@ -130,11 +45,8 @@ function ProfessionalDashboardView() {
           Bem-vindo, {userData?.name || "Profissional"}!
         </h2>
         <p className="mt-2 text-gray-600">
-          Sua agenda para{" "}
-          <span className="font-semibold text-teal-600">
-            {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-          </span>
-          .
+          Esta é a sua agenda para o dia{" "}
+          {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}.
         </p>
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -143,8 +55,8 @@ function ProfessionalDashboardView() {
               <div className="flex justify-center items-center h-64">
                 <LoadingSpinner />
               </div>
-            ) : sortedAppointments.length > 0 ? (
-              sortedAppointments.map((app) => (
+            ) : appointments.length > 0 ? (
+              appointments.map((app) => (
                 <AppointmentCard key={app.id} appointment={app} />
               ))
             ) : (

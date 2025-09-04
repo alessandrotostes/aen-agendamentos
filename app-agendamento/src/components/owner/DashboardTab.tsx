@@ -1,17 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import StatsCard from "./common/StatsCard";
 import EmptyState from "./common/EmptyState";
 import { timestampUtils } from "../../lib/utils";
+import type { Timestamp } from "firebase/firestore";
 import { DayPicker, type SelectSingleEventHandler } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
 import { format, isToday, isTomorrow } from "date-fns";
 import LoadingSpinner from "./common/LoadingSpinner";
-import { Appointment } from "@/types";
 
-// A prop agora espera o objeto 'Appointment' completo
+interface Appointment {
+  id: string;
+  status: "confirmado" | "cancelado";
+  serviceName: string;
+  clientName: string;
+  professionalName: string;
+  dateTime: Timestamp;
+}
+
 interface Props {
   stats: {
     services: number;
@@ -22,7 +30,6 @@ interface Props {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   loading: boolean;
-  onOwnerCancelAppointment: (appointment: Appointment) => void;
 }
 
 const formatDateTitle = (date: Date): string => {
@@ -41,7 +48,6 @@ export default function DashboardTab({
   selectedDate,
   onDateChange,
   loading,
-  onOwnerCancelAppointment,
 }: Props) {
   const handleDaySelect: SelectSingleEventHandler = (date) => {
     if (date) {
@@ -49,19 +55,64 @@ export default function DashboardTab({
     }
   };
 
-  const sortedAppointments = [...appointmentsForDate].sort(
-    (a, b) => a.dateTime.toMillis() - b.dateTime.toMillis()
-  );
+  const sortedAppointments = useMemo(() => {
+    const now = Date.now();
+
+    const getStatusRank = (app: Appointment) => {
+      if (app.status === "cancelado") {
+        return 3; // Cancelados ficam sempre por último
+      }
+      if (app.dateTime.toMillis() < now) {
+        return 2; // Concluídos (passados) ficam no meio
+      }
+      return 1; // Próximos agendamentos ficam no topo
+    };
+
+    return [...appointmentsForDate].sort((a, b) => {
+      const rankA = getStatusRank(a);
+      const rankB = getStatusRank(b);
+
+      if (rankA !== rankB) {
+        return rankA - rankB; // Ordena por categoria: Próximos -> Concluídos -> Cancelados
+      }
+
+      return a.dateTime.toMillis() - b.dateTime.toMillis();
+    });
+  }, [appointmentsForDate]);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-teal-600 mt-1">Visão geral do seu negócio</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatsCard
+          title="Serviços Ativos"
+          value={stats.services}
+          icon={<span className="text-xl">✂️</span>}
+          color="teal"
+        />
+        <StatsCard
+          title="Profissionais"
+          value={stats.professionals}
+          icon={<span className="text-xl">👨‍💼</span>}
+          color="indigo"
+        />
+        <StatsCard
+          title={`Agenda de ${formatDateTitle(selectedDate)}`}
+          value={stats.today}
+          icon={<span className="text-xl">📅</span>}
+          color="emerald"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border">
-          <div className="px-6 py-4 border-b">
+          <div className="px-6 py-4 border-b flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
               <span className="text-teal-600 mr-2">📅</span>
               Agendamentos de {formatDateTitle(selectedDate)}
@@ -75,41 +126,38 @@ export default function DashboardTab({
             ) : sortedAppointments.length > 0 ? (
               <div className="space-y-4">
                 {sortedAppointments.map((appointment) => {
-                  const isPast = appointment.dateTime.toDate() < new Date();
-                  const virtualStatus =
-                    appointment.status === "cancelado"
-                      ? "cancelado"
-                      : isPast
-                      ? "concluido"
-                      : "confirmado";
+                  const now = new Date();
+
+                  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
+                    appointment.status;
+                  if (
+                    appointment.status === "confirmado" &&
+                    appointment.dateTime.toDate() < now
+                  ) {
+                    virtualStatus = "concluido";
+                  }
 
                   const statusStyles = {
                     confirmado: {
-                      bg: "bg-amber-50",
-                      border: "border-amber-200",
-                      indicator: "bg-amber-500",
-                      badge: "bg-amber-100 text-amber-800",
-                      text: "Confirmado",
+                      // Próximos agendamentos (Amarelo)
+                      bg: "bg-yellow-50",
+                      border: "border-yellow-200",
+                      indicator: "bg-yellow-500",
                     },
                     concluido: {
+                      // Agendamentos concluídos (Verde)
                       bg: "bg-emerald-50",
                       border: "border-emerald-200",
                       indicator: "bg-emerald-500",
-                      badge: "bg-emerald-100 text-emerald-800",
-                      text: "Concluído",
                     },
                     cancelado: {
+                      // Agendamentos cancelados (Vermelho)
                       bg: "bg-red-50",
                       border: "border-red-200",
-                      indicator: "bg-red-400",
-                      badge: "bg-red-200 text-red-700",
-                      // Lógica para a mensagem de cancelamento
-                      text:
-                        appointment.cancelledBy === "owner"
-                          ? "Cancelado por si"
-                          : "Cancelado pelo cliente",
+                      indicator: "bg-red-500",
                     },
                   };
+
                   const currentStyle = statusStyles[virtualStatus];
 
                   return (
@@ -124,7 +172,7 @@ export default function DashboardTab({
                         <div>
                           <p
                             className={`font-medium ${
-                              virtualStatus !== "confirmado"
+                              virtualStatus === "concluido"
                                 ? "text-gray-500"
                                 : "text-gray-900"
                             }`}
@@ -134,17 +182,24 @@ export default function DashboardTab({
                           <p className="text-sm text-teal-600">
                             {appointment.clientName || "Cliente"}
                           </p>
-                          <span
-                            className={`mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${currentStyle.badge}`}
-                          >
-                            {currentStyle.text}
-                          </span>
+
+                          {virtualStatus === "cancelado" && (
+                            <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              Cancelado pelo cliente
+                            </span>
+                          )}
+                          {virtualStatus === "concluido" && (
+                            <span className="mt-1 inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              Concluído
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
                         <p
                           className={`font-semibold ${
-                            virtualStatus !== "confirmado"
+                            virtualStatus === "cancelado" ||
+                            virtualStatus === "concluido"
                               ? "text-gray-500 line-through"
                               : "text-gray-900"
                           }`}
@@ -157,16 +212,6 @@ export default function DashboardTab({
                         <p className="text-sm text-indigo-600">
                           {appointment.professionalName}
                         </p>
-                        {virtualStatus === "confirmado" && (
-                          <button
-                            onClick={() =>
-                              onOwnerCancelAppointment(appointment)
-                            }
-                            className="text-xs text-red-500 hover:text-red-700 font-medium mt-2 p-1 rounded hover:bg-red-50"
-                          >
-                            Cancelar Agendamento
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -181,36 +226,21 @@ export default function DashboardTab({
           </div>
         </div>
 
-        <div className="lg:col-span-1 bg-white p-4 rounded-xl shadow-sm border">
-          <DayPicker
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDaySelect}
-            locale={ptBR}
-            className="w-full flex justify-center"
-            classNames={{ head_cell: "w-full", table: "w-full", day: "w-full" }}
-          />
-        </div>
-      </div>
-
-      <div>
-        <p className="text-teal-600 mb-4">Visão geral do seu negócio</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatsCard
-            title="Serviços Oferecidos"
-            value={stats.services.toString()}
-            icon="✂️"
-          />
-          <StatsCard
-            title="Profissionais Ativos"
-            value={stats.professionals.toString()}
-            icon="👨‍💼"
-          />
-          <StatsCard
-            title="Agendamentos Hoje"
-            value={stats.today.toString()}
-            icon="✅"
-          />
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-xl shadow-sm border p-2 sm:p-4">
+            <DayPicker
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDaySelect}
+              locale={ptBR}
+              className="flex justify-center"
+              modifiersClassNames={{
+                selected:
+                  "bg-teal-500 text-white hover:bg-teal-500 focus:bg-teal-500",
+                today: "text-teal-600 font-bold",
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

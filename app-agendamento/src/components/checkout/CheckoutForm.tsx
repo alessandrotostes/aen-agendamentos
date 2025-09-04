@@ -182,7 +182,11 @@ export default function CheckoutPage() {
               />
             </>
           ) : (
+<<<<<<< HEAD
             <p className="text-gray-500">Carregando checkout...</p>
+=======
+            <p className="text-gray-500">A carregar o checkout...</p>
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
           )}
         </div>
       </AuthLayout>

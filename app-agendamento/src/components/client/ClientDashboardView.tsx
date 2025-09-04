@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
 import { useAppointments } from "../../hooks/useAppointments";
 import { db, functions } from "../../lib/firebaseConfig";
 import { httpsCallable } from "firebase/functions";
@@ -14,26 +13,26 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
+import { differenceInHours } from "date-fns";
 import EmptyState from "../owner/common/EmptyState";
 import LoadingSpinner from "../owner/common/LoadingSpinner";
 import AppointmentCard from "./AppointmentCard";
-import SalonCard from "./SalonCard";
+import CancelAppointmentModal from "../shared/modals/CancelAppointmentModal";
 import { Plus } from "lucide-react";
 
+<<<<<<< HEAD
 import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
 import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 import AlertModal from "../shared/modals/AlertModal";
 import SuccessModal from "../shared/modals/SuccessModal";
 
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 interface Props {
   onNavigateToSearch: () => void;
 }
 
 export default function ClientDashboardView({ onNavigateToSearch }: Props) {
-  const { userData } = useAuth();
-  const [favoriteSalons, setFavoriteSalons] = useState<Establishment[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(true);
-
   const {
     appointments,
     loading: appointmentsLoading,
@@ -44,11 +43,14 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   >(new Map());
   const [loading, setLoading] = useState(true);
 
+<<<<<<< HEAD
   const [isInfoModalOpen, setInfoModalOpen] = useState(false);
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
+=======
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   const [isAlertModalOpen, setAlertModalOpen] = useState(false);
   const [alertModalContent, setAlertModalContent] = useState({
@@ -99,11 +101,17 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     return () => unsubscribe();
   }, [appointments, appointmentsLoading]);
 
-  useEffect(() => {
-    if (!userData?.uid) {
-      setFavoritesLoading(false);
+  const handleCancelAppointment = (appointment: Appointment) => {
+    const now = new Date();
+    const appointmentTime = appointment.dateTime.toDate();
+
+    if (differenceInHours(appointmentTime, now) < 6) {
+      alert(
+        "O cancelamento deve ser feito com 6 horas de antecedência. Contate o estabelecimento caso ainda queira cancelar seu horário."
+      );
       return;
     }
+<<<<<<< HEAD
     setFavoritesLoading(true);
     let unsubscribeEstablishments = () => {};
     const favoritesQuery = query(
@@ -150,10 +158,14 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   }, [userData]);
 
   const handleOpenCancellationFlow = (appointment: Appointment) => {
+=======
+
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     setAppointmentToCancel(appointment);
-    setInfoModalOpen(true);
+    setIsCancelModalOpen(true);
   };
 
+<<<<<<< HEAD
   const handleConfirmCancellation = async () => {
     if (!appointmentToCancel) return;
     setIsCancelling(true);
@@ -183,8 +195,38 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
         message: message,
       });
       setAlertModalOpen(true);
+=======
+  // --- FUNÇÃO CORRIGIDA ---
+  const handleConfirmCancellation = async () => {
+    if (!appointmentToCancel) return;
+
+    try {
+      const cancelFunction = httpsCallable(
+        functions,
+        "cancelAndRefundAppointment"
+      );
+
+      console.log("A cancelar agendamento com os seguintes dados:", {
+        appointmentId: appointmentToCancel.id,
+        establishmentId: appointmentToCancel.establishmentId,
+      });
+
+      // Enviamos agora os dois IDs necessários para o backend
+      await cancelFunction({
+        appointmentId: appointmentToCancel.id,
+        establishmentId: appointmentToCancel.establishmentId,
+      });
+
+      console.log("Agendamento cancelado com sucesso!");
+      alert("Agendamento cancelado e reembolso iniciado com sucesso!");
+    } catch (error: unknown) {
+      console.error("Erro ao chamar a função de cancelamento:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      alert(`Ocorreu um erro: ${errorMessage}`);
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     } finally {
-      setIsCancelling(false);
+      setIsCancelModalOpen(false);
       setAppointmentToCancel(null);
     }
   };
@@ -209,19 +251,13 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   };
 
   const upcomingAppointments = appointments.filter(
-    (a) =>
-      !a.cancellationRequest &&
-      a.status === "confirmado" &&
-      a.dateTime.toDate() > new Date()
+    (a) => a.status === "confirmado" && a.dateTime.toDate() > new Date()
   );
   const pastAppointments = appointments.filter(
-    (a) =>
-      a.cancellationRequest ||
-      a.status !== "confirmado" ||
-      a.dateTime.toDate() < new Date()
+    (a) => a.status !== "confirmado" || a.dateTime.toDate() < new Date()
   );
 
-  if (loading || appointmentsLoading) {
+  if (loading) {
     return <LoadingSpinner />;
   }
 
@@ -246,6 +282,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
               <span>Novo Agendamento</span>
             </button>
           </div>
+
           {upcomingAppointments.length > 0 ? (
             <div className="space-y-4">
               {upcomingAppointments.map((app) => (
@@ -253,8 +290,12 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   key={app.id}
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
+<<<<<<< HEAD
                   onCancel={handleOpenCancellationFlow}
                   onShowCancellationInfo={handleShowAlert}
+=======
+                  onCancel={handleCancelAppointment}
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
                 />
               ))}
             </div>
@@ -278,7 +319,10 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   appointment={app}
                   establishment={establishments.get(app.establishmentId)}
                   onCancel={() => {}}
+<<<<<<< HEAD
                   onShowCancellationInfo={handleShowAlert}
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
                 />
               ))}
             </div>
@@ -295,6 +339,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
           <h2 className="text-3xl font-bold text-slate-900 mb-6">
             Seus Favoritos
           </h2>
+<<<<<<< HEAD
           {favoritesLoading ? (
             <LoadingSpinner />
           ) : favoriteSalons.length > 0 ? (
@@ -330,8 +375,19 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       <RefundConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setConfirmModalOpen(false)}
+=======
+          <EmptyState
+            message="A funcionalidade de favoritos será implementada em breve."
+            icon="❤️"
+          />
+        </section>
+      </div>
+
+      <CancelAppointmentModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
         onConfirm={handleConfirmCancellation}
-        isLoading={isCancelling}
       />
       <AlertModal
         isOpen={isAlertModalOpen}

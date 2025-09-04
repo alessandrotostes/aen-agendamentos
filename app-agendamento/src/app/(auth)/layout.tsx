@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Autenticação - All & None",
+  title: "Autenticação - Salões & Barbearias",
   description: "Login e registro no sistema de agendamento",
 };
 

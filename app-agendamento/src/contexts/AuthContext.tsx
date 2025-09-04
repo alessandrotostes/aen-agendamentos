@@ -20,13 +20,20 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
+<<<<<<< HEAD
 // ===== INTERFACE ATUALIZADA =====
+=======
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
   loading: boolean;
+<<<<<<< HEAD
   login: (email: string, password: string) => Promise<AuthUser>;
   // A função register agora também retorna Promise<AuthUser>
+=======
+  login: (email: string, password: string) => Promise<void>;
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
   register: (
     email: string,
     password: string,
@@ -48,22 +55,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      setLoading(true);
+      setCurrentUser(user);
       if (user) {
+        const tokenResult = await user.getIdTokenResult(true);
+        console.log("Token Claims:", tokenResult.claims);
+
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
+
         if (userSnap.exists()) {
-          const data = userSnap.data() as AuthUser;
-          setUserData(data);
-          setCurrentUser(user);
+          const data = userSnap.data() as DocumentData;
+          const finalRole =
+            (tokenResult.claims.role as "owner" | "client" | "professional") ||
+            data.role;
+
+          const fetchedUser: AuthUser = {
+            uid: user.uid,
+            name: data.name,
+            email: data.email,
+            role: finalRole,
+            createdAt: data.createdAt?.toDate() ?? null,
+          };
+          setUserData(fetchedUser);
         } else {
-          await signOut(auth);
           setUserData(null);
-          setCurrentUser(null);
         }
       } else {
         setUserData(null);
-        setCurrentUser(null);
       }
       setLoading(false);
     });
@@ -79,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     imageFile?: File | null
   ): Promise<AuthUser> {
     setLoading(true);
+<<<<<<< HEAD
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -118,31 +137,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setLoading(false);
       throw error;
+=======
+
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const uid = userCredential.user.uid;
+
+    await setDoc(doc(db, "users", uid), {
+      uid,
+      name,
+      email,
+      role,
+      createdAt: serverTimestamp(),
+    });
+
+    if (role === "owner") {
+      let imageURL = "";
+
+      if (imageFile) {
+        const imageRef = ref(
+          storage,
+          `establishments/${uid}/${imageFile.name}`
+        );
+        await uploadBytes(imageRef, imageFile);
+        imageURL = await getDownloadURL(imageRef);
+      }
+
+      await setDoc(doc(db, "establishments", uid), {
+        ownerId: uid,
+        name,
+        email,
+        address: "",
+        imageURL,
+        rating: 0,
+        createdAt: serverTimestamp(),
+      });
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     }
+
+    setLoading(false);
+    router.push(role === "owner" ? "/owner" : "/client");
   }
 
+<<<<<<< HEAD
   async function login(email: string, password: string): Promise<AuthUser> {
+=======
+  async function login(email: string, password: string) {
+    setLoading(true);
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
-      const user = userCredential.user;
 
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(db, "users", userCredential.user.uid);
       const userSnap = await getDoc(userDocRef);
 
-      if (!userSnap.exists()) {
-        await signOut(auth);
-        throw new Error("Dados do utilizador não encontrados.");
-      }
+      if (userSnap.exists()) {
+        const userRole = userSnap.data().role;
 
+<<<<<<< HEAD
       const data = userSnap.data() as AuthUser;
       return data;
+=======
+        if (userRole === "owner") {
+          router.push("/owner");
+        } else if (userRole === "professional") {
+          router.push("/professional/dashboard");
+        } else {
+          router.push("/client");
+        }
+      } else {
+        console.error(
+          "Documento do utilizador não encontrado no Firestore após login."
+        );
+        await signOut(auth);
+        router.push("/login");
+      }
+>>>>>>> parent of fab462e (feat: aprimorar componentes de UI e adicionar novos modais para cancelamento e reembolso)
     } catch (error) {
-      console.error("Falha no login:", error);
+      console.error("Erro no login:", error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   }
 
