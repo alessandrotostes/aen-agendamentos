@@ -80,6 +80,10 @@ export default function CheckoutPage() {
         )) as HttpsCallableResult<PreferenceResultData>;
 
         if (result.data.success && result.data.init_point) {
+          console.log(
+            "URL de Redirecionamento Recebida do Backend:",
+            result.data.init_point
+          );
           window.location.href = result.data.init_point;
         } else {
           throw new Error(

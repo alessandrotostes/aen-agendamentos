@@ -221,6 +221,11 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   const ownerCredentials = establishmentDoc.data()?.mpCredentials;
   const ownerAccessToken = ownerCredentials?.mp_access_token;
 
+  console.log(
+    "DEBUG: Access Token do Vendedor que será usado:",
+    ownerAccessToken
+  );
+
   if (!ownerAccessToken) {
     throw new HttpsError(
       "failed-precondition",
@@ -259,11 +264,21 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       notification_url:
         "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/mercadoPagoWebhook",
     };
-
+    console.log(
+      "DEBUG: Enviando Preference Body para o MP:",
+      JSON.stringify(preferenceBody, null, 2)
+    );
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
-    return { success: true, init_point: preferenceResponse.init_point };
+    console.log(
+      "DEBUG: Resposta da criação da preferência:",
+      preferenceResponse
+    );
+    const initPoint = preferenceResponse.sandbox_init_point
+      ? preferenceResponse.sandbox_init_point
+      : preferenceResponse.init_point;
+    return { success: true, init_point: initPoint };
   } catch (error: any) {
     console.error("ERRO ao criar preferência:", error.cause ?? error);
     throw new HttpsError("internal", "Erro ao iniciar o pagamento.");
