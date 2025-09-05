@@ -17,10 +17,10 @@ const db = admin.firestore(); // Definindo o db uma vez aqui para ser usado glob
 db.settings({ ignoreUndefinedProperties: true });
 
 // Use a URL do seu túnel aqui para os testes
-const aplicationBaseUrl =
-  process.env.APLICATION_BASE_URL || "https://aenagendamentos.vercel.app";
+const aplicationBaseUrl = "https://aenagendamentos.vercel.app";
 
 // Definição de todos os segredos necessários
+const mercadoPagoAppId = defineSecret("MERCADOPAGO_APP_ID");
 const mercadoPagoAccessToken = defineSecret("MERCADOPAGO_ACCESS_TOKEN");
 const mercadoPagoPublicKey = defineSecret("MERCADOPAGO_PUBLIC_KEY");
 const mercadoPagoSecretKey = defineSecret("MERCADOPAGO_SECRET_KEY");
@@ -30,6 +30,7 @@ const mercadoPagoWebhookSecret = defineSecret("MERCADOPAGO_WEBHOOK_SECRET");
 setGlobalOptions({
   region: "southamerica-east1",
   secrets: [
+    mercadoPagoAppId,
     mercadoPagoAccessToken,
     mercadoPagoPublicKey,
     mercadoPagoSecretKey,
@@ -41,7 +42,7 @@ setGlobalOptions({
 // ===== FUNÇÃO 1: GERAR LINK DE ONBOARDING DO MERCADO PAGO
 // ========================================================================
 export const generateMercadoPagoOnboardingLink = onCall(
-  { secrets: [mercadoPagoPublicKey] },
+  { secrets: [mercadoPagoAppId] },
   async (request) => {
     if (request.auth?.token.role !== "owner") {
       throw new HttpsError(
@@ -51,17 +52,21 @@ export const generateMercadoPagoOnboardingLink = onCall(
     }
     const ownerId = request.auth.uid;
     const state = `owner_${ownerId}_${Date.now()}`;
-
     await db
       .collection("establishments")
       .doc(ownerId)
       .update({ mpAuthState: state });
 
     const redirectUri = `${aplicationBaseUrl}/owner/mp-redirect`;
-
-    const authUrl = `https://auth.mercadopago.com.br/authorization?client_id=${mercadoPagoPublicKey.value()}&response_type=code&platform_id=mp&state=${state}&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&scope=offline_access`;
+    const authUrl = [
+      "https://auth.mercadopago.com.br/authorization?",
+      `client_id=${mercadoPagoAppId.value()}`,
+      `&response_type=code`,
+      `&platform_id=mp`,
+      `&state=${state}`,
+      `&redirect_uri=${encodeURIComponent(redirectUri)}`,
+      `&scope=offline_access`,
+    ].join("");
 
     return { url: authUrl };
   }
@@ -71,13 +76,7 @@ export const generateMercadoPagoOnboardingLink = onCall(
 // ===== FUNÇÃO 2: TROCAR CÓDIGO DE AUTORIZAÇÃO POR CREDENCIAIS
 // ===================================================================================
 export const exchangeCodeForCredentials = onCall(
-  {
-    secrets: [
-      mercadoPagoPublicKey,
-      mercadoPagoSecretKey,
-      mercadoPagoAccessToken,
-    ],
-  },
+  { secrets: [mercadoPagoAppId, mercadoPagoSecretKey, mercadoPagoAccessToken] },
   async (request) => {
     if (request.auth?.token.role !== "owner") {
       throw new HttpsError(
@@ -107,15 +106,14 @@ export const exchangeCodeForCredentials = onCall(
     await establishmentRef.update({ mpAuthState: null });
 
     try {
-      const currentAppId = mercadoPagoPublicKey.value();
+      const currentAppId = mercadoPagoAppId.value();
       const currentSecret = mercadoPagoSecretKey.value();
       const platformAccessToken = mercadoPagoAccessToken.value();
-
       const client = new MercadoPagoConfig({
         accessToken: platformAccessToken,
       });
-
       const oauth = new OAuth(client);
+
       const redirectUri = `${aplicationBaseUrl}/owner/mp-redirect`;
 
       const credentials = await oauth.create({
