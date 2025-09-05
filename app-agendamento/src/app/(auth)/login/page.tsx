@@ -166,7 +166,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() =>
-                setFormData({ email: "owner@teste.com", password: "123456" })
+                setFormData({
+                  email: "alessandrotostes.jr@gmail.com",
+                  password: "teste123",
+                })
               }
               className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
             >
@@ -175,7 +178,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() =>
-                setFormData({ email: "cliente@teste.com", password: "123456" })
+                setFormData({
+                  email: "tostesacustico@gmail.com",
+                  password: "teste123",
+                })
               }
               className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
             >

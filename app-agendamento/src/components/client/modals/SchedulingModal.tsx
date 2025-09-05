@@ -361,7 +361,7 @@ export default function SchedulingModal({
                           ))
                         ) : selectedDate ? (
                           <p className="col-span-full text-center text-gray-500 p-4">
-                            Nenhum horário disponível.
+                            Nenhum horário disponível para hoje.
                           </p>
                         ) : null}
                       </div>

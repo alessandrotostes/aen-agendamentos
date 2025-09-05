@@ -106,7 +106,7 @@ export default function DashboardTab({
                       // Lógica para a mensagem de cancelamento
                       text:
                         appointment.cancelledBy === "owner"
-                          ? "Cancelado por si"
+                          ? "Cancelado por você"
                           : "Cancelado pelo cliente",
                     },
                   };

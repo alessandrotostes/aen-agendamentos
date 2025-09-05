@@ -110,7 +110,7 @@ export default function CheckoutPage() {
       <ContentLayout footer={<MercadoPagoBadge />}>
         <div className="w-full text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            A Preparar o seu Pagamento
+            Preparanto o seu Pagamento
           </h2>
           {isLoading && (
             <div className="flex flex-col items-center gap-4 mt-8">
@@ -135,7 +135,7 @@ export default function CheckoutPage() {
                 ></path>
               </svg>
               <p className="text-gray-600">
-                A redirecionar para um ambiente seguro de pagamento...
+                Redirecionando para um ambiente seguro de pagamento...
               </p>
             </div>
           )}
