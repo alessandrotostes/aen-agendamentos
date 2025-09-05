@@ -275,10 +275,11 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "DEBUG: Resposta da criação da preferência:",
       preferenceResponse
     );
-    const initPoint = preferenceResponse.sandbox_init_point
-      ? preferenceResponse.sandbox_init_point
-      : preferenceResponse.init_point;
-    return { success: true, init_point: initPoint };
+    //const initPoint = preferenceResponse.sandbox_init_point
+    //  ? preferenceResponse.sandbox_init_point
+    //  : preferenceResponse.init_point;
+    // return { success: true, init_point: initPoint };
+    return { success: true, init_point: preferenceResponse.init_point };
   } catch (error: any) {
     console.error("ERRO ao criar preferência:", error.cause ?? error);
     throw new HttpsError("internal", "Erro ao iniciar o pagamento.");
