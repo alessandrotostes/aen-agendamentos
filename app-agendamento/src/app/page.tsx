@@ -12,7 +12,7 @@ export default function HomePage() {
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/images/fundo-auth.jpg')",
+          backgroundImage: "url('/images/fundo-auth1.jpg')",
         }}
       />
 
