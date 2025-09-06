@@ -1,18 +1,25 @@
+// src/app/client/salon/[slug]/page.tsx
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, notFound } from "next/navigation";
 import { ClientRoute } from "../../../../components/auth/ProtectedRoute";
 import { db } from "../../../../lib/firebaseConfig";
-import { doc, getDoc, collection, query, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  limit,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
 import Image from "next/image";
 import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
-import { ArrowLeft, Users, Scissors } from "lucide-react"; // Ícones modernos
+import { ArrowLeft, Users, Scissors } from "lucide-react";
 
-// --- NOVO COMPONENTE: CARD DO PROFISSIONAL ---
-// Exibe um profissional e os serviços que ele realiza.
+// --- COMPONENTE: CARD DO PROFISSIONAL ---
 const ProfessionalCard = ({
   professional,
   allServices,
@@ -43,18 +50,14 @@ const ProfessionalCard = ({
         </h4>
         {professionalServices.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {professionalServices.slice(0, 3).map(
-              (
-                serviceName // Mostra até 3 serviços
-              ) => (
-                <span
-                  key={serviceName}
-                  className="text-xs font-medium bg-teal-50 text-teal-700 px-2 py-1 rounded-full"
-                >
-                  {serviceName}
-                </span>
-              )
-            )}
+            {professionalServices.slice(0, 3).map((serviceName) => (
+              <span
+                key={serviceName}
+                className="text-xs font-medium bg-teal-50 text-teal-700 px-2 py-1 rounded-full"
+              >
+                {serviceName}
+              </span>
+            ))}
             {professionalServices.length > 3 && (
               <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
                 +{professionalServices.length - 3} mais
@@ -67,8 +70,7 @@ const ProfessionalCard = ({
   );
 };
 
-// --- NOVO COMPONENTE: CARD DE SERVIÇO ---
-// Exibe um serviço individual com um design moderno.
+// --- COMPONENTE: CARD DE SERVIÇO ---
 const ServiceCard = ({
   service,
   onServiceClick,
@@ -101,7 +103,7 @@ const ServiceCard = ({
 export default function SalonDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const salonId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const salonSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
 
   const [salon, setSalon] = useState<Establishment | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -111,49 +113,88 @@ export default function SalonDetailPage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!salonSlug) return;
+
     setLoading(true);
 
-    const fetchSalon = async () => {
-      const ref = doc(db, "establishments", salonId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        setSalon({
-          id: snap.id,
-          ...(snap.data() as Omit<Establishment, "id">),
-        });
+    const fetchSalonBySlug = async () => {
+      try {
+        const establishmentsRef = collection(db, "establishments");
+        const q = query(
+          establishmentsRef,
+          where("slug", "==", salonSlug),
+          limit(1)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          console.error("Nenhum estabelecimento encontrado com este slug.");
+          setSalon(null);
+          return null;
+        }
+
+        const salonDoc = querySnapshot.docs[0];
+        const salonData = {
+          id: salonDoc.id,
+          ...(salonDoc.data() as Omit<Establishment, "id">),
+        };
+
+        setSalon(salonData);
+        return salonData.id; // Retorna o ID do salão para o próximo passo
+      } catch (error) {
+        console.error("Erro ao buscar salão pelo slug:", error);
+        setSalon(null);
+        return null;
       }
     };
 
-    const servicesUnsub = onSnapshot(
-      query(collection(db, "establishments", salonId, "services")),
-      (snapshot) =>
-        setServices(
-          snapshot.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<Service, "id">),
-          }))
-        )
-    );
+    const setupListeners = (salonId: string) => {
+      const servicesUnsub = onSnapshot(
+        query(collection(db, "establishments", salonId, "services")),
+        (snapshot) =>
+          setServices(
+            snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<Service, "id">),
+            }))
+          )
+      );
 
-    const professionalsUnsub = onSnapshot(
-      query(collection(db, "establishments", salonId, "professionals")),
-      (snapshot) =>
-        setProfessionals(
-          snapshot.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<Professional, "id">),
-          }))
-        )
-    );
+      const professionalsUnsub = onSnapshot(
+        query(collection(db, "establishments", salonId, "professionals")),
+        (snapshot) =>
+          setProfessionals(
+            snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<Professional, "id">),
+            }))
+          )
+      );
 
-    Promise.all([fetchSalon()]).finally(() => setLoading(false));
+      return () => {
+        servicesUnsub();
+        professionalsUnsub();
+      };
+    };
+
+    let listenersUnsubscribe: (() => void) | undefined;
+
+    const initializePage = async () => {
+      const foundSalonId = await fetchSalonBySlug();
+      if (foundSalonId) {
+        listenersUnsubscribe = setupListeners(foundSalonId);
+      }
+      setLoading(false);
+    };
+
+    initializePage();
 
     return () => {
-      servicesUnsub();
-      professionalsUnsub();
+      if (listenersUnsubscribe) {
+        listenersUnsubscribe();
+      }
     };
-  }, [salonId]);
+  }, [salonSlug]);
 
   const openSchedulingModal = (service: Service) => {
     setSelectedService(service);
@@ -164,11 +205,7 @@ export default function SalonDetailPage() {
     return <div className="text-center p-8 text-slate-500">Carregando...</div>;
   }
   if (!salon) {
-    return (
-      <div className="text-center p-8 text-slate-500">
-        Estabelecimento não encontrado.
-      </div>
-    );
+    return notFound();
   }
 
   const imageSrc = salon.imageURL || "/placeholder.png";
@@ -177,7 +214,6 @@ export default function SalonDetailPage() {
     <ClientRoute>
       <div className="bg-slate-50 min-h-screen">
         <main className="max-w-6xl mx-auto pb-12">
-          {/* --- HEADER DA PÁGINA --- */}
           <div className="relative w-full h-52 md:h-64">
             <Image
               src={imageSrc}
@@ -202,10 +238,7 @@ export default function SalonDetailPage() {
               <p className="text-slate-200 mt-1">{salon.address}</p>
             </div>
           </div>
-
-          {/* --- NOVAS SECÇÕES DE CONTEÚDO --- */}
           <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            {/* Coluna Principal: Serviços */}
             <div className="lg:col-span-2 space-y-10">
               <section>
                 <div className="flex items-center gap-3 mb-5">
@@ -231,8 +264,6 @@ export default function SalonDetailPage() {
                 </div>
               </section>
             </div>
-
-            {/* Coluna Lateral: Profissionais */}
             <div className="lg:col-span-1 space-y-10">
               <section>
                 <div className="flex items-center gap-3 mb-5">
@@ -260,7 +291,6 @@ export default function SalonDetailPage() {
             </div>
           </div>
         </main>
-
         {isModalOpen && selectedService && (
           <SchedulingModal
             isOpen={isModalOpen}

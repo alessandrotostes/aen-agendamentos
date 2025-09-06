@@ -33,6 +33,7 @@ export type OperatingHours = {
 
 export interface Establishment {
   id: string;
+  slug: string;
   ownerId: string;
   name: string;
   description?: string;
@@ -193,6 +194,7 @@ export interface SpecialDay {
 }
 export interface Salon {
   id: string;
+  slug: string;
   name: string;
   address: string;
   imageURL?: string;

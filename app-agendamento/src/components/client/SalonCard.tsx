@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+// MUDANÇA 1: Importamos o tipo 'Salon' para que o componente saiba da existência do 'slug'
 import { Salon } from "../../types";
 import { Heart, MapPin, Phone } from "lucide-react";
 
@@ -28,24 +29,27 @@ export default function SalonCard({
     onToggleFavorite(salon.id);
   };
 
-  // --- NOVA FUNÇÃO PARA LIDAR COM O CLIQUE NO TELEFONE ---
   const handlePhoneClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Impede a navegação do Link pai
-    e.stopPropagation(); // Impede que outros eventos de clique sejam disparados
+    e.preventDefault();
+    e.stopPropagation();
     if (salon.phone) {
       window.location.href = `tel:${salon.phone}`;
     }
   };
 
+  // ==========================================================
+  // ===== A MUDANÇA PRINCIPAL ACONTECE AQUI ==================
+  // ==========================================================
   return (
-    <Link href={`/client/salon/${salon.id}`} className="group block">
+    // Trocamos salon.id por salon.slug no href do Link
+    <Link href={`/client/salon/${salon.slug}`} className="group block">
       <div className="bg-white rounded-xl shadow-md overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
         <div className="relative w-full h-40 bg-slate-100">
           <Image
             src={imageSrc}
             alt={`Foto de ${salon.name}`}
             fill
-            className="object-contain"
+            className="object-contain" // object-contain pode ser melhor que object-cover aqui
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           <button
@@ -68,24 +72,20 @@ export default function SalonCard({
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{salon.address}</span>
           </p>
-
-          {/* --- BLOCO DO TELEFONE CORRIGIDO --- */}
           {salon.phone && (
             <div
-              onClick={handlePhoneClick} // Usamos onClick em uma div
-              className="flex items-center gap-1.5 text-sm text-slate-500 mt-1 hover:text-teal-600 cursor-pointer" // Adicionado cursor-pointer
+              onClick={handlePhoneClick}
+              className="flex items-center gap-1.5 text-sm text-slate-500 mt-1 hover:text-teal-600 cursor-pointer"
             >
               <Phone className="w-4 h-4 shrink-0" />
               <span>{salon.phone}</span>
             </div>
           )}
-
           <div className="flex items-center gap-1.5 text-sm text-slate-600 mt-3">
             <Heart className="w-4 h-4 text-red-500" />
             <span className="font-semibold">{salon.favoritesCount ?? 0}</span>
             <span className="text-slate-400">Favoritos</span>
           </div>
-
           <div className="mt-auto pt-4">
             <div className="w-full text-center bg-teal-600 text-white font-semibold py-2.5 rounded-lg transition-colors group-hover:bg-teal-700">
               Ver Serviços

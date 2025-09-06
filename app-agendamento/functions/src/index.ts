@@ -254,7 +254,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       payer: { first_name: payer.first_name, email: payer.email },
       back_urls: {
         success: `${aplicationBaseUrl}/client`,
-        failure: `${aplicationBaseUrl}/checkout/failure`,
+        failure: `${aplicationBaseUrl}/client`,
         pending: `${aplicationBaseUrl}/client`,
       },
       auto_return: "approved",
@@ -806,5 +806,72 @@ export const onFavoriteDelete = onDocumentDeleted(
         error
       );
     }
+  }
+);
+/**
+ * Gera um 'slug' URL-amigável a partir de um texto.
+ * Ex: "Salão da Maria" -> "salao-da-maria"
+ */
+function generateSlug(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .normalize("NFD") // Normaliza para decompor acentos
+    .replace(/[\u0300-\u036f]/g, "") // Remove os acentos
+    .replace(/\s+/g, "-") // Troca espaços por hífens
+    .replace(/[^\w\-]+/g, "") // Remove todos os caracteres não-alfanuméricos (exceto hífens)
+    .replace(/\-\-+/g, "-"); // Remove hífens duplicados
+}
+
+/**
+ * Gatilho do Firestore que gera e salva um 'slug' para um estabelecimento
+ * sempre que ele é criado ou o nome é atualizado.
+ */
+export const onEstablishmentWritten = onDocumentWritten(
+  "establishments/{establishmentId}",
+  async (event) => {
+    // Acessa os dados do documento antes e depois da alteração
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
+
+    // Se o documento foi deletado ou o nome não mudou, não fazemos nada.
+    if (!afterData || beforeData?.name === afterData.name) {
+      console.log(
+        "Nenhuma alteração de nome detectada. O slug não será gerado."
+      );
+      return null;
+    }
+
+    const establishmentName = afterData.name;
+    if (!establishmentName) {
+      console.log(
+        "O nome do estabelecimento está vazio. O slug não será gerado."
+      );
+      return null;
+    }
+
+    const baseSlug = generateSlug(establishmentName);
+    let finalSlug = baseSlug;
+    let counter = 1;
+
+    // Loop para garantir que o slug seja único
+    while (true) {
+      const q = db.collection("establishments").where("slug", "==", finalSlug);
+      const snapshot = await q.get();
+
+      if (snapshot.empty) {
+        // Se não encontrou nenhum documento com este slug, ele é único!
+        break;
+      }
+
+      // Se o slug já existe, adiciona um número no final e tenta de novo.
+      finalSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    console.log(`Slug gerado para '${establishmentName}': ${finalSlug}`);
+    // Salva o slug único de volta no documento do estabelecimento.
+    return event.data?.after.ref.set({ slug: finalSlug }, { merge: true });
   }
 );
