@@ -283,8 +283,17 @@ export default function OwnerView() {
   };
 
   const handleShareLink = () => {
-    if (!establishment) return;
-    const url = `${window.location.origin}/client/salon/${establishment.id}`;
+    // Adicionamos uma verificação para garantir que o slug exista antes de copiar
+    if (!establishment?.slug) {
+      alert(
+        "Não foi possível gerar o link, dados do estabelecimento incompletos. Tente editar e salvar o nome novamente."
+      );
+      return;
+    }
+
+    // A MUDANÇA ESTÁ AQUI:
+    const url = `${window.location.origin}/client/salon/${establishment.slug}`;
+
     navigator.clipboard
       .writeText(url)
       .then(() => {
