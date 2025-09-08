@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
             </h3>
             <p className="text-sm text-gray-600 mb-6">
               Verifique sua caixa de entrada e clique no link para redefinir sua
-              senha. Se não encontrar o email, verifique a pasta de SPAM.
+              senha. Se não encontrar o e-mail, verifique a caixa de SPAM.
             </p>
 
             <div className="space-y-3">

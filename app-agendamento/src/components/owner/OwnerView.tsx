@@ -286,7 +286,7 @@ export default function OwnerView() {
     // Adicionamos uma verificação para garantir que o slug exista antes de copiar
     if (!establishment?.slug) {
       alert(
-        "Não foi possível gerar o link, dados do estabelecimento incompletos. Tente editar e salvar o nome novamente."
+        "Não foi possível gerar o link, dados do estabelecimento incompletos ou incorretos. Tente editar e salvar o nome novamente na aba de configurações. Não é permitido caracteres especiais no nome. Ex: @, #, $, %, ã, ç, etc."
       );
       return;
     }
