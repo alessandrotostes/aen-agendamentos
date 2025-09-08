@@ -237,7 +237,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     accessToken: ownerAccessToken,
   });
   const preference = new Preference(client);
-  const application_fee = Math.floor(transaction_amount * 0.1 * 100) / 100;
+  const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
     const preferenceBody = {
