@@ -17,7 +17,7 @@ import Image from "next/image";
 import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
-import { ArrowLeft, Users, Scissors } from "lucide-react";
+import { ArrowLeft, Users, CalendarPlus } from "lucide-react";
 
 // --- COMPONENTE: CARD DO PROFISSIONAL ---
 const ProfessionalCard = ({
@@ -219,7 +219,7 @@ export default function SalonDetailPage() {
               src={imageSrc}
               alt={salon.name}
               fill
-              className="object-cover"
+              className="object-contain"
               sizes="100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -242,7 +242,7 @@ export default function SalonDetailPage() {
             <div className="lg:col-span-2 space-y-10">
               <section>
                 <div className="flex items-center gap-3 mb-5">
-                  <Scissors className="w-6 h-6 text-teal-600" />
+                  <CalendarPlus className="w-6 h-6 text-teal-600" />
                   <h2 className="text-2xl font-bold text-slate-900">
                     Nossos Serviços
                   </h2>

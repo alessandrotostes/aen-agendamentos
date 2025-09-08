@@ -189,9 +189,11 @@ export default function EditEstablishmentModal({
               >
                 <option value="">Selecione...</option>
                 <option value="Barbearia">Barbearia</option>
-                <option value="Cabeleireiro">Cabeleireiro</option>
                 <option value="Salão de Beleza">Salão de Beleza</option>
                 <option value="Estética">Estética</option>
+                <option value="Cabeleireiro">Nail Designer</option>
+                <option value="Cabeleireiro">Manicure e Pedicure</option>
+                <option value="Estética">Outro</option>
               </select>
             </div>
           </div>
@@ -222,7 +224,8 @@ export default function EditEstablishmentModal({
               htmlFor="imageFile"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Foto do Estabelecimento
+              Foto do Estabelecimento: <br /> Utilize uma imagem (.png) sem
+              fundo para melhor resultado.
             </label>
             <input
               type="file"

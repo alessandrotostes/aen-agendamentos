@@ -199,7 +199,7 @@ export default function DashboardTab({
           <StatsCard
             title="Serviços Oferecidos"
             value={stats.services.toString()}
-            icon="✂️"
+            icon="📋"
           />
           <StatsCard
             title="Profissionais Ativos"
@@ -209,7 +209,7 @@ export default function DashboardTab({
           <StatsCard
             title="Agendamentos Hoje"
             value={stats.today.toString()}
-            icon="✅"
+            icon="📆"
           />
         </div>
       </div>

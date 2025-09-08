@@ -24,7 +24,7 @@ export default function ServicesTab({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-            <span className="text-4xl mr-3">✂️</span>
+            <span className="text-4xl mr-3">📋</span>
             Serviços
           </h2>
           <p className="text-teal-600 mt-1">
@@ -98,7 +98,7 @@ export default function ServicesTab({
         <div className="bg-white/60 backdrop-blur-sm rounded-xl border-2 border-dashed border-teal-200 p-12">
           <EmptyState
             message="Ainda não há serviços cadastrados."
-            icon="✂️"
+            icon="📋"
             actionText="Criar Primeiro Serviço"
             onAction={createService}
           />

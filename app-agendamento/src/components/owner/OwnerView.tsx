@@ -315,7 +315,7 @@ export default function OwnerView() {
 
   const navItems = [
     { key: "dashboard", label: "Dashboard", icon: "📊" },
-    { key: "services", label: "Serviços", icon: "✂️" },
+    { key: "services", label: "Serviços", icon: "📋" },
     { key: "professionals", label: "Profissionais", icon: "👨‍💼" },
     { key: "settings", label: "Configurações", icon: "⚙️" },
   ] as const;
