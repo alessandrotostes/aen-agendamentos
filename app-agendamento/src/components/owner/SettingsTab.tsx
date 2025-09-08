@@ -45,7 +45,9 @@ export default function SettingsTab({
             </h3>
           </div>
           <p className="text-sm text-slate-500 mt-2">
-            Edite o nome, endereço e outras informações do seu estabelecimento.
+            Edite o nome, endereço e outras informações do seu estabelecimento.{" "}
+            <br /> Essas informações são importantes para que seus clientes
+            possam encontrar e conhecer melhor o seu negócio.
           </p>
           <button
             onClick={onEditEstablishment}

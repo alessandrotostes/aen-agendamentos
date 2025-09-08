@@ -254,7 +254,7 @@ export default function EditProfessionalUnifiedModal({
                         htmlFor="email"
                         className="block text-sm font-medium text-gray-700 mb-1"
                       >
-                        Email
+                        Email *
                       </label>
                       <input
                         type="email"
@@ -262,6 +262,7 @@ export default function EditProfessionalUnifiedModal({
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
+                        required
                         disabled={loading}
                         className="w-full px-3 py-2 border rounded-lg shadow-sm border-gray-300"
                       />

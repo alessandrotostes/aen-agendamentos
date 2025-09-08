@@ -155,7 +155,7 @@ export default function EditEstablishmentModal({
                 htmlFor="phone"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Telefone
+                Telefone *
               </label>
               <input
                 type="tel"
@@ -163,6 +163,7 @@ export default function EditEstablishmentModal({
                 name="phone"
                 value={formData.phone || ""}
                 onChange={handleChange}
+                required
                 disabled={loading}
                 className={`w-full px-3 py-2 border rounded-lg shadow-sm ${
                   errors.phone ? "border-red-300" : "border-gray-300"
@@ -202,7 +203,7 @@ export default function EditEstablishmentModal({
               htmlFor="address"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Endereço Completo
+              Endereço Completo *
             </label>
             <input
               type="text"
@@ -210,6 +211,7 @@ export default function EditEstablishmentModal({
               name="address"
               value={formData.address || ""}
               onChange={handleChange}
+              required
               disabled={loading}
               className={`w-full px-3 py-2 border rounded-lg shadow-sm ${
                 errors.address ? "border-red-300" : "border-gray-300"
