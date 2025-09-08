@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Service, CreateServiceData } from "../../../types";
 import { validationUtils, currencyUtils } from "../../../lib/utils";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 
 interface EditServiceModalProps {
   isOpen: boolean;
@@ -187,6 +188,13 @@ export default function EditServiceModal({
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Nome do Serviço *
+              <InfoTooltip>
+                Informe um nome claro e descritivo para o serviço, como
+                &quot;Corte Masculino, Corte Masculino + BarBa&quot;,
+                &quot;Manicure e Pedicure completa&quot;, &quot;Seção de
+                massagem casal&quot;. Isso ajuda seus clientes a entenderem
+                rapidamente o que está sendo oferecido.
+              </InfoTooltip>
             </label>
             <input
               type="text"

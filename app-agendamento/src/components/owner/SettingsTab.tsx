@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Building, CreditCard, Clock } from "lucide-react";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 
 interface MpData {
   hasMpAccount: boolean;
@@ -91,6 +92,14 @@ export default function SettingsTab({
               <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
                 <p className="font-semibold">
                   ✅ Sua conta do Mercado Pago está conectada.
+                  <InfoTooltip>
+                    Caso queira mudar a conta do mercado pago que está vinculada
+                    ao seu estabelecimento, acesse mercadopago.com.br, clique em
+                    sair da conta. Após se certificar que está
+                    &quot;deslogado&quot; é só clicar em &quot;Trocar de
+                    conta&quot; que abrirá a página do mercado livre para que
+                    você possa se conectar com a conta desejada.
+                  </InfoTooltip>
                 </p>
                 <p className="text-sm mt-1">
                   Você está pronto para receber pagamentos online com split de
@@ -111,6 +120,15 @@ export default function SettingsTab({
                   Conecte com o Mercado Pago para receber pagamentos online dos
                   seus clientes e gerir o seu negócio.
                 </p>
+                <InfoTooltip>
+                  Antes de se conctar ao Mercado Pago, certifique-se de que a
+                  conta que está &quot;logada&quot; no seu navagador é a conta
+                  do seu estabelecimento, para que o pagamento seja direcionado
+                  corretamente. Certifique-se também de que a conta do Mercado
+                  Pago está verificada e apta a receber pagamentos online. Se
+                  você ainda não tem uma conta no Mercado Pago, pode criar uma
+                  gratuitamente em mercadopago.com.br.
+                </InfoTooltip>
                 <button
                   onClick={mpData.connectMercadoPago}
                   disabled={mpData.loading}

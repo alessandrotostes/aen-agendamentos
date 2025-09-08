@@ -17,7 +17,7 @@ import Image from "next/image";
 import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
-import { ArrowLeft, Users, CalendarPlus } from "lucide-react";
+import { ArrowLeft, Users, CalendarPlus, MapPin, Phone } from "lucide-react";
 
 // --- COMPONENTE: CARD DO PROFISSIONAL ---
 const ProfessionalCard = ({
@@ -140,7 +140,7 @@ export default function SalonDetailPage() {
         };
 
         setSalon(salonData);
-        return salonData.id; // Retorna o ID do salão para o próximo passo
+        return salonData.id;
       } catch (error) {
         console.error("Erro ao buscar salão pelo slug:", error);
         setSalon(null);
@@ -209,6 +209,9 @@ export default function SalonDetailPage() {
   }
 
   const imageSrc = salon.imageURL || "/placeholder.png";
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    salon.address
+  )}`;
 
   return (
     <ClientRoute>
@@ -219,7 +222,7 @@ export default function SalonDetailPage() {
               src={imageSrc}
               alt={salon.name}
               fill
-              className="object-contain"
+              className="object-cover"
               sizes="100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -231,13 +234,33 @@ export default function SalonDetailPage() {
                 <ArrowLeft className="h-5 w-5" />
               </button>
             </div>
-            <div className="absolute bottom-0 left-0 p-6">
+            <div className="absolute bottom-0 left-0 p-6 w-full">
               <h1 className="text-3xl md:text-4xl font-bold text-white shadow-md">
                 {salon.name}
               </h1>
-              <p className="text-slate-200 mt-1">{salon.address}</p>
+
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-slate-200 mt-2 hover:text-white transition-colors"
+              >
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span>{salon.address}</span>
+              </a>
+
+              {salon.phone && (
+                <a
+                  href={`tel:${salon.phone}`}
+                  className="flex items-center gap-2 text-slate-200 mt-1 hover:text-white transition-colors"
+                >
+                  <Phone className="w-4 h-4 shrink-0" />
+                  <span>{salon.phone}</span>
+                </a>
+              )}
             </div>
           </div>
+
           <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
             <div className="lg:col-span-2 space-y-10">
               <section>
@@ -291,6 +314,7 @@ export default function SalonDetailPage() {
             </div>
           </div>
         </main>
+
         {isModalOpen && selectedService && (
           <SchedulingModal
             isOpen={isModalOpen}

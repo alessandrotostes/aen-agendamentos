@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 // CORREÇÃO: Caminho de importação ajustado
 import { Establishment, UpdateEstablishmentData } from "../../../types";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 
 interface EditEstablishmentModalProps {
   isOpen: boolean;
@@ -116,6 +117,12 @@ export default function EditEstablishmentModal({
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Nome do Estabelecimento *
+              <InfoTooltip>
+                A Url do seu estabelecimento será gerada automaticamente a
+                partir deste nome. Não utilize Caractéres Especiais (Ex: @, #,
+                $, %, &, *, etc) pois os navegadores não aceitam estes
+                caracteres em URLs.
+              </InfoTooltip>
             </label>
             <input
               type="text"
@@ -156,6 +163,10 @@ export default function EditEstablishmentModal({
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Telefone *
+                <InfoTooltip>
+                  Informe o DDD corretamente. Este será o telefone de contato
+                  para seus clientes.
+                </InfoTooltip>
               </label>
               <input
                 type="tel"
@@ -179,6 +190,11 @@ export default function EditEstablishmentModal({
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Serviço Principal
+                <InfoTooltip>
+                  É importante definir o serviço principal para que futuramente
+                  o cliente possa filtrar os estabelecimentos por este serviço.
+                  Ex: Barbearia, Salão de Beleza, Estética, etc.
+                </InfoTooltip>
               </label>
               <select
                 id="mainService"
@@ -204,6 +220,12 @@ export default function EditEstablishmentModal({
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Endereço Completo *
+              <InfoTooltip>
+                Forneça o endereço completo do estabelecimento, incluindo rua,
+                número, bairro, cidade e CEP, para que seus clientes possam
+                encontrá-lo utilizando serviços de mapas e navegação. (Se
+                preferir, utilize o Google Maps para gerar o endereço exato).
+              </InfoTooltip>
             </label>
             <input
               type="text"

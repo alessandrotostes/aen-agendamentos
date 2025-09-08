@@ -11,6 +11,7 @@ import {
   WeeklyDay,
   TimeSlot,
 } from "../../../types";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 
 // Tipos combinados para o nosso novo formulário
 type UnifiedProfessionalData = CreateProfessionalData & {
@@ -255,6 +256,11 @@ export default function EditProfessionalUnifiedModal({
                         className="block text-sm font-medium text-gray-700 mb-1"
                       >
                         Email *
+                        <InfoTooltip>
+                          Cadastre o email real do profissional. Ele será usado
+                          para permitir o acesso dele ao sistema(agenda e
+                          horários).
+                        </InfoTooltip>
                       </label>
                       <input
                         type="email"
