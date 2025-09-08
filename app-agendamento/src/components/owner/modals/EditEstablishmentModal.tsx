@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-// CORREÇÃO: Caminho de importação ajustado
 import { Establishment, UpdateEstablishmentData } from "../../../types";
 import InfoTooltip from "@/components/shared/InfoTooltip";
 
@@ -20,6 +19,7 @@ interface FormErrors {
   phone?: string;
   imageURL?: string;
   mainService?: string;
+  instagram?: string;
 }
 
 export default function EditEstablishmentModal({
@@ -36,6 +36,9 @@ export default function EditEstablishmentModal({
     imageURL: "",
     mainService: "",
     imageFile: null,
+    socialLinks: {
+      instagram: "",
+    },
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -51,6 +54,9 @@ export default function EditEstablishmentModal({
         imageURL: establishment.imageURL || "",
         mainService: establishment.mainService || "",
         imageFile: null,
+        socialLinks: {
+          instagram: establishment.socialLinks?.instagram || "",
+        },
       });
       setErrors({});
     }
@@ -65,7 +71,18 @@ export default function EditEstablishmentModal({
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "instagram") {
+      setFormData((prev) => ({
+        ...prev,
+        socialLinks: {
+          ...prev.socialLinks,
+          instagram: value,
+        },
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,32 +203,25 @@ export default function EditEstablishmentModal({
             </div>
             <div>
               <label
-                htmlFor="mainService"
+                htmlFor="instagram"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Serviço Principal
+                Instagram
                 <InfoTooltip>
-                  É importante definir o serviço principal para que futuramente
-                  o cliente possa filtrar os estabelecimentos por este serviço.
-                  Ex: Barbearia, Salão de Beleza, Estética, etc.
+                  Copie e cole a URL completa do seu perfil. Ex:
+                  https://www.instagram.com/seunegocio
                 </InfoTooltip>
               </label>
-              <select
-                id="mainService"
-                name="mainService"
-                value={formData.mainService || ""}
+              <input
+                type="url"
+                id="instagram"
+                name="instagram"
+                value={formData.socialLinks?.instagram || ""}
                 onChange={handleChange}
                 disabled={loading}
-                className="w-full px-3 py-2 border rounded-lg shadow-sm"
-              >
-                <option value="">Selecione...</option>
-                <option value="Barbearia">Barbearia</option>
-                <option value="Salão de Beleza">Salão de Beleza</option>
-                <option value="Estética">Estética</option>
-                <option value="Cabeleireiro">Nail Designer</option>
-                <option value="Cabeleireiro">Manicure e Pedicure</option>
-                <option value="Estética">Outro</option>
-              </select>
+                className="w-full px-3 py-2 border rounded-lg shadow-sm border-gray-300"
+                placeholder="https://www.instagram.com/..."
+              />
             </div>
           </div>
           <div>
@@ -242,6 +252,35 @@ export default function EditEstablishmentModal({
             {errors.address && (
               <p className="mt-1 text-xs text-red-600">{errors.address}</p>
             )}
+          </div>
+          <div>
+            <label
+              htmlFor="mainService"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Serviço Principal
+              <InfoTooltip>
+                É importante definir o serviço principal para que futuramente o
+                cliente possa filtrar os estabelecimentos por este serviço. Ex:
+                Barbearia, Salão de Beleza, Estética, etc.
+              </InfoTooltip>
+            </label>
+            <select
+              id="mainService"
+              name="mainService"
+              value={formData.mainService || ""}
+              onChange={handleChange}
+              disabled={loading}
+              className="w-full px-3 py-2 border rounded-lg shadow-sm"
+            >
+              <option value="">Selecione...</option>
+              <option value="Barbearia">Barbearia</option>
+              <option value="Salão de Beleza">Salão de Beleza</option>
+              <option value="Estética">Estética</option>
+              <option value="Nail Designer">Nail Designer</option>
+              <option value="Manicure e Pedicure">Manicure e Pedicure</option>
+              <option value="Outro">Outro</option>
+            </select>
           </div>
           <div>
             <label

@@ -45,6 +45,10 @@ export interface Establishment {
   mpCredentials?: MpCredentials;
   availability?: Availability;
   operatingHours?: OperatingHours;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+  };
 }
 
 export interface MpCredentials {
@@ -133,6 +137,10 @@ export interface UpdateEstablishmentData {
   imageFile?: File | null;
   availability?: Availability;
   operatingHours?: OperatingHours;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+  };
 }
 
 export interface PendingAppointment {

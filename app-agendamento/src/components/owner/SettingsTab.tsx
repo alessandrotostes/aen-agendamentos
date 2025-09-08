@@ -90,8 +90,11 @@ export default function SettingsTab({
               <p className="text-slate-500">A processar...</p>
             ) : mpData.hasMpAccount ? (
               <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
-                <p className="font-semibold">
-                  ✅ Sua conta do Mercado Pago está conectada.
+                {/* ========================================================== */}
+                {/* ===== CORREÇÃO APLICADA AQUI =========================== */}
+                {/* ========================================================== */}
+                <div className="font-semibold flex items-center justify-center">
+                  <span>✅ Sua conta do Mercado Pago está conectada.</span>
                   <InfoTooltip>
                     Caso queira mudar a conta do mercado pago que está vinculada
                     ao seu estabelecimento, acesse mercadopago.com.br, clique em
@@ -100,12 +103,12 @@ export default function SettingsTab({
                     conta&quot; que abrirá a página do mercado livre para que
                     você possa se conectar com a conta desejada.
                   </InfoTooltip>
-                </p>
+                </div>
+
                 <p className="text-sm mt-1">
                   Você está pronto para receber pagamentos online com split de
                   taxas.
                 </p>
-                {/* BOTÃO ADICIONADO AQUI */}
                 <button
                   onClick={mpData.connectMercadoPago}
                   disabled={mpData.loading}

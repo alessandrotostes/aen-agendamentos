@@ -17,7 +17,14 @@ import Image from "next/image";
 import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
-import { ArrowLeft, Users, CalendarPlus, MapPin, Phone } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  CalendarPlus,
+  MapPin,
+  Phone,
+  Instagram,
+} from "lucide-react";
 
 // --- COMPONENTE: CARD DO PROFISSIONAL ---
 const ProfessionalCard = ({
@@ -209,7 +216,8 @@ export default function SalonDetailPage() {
   }
 
   const imageSrc = salon.imageURL || "/placeholder.png";
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  // A MUDANÇA ESTÁ AQUI: Corrigimos a URL do Google Maps
+  const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(
     salon.address
   )}`;
 
@@ -239,25 +247,39 @@ export default function SalonDetailPage() {
                 {salon.name}
               </h1>
 
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-slate-200 mt-2 hover:text-white transition-colors"
-              >
-                <MapPin className="w-4 h-4 shrink-0" />
-                <span>{salon.address}</span>
-              </a>
-
-              {salon.phone && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mt-2">
                 <a
-                  href={`tel:${salon.phone}`}
-                  className="flex items-center gap-2 text-slate-200 mt-1 hover:text-white transition-colors"
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-slate-200 hover:text-white transition-colors"
                 >
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <span>{salon.phone}</span>
+                  <MapPin className="w-4 h-4 shrink-0" />
+                  <span>{salon.address}</span>
                 </a>
-              )}
+
+                {salon.phone && (
+                  <a
+                    href={`tel:${salon.phone}`}
+                    className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
+                  >
+                    <Phone className="w-4 h-4 shrink-0" />
+                    <span>{salon.phone}</span>
+                  </a>
+                )}
+
+                {salon.socialLinks?.instagram && (
+                  <a
+                    href={salon.socialLinks.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
+                  >
+                    <Instagram className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Instagram</span>
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 
