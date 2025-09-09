@@ -66,10 +66,10 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
           <p className={`font-bold truncate ${currentStyle.textColor}`}>
             {appointment.serviceName}
           </p>
-          <p
-            className={`text-sm text-gray-600 truncate ${currentStyle.lineThrough}`}
-          >
-            Cliente: {appointment.clientName || "Não informado"}
+          <p>
+            Cliente:{" "}
+            {`${appointment.clientFirstName} ${appointment.clientLastName}` ||
+              "Não informado"}
           </p>
           {virtualStatus === "cancelado" && (
             <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
@@ -127,7 +127,7 @@ function ProfessionalDashboardView() {
 
       <main className="p-4 sm:p-6 lg:p-8">
         <h2 className="text-3xl font-bold text-gray-900">
-          Bem-vindo, {userData?.name || "Profissional"}!
+          Bem-vindo, {userData?.firstName || "Profissional"}!
         </h2>
         <p className="mt-2 text-gray-600">
           Sua agenda para{" "}

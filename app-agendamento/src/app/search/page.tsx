@@ -12,7 +12,7 @@ import SalonIcon from "@/components/SalonIcon";
 const Header = () => {
   const { currentUser, userData, logout } = useAuth();
   const displayName =
-    userData?.name || currentUser?.email?.split("@")[0] || "Usuário";
+    userData?.firstName || currentUser?.email?.split("@")[0] || "Usuário";
   const displayInitial = displayName.charAt(0).toUpperCase();
 
   return (

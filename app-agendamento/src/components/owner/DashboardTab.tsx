@@ -132,7 +132,7 @@ export default function DashboardTab({
                             {appointment.serviceName}
                           </p>
                           <p className="text-sm text-teal-600">
-                            {appointment.clientName || "Cliente"}
+                            {appointment.clientFirstName || "Cliente"}
                           </p>
                           <span
                             className={`mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${currentStyle.badge}`}

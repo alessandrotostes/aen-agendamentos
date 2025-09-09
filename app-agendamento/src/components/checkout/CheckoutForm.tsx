@@ -72,7 +72,7 @@ const MercadoPagoCheckoutForm = ({
         installments: formData.installments,
         payer: {
           email: userData?.email || "",
-          first_name: userData?.name || "Cliente",
+          first_name: userData?.firstName || "Cliente",
         },
         appointmentDetails: pendingAppointment,
       };

@@ -28,12 +28,12 @@ export default function ClientHeader({
         <div>
           <Menu.Button className="flex items-center gap-3 min-w-0 rounded-lg p-1 hover:bg-slate-100 transition-colors">
             <div className="h-10 w-10 md:h-11 md:w-11 rounded-full bg-teal-600 text-white flex items-center justify-center font-semibold text-lg">
-              {userData?.name?.[0]?.toUpperCase() || "U"}
+              {userData?.firstName?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="min-w-0 text-left">
               <p className="text-xs text-slate-500">Bem-vindo(a)</p>
               <h1 className="text-base md:text-lg font-semibold text-slate-900 truncate">
-                {userData?.name || "Cliente"}
+                {userData?.firstName || "Cliente"}
               </h1>
             </div>
           </Menu.Button>
