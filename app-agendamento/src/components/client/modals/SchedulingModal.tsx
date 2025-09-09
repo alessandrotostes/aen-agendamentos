@@ -161,9 +161,19 @@ export default function SchedulingModal({
       const potentialEnd = potentialStart + service.duration;
       if (potentialEnd > endInMinutes) return false;
 
-      const hasConflict = bookedIntervals.some(
-        (booked) => potentialStart < booked.end && potentialEnd > booked.start
-      );
+      const hasConflict = bookedIntervals.some((booked) => {
+        const isOverlapping =
+          potentialStart < booked.end && potentialEnd > booked.start;
+        // Log para cada horário potencial
+        if (isOverlapping) {
+          console.log({
+            potentialSlot: `${potentialStart} - ${potentialEnd}`,
+            bookedSlot: `${booked.start} - ${booked.end}`,
+            overlaps: isOverlapping,
+          });
+        }
+        return isOverlapping;
+      });
 
       return !hasConflict;
     });

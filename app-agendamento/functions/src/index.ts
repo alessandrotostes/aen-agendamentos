@@ -38,16 +38,6 @@ setGlobalOptions({
   ],
 });
 
-function splitFullName(fullName: string): {
-  firstName: string;
-  lastName: string;
-} {
-  const nameParts = fullName.trim().split(/\s+/);
-  const firstName = nameParts.shift() || "";
-  const lastName = nameParts.join(" ") || firstName; // Se não houver sobrenome, usa o primeiro nome.
-  return { firstName, lastName };
-}
-
 // ========================================================================
 // ===== FUNÇÃO 1: GERAR LINK DE ONBOARDING DO MERCADO PAGO
 // ========================================================================
@@ -170,9 +160,10 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "Você precisa estar logado para pagar."
     );
   }
-  // A função agora espera 'payer.full_name' do frontend.
+  // A função agora espera 'payer.firstName' e 'payer.lastName' do frontend.
   const { transaction_amount, payer, appointmentDetails } = request.data;
 
+  // Bloco de verificação de disponibilidade do horário
   try {
     const { establishmentId, professionalId, bookingTimestamp, duration } =
       appointmentDetails;
@@ -232,11 +223,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   const ownerCredentials = establishmentDoc.data()?.mpCredentials;
   const ownerAccessToken = ownerCredentials?.mp_access_token;
 
-  console.log(
-    "DEBUG: Access Token do Vendedor que será usado:",
-    ownerAccessToken
-  );
-
   if (!ownerAccessToken) {
     throw new HttpsError(
       "failed-precondition",
@@ -251,9 +237,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
-    // Usamos a nova função para obter nome e sobrenome.
-    const { firstName, lastName } = splitFullName(payer.full_name);
-
     const preferenceBody = {
       items: [
         {
@@ -263,14 +246,12 @@ export const createMercadoPagoPreference = onCall(async (request) => {
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          // Adicionamos o category_id recomendado.
-          category_id: "MLB1953", // Categoria genérica do MP para "Serviços"
+          category_id: "MLB1953", // Categoria para "Serviços"
         },
       ],
-      // Enviamos o payer com nome e sobrenome separados.
       payer: {
-        first_name: firstName,
-        last_name: lastName,
+        first_name: payer.firstName, // Usa o 'firstName' que veio do frontend
+        last_name: payer.lastName, // Usa o 'lastName' que veio do frontend
         email: payer.email,
       },
       back_urls: {
@@ -285,26 +266,21 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       notification_url:
         "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/mercadoPagoWebhook",
     };
-    console.log(
-      "DEBUG: Enviando Preference Body para o MP:",
-      JSON.stringify(preferenceBody, null, 2)
-    );
+
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
-    console.log(
-      "DEBUG: Resposta da criação da preferência:",
-      preferenceResponse
-    );
 
-    // Reativando a lógica do sandbox_init_point que é uma boa prática
     const initPoint = preferenceResponse.sandbox_init_point
       ? preferenceResponse.sandbox_init_point
       : preferenceResponse.init_point;
 
     return { success: true, init_point: initPoint };
   } catch (error: any) {
-    console.error("ERRO ao criar preferência:", error.cause ?? error);
+    console.error(
+      "ERRO DETALHADO AO CRIAR PREFERÊNCIA:",
+      JSON.stringify(error, null, 2)
+    );
     throw new HttpsError("internal", "Erro ao iniciar o pagamento.");
   }
 });

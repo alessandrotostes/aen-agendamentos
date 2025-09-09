@@ -25,7 +25,7 @@ const MercadoPagoBadge = () => (
     <Image
       src="/images/mercado-pago-logo.svg"
       alt="Logo do Mercado Pago"
-      width={100} // Ajustado para um tamanho melhor
+      width={100}
       height={25}
     />
   </div>
@@ -39,6 +39,7 @@ export default function CheckoutPage() {
     useState<PendingAppointment | null>(null);
 
   useEffect(() => {
+    // Busca os dados do agendamento que foram salvos no modal
     const appointmentData = sessionStorage.getItem("pendingAppointment");
     if (appointmentData) {
       setPendingAppointment(JSON.parse(appointmentData));
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    // Este efeito é acionado quando os dados do agendamento e do usuário estiverem prontos
     if (!pendingAppointment || !userData) {
       return;
     }
@@ -66,15 +68,12 @@ export default function CheckoutPage() {
           "createMercadoPagoPreference"
         );
 
-        // ==========================================================
-        // ===== A MUDANÇA ESTÁ AQUI ================================
-        // ==========================================================
+        // Objeto de dados enviado para a Cloud Function
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {
             email: userData.email,
-            // Construímos o objeto 'payer' com os campos separados
-            // que a Cloud Function agora espera, lendo do pendingAppointment.
+            // Construímos o objeto 'payer' com os campos separados que a Cloud Function agora espera
             firstName: pendingAppointment.clientFirstName,
             lastName: pendingAppointment.clientLastName,
           },
@@ -86,10 +85,7 @@ export default function CheckoutPage() {
         )) as HttpsCallableResult<PreferenceResultData>;
 
         if (result.data.success && result.data.init_point) {
-          console.log(
-            "URL de Redirecionamento Recebida do Backend:",
-            result.data.init_point
-          );
+          // Redireciona o usuário para a página de pagamento
           window.location.href = result.data.init_point;
         } else {
           throw new Error(
@@ -103,13 +99,14 @@ export default function CheckoutPage() {
             ? err.message
             : "Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.";
         setError(message);
-        setIsLoading(false); // Garante que o loading para se houver erro
+        setIsLoading(false);
       }
     };
 
     createPreferenceAndRedirect();
   }, [pendingAppointment, userData]);
 
+  // JSX para exibir a tela de carregamento ou erro
   return (
     <ClientRoute>
       <ContentLayout footer={<MercadoPagoBadge />}>
