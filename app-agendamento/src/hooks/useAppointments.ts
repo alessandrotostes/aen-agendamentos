@@ -139,7 +139,7 @@ export function useAppointmentsForDate(date: Date) {
             const enrichedAppointments = appointmentsData.map((app) => ({
               ...app,
               clientName:
-                usersMap.get(app.clientId) || app.clientName || "Cliente",
+                usersMap.get(app.clientId) || app.clientFirstName || "Cliente",
             }));
 
             setAppointmentsForDate(enrichedAppointments);
@@ -312,7 +312,7 @@ export function useAppointmentsForProfessional(date: Date) {
             const enrichedAppointments = appointmentsData.map((app) => ({
               ...app,
               clientName:
-                usersMap.get(app.clientId) || app.clientName || "Cliente",
+                usersMap.get(app.clientId) || app.clientFirstName || "Cliente",
             }));
             enrichedAppointments.sort(
               (a, b) => a.dateTime.toMillis() - b.dateTime.toMillis()
