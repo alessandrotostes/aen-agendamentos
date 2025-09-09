@@ -20,6 +20,16 @@ export default function AppointmentCard({
   onCancel,
   onShowCancellationInfo,
 }: AppointmentCardProps) {
+  // =================================================================
+  // ===== CORREÇÃO ADICIONADA AQUI ==================================
+  // =================================================================
+  // Se o agendamento (ex: pendente) não tiver uma data/hora,
+  // não renderizamos o card para evitar erros.
+  if (!appointment.dateTime) {
+    return null;
+  }
+  // =================================================================
+
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
 

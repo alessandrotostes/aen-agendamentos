@@ -230,7 +230,7 @@ export default function SalonDetailPage() {
               src={imageSrc}
               alt={salon.name}
               fill
-              className="object-cover"
+              className="object-contain"
               sizes="100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -242,7 +242,7 @@ export default function SalonDetailPage() {
                 <ArrowLeft className="h-5 w-5" />
               </button>
             </div>
-            <div className="absolute bottom-0 left-0 p-6 w-full">
+            <div className="absolute bottom-0 left-0 p-6">
               <h1 className="text-3xl md:text-4xl font-bold text-white shadow-md">
                 {salon.name}
               </h1>
