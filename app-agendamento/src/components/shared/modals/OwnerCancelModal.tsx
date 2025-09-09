@@ -36,7 +36,8 @@ export default function OwnerCancelModal({
         <div className="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
           <p>Você irá cancelar o agendamento de:</p>
           <p className="font-semibold text-teal-700 mt-1">
-            {appointment.clientName || "Cliente"}
+            {`${appointment.clientFirstName} ${appointment.clientLastName}`.trim() ||
+              "Cliente"}
           </p>
           <p className="text-xs text-gray-500">{appointment.serviceName}</p>
         </div>
