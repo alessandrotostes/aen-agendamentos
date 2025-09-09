@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt,
       });
     }
-
+    await userCredential.user.getIdToken(true);
     return { ...newUser, createdAt: new Date() };
   }
 
