@@ -5,7 +5,7 @@ import {
   getFunctions,
   httpsCallable,
   HttpsCallableResult,
-} from "firebase/functions"; // HttpsCallableResult importado
+} from "firebase/functions";
 import { getApp } from "firebase/app";
 import ContentLayout from "../../components/shared/ContentLayout";
 import { ClientRoute } from "../../components/auth/ProtectedRoute";
@@ -13,7 +13,6 @@ import { PendingAppointment } from "../../types";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 
-// Interface para tipar a resposta da nossa Cloud Function
 interface PreferenceResultData {
   success: boolean;
   init_point?: string;
@@ -26,8 +25,8 @@ const MercadoPagoBadge = () => (
     <Image
       src="/images/mercado-pago-logo.svg"
       alt="Logo do Mercado Pago"
-      width={200}
-      height={50}
+      width={100} // Ajustado para um tamanho melhor
+      height={25}
     />
   </div>
 );
@@ -44,7 +43,9 @@ export default function CheckoutPage() {
     if (appointmentData) {
       setPendingAppointment(JSON.parse(appointmentData));
     } else {
-      setError("Nenhum agendamento encontrado. Por favor, tente novamente.");
+      setError(
+        "Nenhum agendamento encontrado para o checkout. Por favor, tente novamente."
+      );
       setIsLoading(false);
     }
   }, []);
@@ -65,16 +66,21 @@ export default function CheckoutPage() {
           "createMercadoPagoPreference"
         );
 
+        // ==========================================================
+        // ===== A MUDANÇA ESTÁ AQUI ================================
+        // ==========================================================
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {
             email: userData.email,
-            first_name: userData.name,
+            // Construímos o objeto 'payer' com os campos separados
+            // que a Cloud Function agora espera, lendo do pendingAppointment.
+            firstName: pendingAppointment.clientFirstName,
+            lastName: pendingAppointment.clientLastName,
           },
           appointmentDetails: pendingAppointment,
         };
 
-        // CORREÇÃO 1: Tipagem do resultado
         const result = (await createPreference(
           preferenceData
         )) as HttpsCallableResult<PreferenceResultData>;
@@ -91,14 +97,13 @@ export default function CheckoutPage() {
           );
         }
       } catch (err: unknown) {
-        // CORREÇÃO 2: Uso do 'unknown'
         console.error("Erro ao criar preferência de pagamento:", err);
         const message =
           err instanceof Error
             ? err.message
-            : "Ocorreu um erro. Por favor, tente novamente.";
+            : "Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.";
         setError(message);
-        setIsLoading(false);
+        setIsLoading(false); // Garante que o loading para se houver erro
       }
     };
 
@@ -110,7 +115,7 @@ export default function CheckoutPage() {
       <ContentLayout footer={<MercadoPagoBadge />}>
         <div className="w-full text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Preparanto o seu Pagamento
+            Preparando o seu Pagamento
           </h2>
           {isLoading && (
             <div className="flex flex-col items-center gap-4 mt-8">
@@ -118,7 +123,7 @@ export default function CheckoutPage() {
                 className="animate-spin h-8 w-8 text-teal-600"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
-                viewBox="0 0 24 24"
+                viewBox="0 0 24"
               >
                 <circle
                   className="opacity-25"

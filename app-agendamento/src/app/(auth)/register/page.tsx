@@ -8,8 +8,10 @@ import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
 
 export default function RegisterPage() {
+  // O estado agora armazena firstName e lastName separadamente
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     role: "client" as "client" | "owner",
@@ -36,7 +38,9 @@ export default function RegisterPage() {
   };
 
   const validateForm = (): string | null => {
-    if (!formData.name) return "Nome é obrigatório.";
+    // A validação agora checa os dois campos de nome
+    if (!formData.firstName || !formData.lastName)
+      return "Nome e sobrenome são obrigatórios.";
     if (!formData.email) return "Email é obrigatório.";
     if (!validationUtils.isValidEmail(formData.email)) return "Email inválido.";
     if (!formData.password) return "Senha é obrigatória.";
@@ -58,10 +62,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // Passamos firstName e lastName separadamente para a função register
       const newUser = await register(
         formData.email,
         formData.password,
-        formData.name,
+        formData.firstName,
+        formData.lastName,
         formData.role,
         formData.imageFile
       );
@@ -115,22 +121,42 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <div>
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Nome
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full px-3 py-2 border"
-          />
+        {/* O formulário agora tem dois campos para nome e sobrenome, lado a lado */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="firstName"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Nome
+            </label>
+            <input
+              id="firstName"
+              name="firstName"
+              type="text"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="lastName"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Sobrenome
+            </label>
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full px-3 py-2 border rounded-md"
+            />
+          </div>
         </div>
 
         <div>
@@ -147,7 +173,7 @@ export default function RegisterPage() {
             value={formData.email}
             onChange={handleChange}
             required
-            className="mt-1 block w-full px-3 py-2 border"
+            className="mt-1 block w-full px-3 py-2 border rounded-md"
           />
         </div>
 
@@ -165,7 +191,7 @@ export default function RegisterPage() {
             value={formData.password}
             onChange={handleChange}
             required
-            className="mt-1 block w-full px-3 py-2 border"
+            className="mt-1 block w-full px-3 py-2 border rounded-md"
           />
         </div>
 
@@ -181,7 +207,7 @@ export default function RegisterPage() {
             name="role"
             value={formData.role}
             onChange={handleChange}
-            className="mt-1 block w-full px-3 py-2 border"
+            className="mt-1 block w-full px-3 py-2 border rounded-md"
           >
             <option value="client">Cliente</option>
             <option value="owner">Estabelecimento</option>
@@ -210,7 +236,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full flex justify-center py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           {loading ? "Registrando..." : "Registar"}
         </button>

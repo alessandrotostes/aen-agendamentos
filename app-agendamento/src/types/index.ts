@@ -4,7 +4,8 @@ import { Timestamp } from "firebase/firestore";
 // USER & AUTH
 export interface AuthUser {
   uid: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: "owner" | "client" | "professional";
   createdAt: Date | null;
@@ -87,7 +88,8 @@ export interface Professional {
 export interface Appointment {
   id: string;
   clientId: string;
-  clientName: string;
+  clientFirstName: string; // <-- MUDANÇA
+  clientLastName: string; // <-- MUDANÇA
   establishmentId: string;
   serviceId: string;
   professionalId: string;
@@ -152,6 +154,8 @@ export interface PendingAppointment {
   professionalId: string;
   professionalName: string;
   bookingTimestamp: string;
+  clientFirstName: string;
+  clientLastName: string;
 }
 
 export interface AvailabilityData {

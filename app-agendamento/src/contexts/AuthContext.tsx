@@ -21,15 +21,17 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
+// MUDANÇA 1: A "planta" da função register foi atualizada.
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
-  authLoading: boolean; // Estado de loading unificado e mais claro
+  authLoading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (
     email: string,
     password: string,
-    name: string,
+    firstName: string, // <-- Mudou de 'name'
+    lastName: string, // <-- Novo
     role: "owner" | "client",
     imageFile?: File | null
   ) => Promise<AuthUser>;
@@ -42,23 +44,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true); // Começa como true
+  const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       if (user) {
-        // Se há um usuário no Auth, buscamos seus dados no Firestore
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
 
         if (userSnap.exists()) {
-          // Se encontramos os dados, atualizamos ambos os estados
           const data = userSnap.data() as AuthUser;
           setUserData(data);
           setCurrentUser(user);
         } else {
-          // Caso raro: usuário existe no Auth mas não no DB. Limpamos tudo.
           console.error(
             "Usuário autenticado não encontrado no Firestore. Fazendo logout."
           );
@@ -67,22 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCurrentUser(null);
         }
       } else {
-        // Se não há usuário no Auth, limpamos tudo
         setUserData(null);
         setCurrentUser(null);
       }
-      // O loading só termina DEPOIS de todo o processo estar concluído.
       setAuthLoading(false);
     });
 
-    // Limpa o "ouvinte" quando o componente é desmontado
     return () => unsubscribe();
   }, []);
 
+  // MUDANÇA 2: A implementação da função register foi atualizada.
   async function register(
     email: string,
     password: string,
-    name: string,
+    firstName: string,
+    lastName: string,
     role: "owner" | "client",
     imageFile?: File | null
   ): Promise<AuthUser> {
@@ -94,7 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = userCredential.user.uid;
     const createdAt = serverTimestamp();
 
-    const newUser: Omit<AuthUser, "createdAt"> = { uid, name, email, role };
+    // O objeto para salvar no Firestore agora usa os campos separados
+    const newUser: Omit<AuthUser, "createdAt"> = {
+      uid,
+      firstName,
+      lastName,
+      email,
+      role,
+    };
 
     await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
 
@@ -108,9 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await uploadBytes(imageRef, imageFile);
         imageURL = await getDownloadURL(imageRef);
       }
+
+      // Para o nome do estabelecimento, juntamos o nome e sobrenome do proprietário
+      const establishmentName = `${firstName} ${lastName}`.trim();
+
       await setDoc(doc(db, "establishments", uid), {
         ownerId: uid,
-        name,
+        name: establishmentName, // Usamos o nome completo aqui
         email,
         address: "",
         imageURL,
@@ -119,8 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    // Retornamos os dados do novo usuário para a página de registro poder agir
-    return { ...newUser, createdAt: new Date() }; // Retorna um objeto AuthUser completo
+    return { ...newUser, createdAt: new Date() };
   }
 
   async function login(email: string, password: string): Promise<AuthUser> {
@@ -152,7 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refreshUserData() {
     if (currentUser) {
-      // Força a atualização do token e re-aciona o onIdTokenChanged
       await currentUser.getIdToken(true);
     }
   }

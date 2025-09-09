@@ -38,6 +38,16 @@ setGlobalOptions({
   ],
 });
 
+function splitFullName(fullName: string): {
+  firstName: string;
+  lastName: string;
+} {
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts.shift() || "";
+  const lastName = nameParts.join(" ") || firstName; // Se não houver sobrenome, usa o primeiro nome.
+  return { firstName, lastName };
+}
+
 // ========================================================================
 // ===== FUNÇÃO 1: GERAR LINK DE ONBOARDING DO MERCADO PAGO
 // ========================================================================
@@ -160,6 +170,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "Você precisa estar logado para pagar."
     );
   }
+  // A função agora espera 'payer.full_name' do frontend.
   const { transaction_amount, payer, appointmentDetails } = request.data;
 
   try {
@@ -240,6 +251,9 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
+    // Usamos a nova função para obter nome e sobrenome.
+    const { firstName, lastName } = splitFullName(payer.full_name);
+
     const preferenceBody = {
       items: [
         {
@@ -249,9 +263,16 @@ export const createMercadoPagoPreference = onCall(async (request) => {
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
+          // Adicionamos o category_id recomendado.
+          category_id: "MLB1953", // Categoria genérica do MP para "Serviços"
         },
       ],
-      payer: { first_name: payer.first_name, email: payer.email },
+      // Enviamos o payer com nome e sobrenome separados.
+      payer: {
+        first_name: firstName,
+        last_name: lastName,
+        email: payer.email,
+      },
       back_urls: {
         success: `${aplicationBaseUrl}/client`,
         failure: `${aplicationBaseUrl}/client`,
@@ -275,11 +296,13 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "DEBUG: Resposta da criação da preferência:",
       preferenceResponse
     );
-    //const initPoint = preferenceResponse.sandbox_init_point
-    //  ? preferenceResponse.sandbox_init_point
-    //  : preferenceResponse.init_point;
-    // return { success: true, init_point: initPoint };
-    return { success: true, init_point: preferenceResponse.init_point };
+
+    // Reativando a lógica do sandbox_init_point que é uma boa prática
+    const initPoint = preferenceResponse.sandbox_init_point
+      ? preferenceResponse.sandbox_init_point
+      : preferenceResponse.init_point;
+
+    return { success: true, init_point: initPoint };
   } catch (error: any) {
     console.error("ERRO ao criar preferência:", error.cause ?? error);
     throw new HttpsError("internal", "Erro ao iniciar o pagamento.");
