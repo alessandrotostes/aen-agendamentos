@@ -39,7 +39,6 @@ export default function CheckoutPage() {
     useState<PendingAppointment | null>(null);
 
   useEffect(() => {
-    // Busca os dados do agendamento que foram salvos no modal
     const appointmentData = sessionStorage.getItem("pendingAppointment");
     if (appointmentData) {
       setPendingAppointment(JSON.parse(appointmentData));
@@ -52,7 +51,6 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    // Este efeito é acionado quando os dados do agendamento e do usuário estiverem prontos
     if (!pendingAppointment || !userData) {
       return;
     }
@@ -68,12 +66,10 @@ export default function CheckoutPage() {
           "createMercadoPagoPreference"
         );
 
-        // Objeto de dados enviado para a Cloud Function
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {
             email: userData.email,
-            // Construímos o objeto 'payer' com os campos separados que a Cloud Function agora espera
             firstName: pendingAppointment.clientFirstName,
             lastName: pendingAppointment.clientLastName,
           },
@@ -85,7 +81,6 @@ export default function CheckoutPage() {
         )) as HttpsCallableResult<PreferenceResultData>;
 
         if (result.data.success && result.data.init_point) {
-          // Redireciona o usuário para a página de pagamento
           window.location.href = result.data.init_point;
         } else {
           throw new Error(
@@ -106,7 +101,6 @@ export default function CheckoutPage() {
     createPreferenceAndRedirect();
   }, [pendingAppointment, userData]);
 
-  // JSX para exibir a tela de carregamento ou erro
   return (
     <ClientRoute>
       <ContentLayout footer={<MercadoPagoBadge />}>
@@ -120,7 +114,7 @@ export default function CheckoutPage() {
                 className="animate-spin h-8 w-8 text-teal-600"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
-                viewBox="0 0 24"
+                viewBox="0 0 24 24" // <-- A CORREÇÃO ESTÁ AQUI
               >
                 <circle
                   className="opacity-25"

@@ -10,7 +10,6 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { MercadoPagoConfig, OAuth, Preference, Payment } from "mercadopago";
-import * as crypto from "crypto";
 
 admin.initializeApp();
 const db = admin.firestore(); // Definindo o db uma vez aqui para ser usado globalmente
@@ -160,10 +159,17 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "Você precisa estar logado para pagar."
     );
   }
-  // A função agora espera 'payer.firstName' e 'payer.lastName' do frontend.
   const { transaction_amount, payer, appointmentDetails } = request.data;
 
-  // Bloco de verificação de disponibilidade do horário
+  // Validação para garantir que os nomes não estão vazios
+  if (!payer.firstName || !payer.lastName) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Nome e sobrenome do pagador são obrigatórios."
+    );
+  }
+
+  // Lógica de verificação de disponibilidade do horário (mantida como estava)
   try {
     const { establishmentId, professionalId, bookingTimestamp, duration } =
       appointmentDetails;
@@ -219,10 +225,8 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   if (!establishmentDoc.exists) {
     throw new HttpsError("not-found", "Estabelecimento não encontrado.");
   }
-
-  const ownerCredentials = establishmentDoc.data()?.mpCredentials;
-  const ownerAccessToken = ownerCredentials?.mp_access_token;
-
+  const establishmentData = establishmentDoc.data();
+  const ownerAccessToken = establishmentData?.mpCredentials?.mp_access_token;
   if (!ownerAccessToken) {
     throw new HttpsError(
       "failed-precondition",
@@ -230,13 +234,33 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  const client = new MercadoPagoConfig({
-    accessToken: ownerAccessToken,
-  });
+  const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
   const preference = new Preference(client);
   const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
+    // Pré-cria o agendamento com status "pendente" para obter um ID
+    const appointmentsRef = db
+      .collection("establishments")
+      .doc(appointmentDetails.establishmentId)
+      .collection("appointments");
+    const newAppointmentRef = appointmentsRef.doc();
+    const appointmentId = newAppointmentRef.id;
+
+    const professionalDoc = await db
+      .collection("establishments")
+      .doc(appointmentDetails.establishmentId)
+      .collection("professionals")
+      .doc(appointmentDetails.professionalId)
+      .get();
+    const professionalAuthUid = professionalDoc.data()?.authUid || null;
+
+    // Cria um nome curto e limpo para a fatura do cartão
+    const establishmentNameClean = (establishmentData?.name || "Servico")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .substring(0, 10);
+    const statementDescriptor = `AN_${establishmentNameClean}`;
+
     const preferenceBody = {
       items: [
         {
@@ -246,23 +270,24 @@ export const createMercadoPagoPreference = onCall(async (request) => {
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          category_id: "MLB1953", // Categoria para "Serviços"
+          category_id: "MLB1953",
         },
       ],
       payer: {
-        first_name: payer.firstName, // Usa o 'firstName' que veio do frontend
-        last_name: payer.lastName, // Usa o 'lastName' que veio do frontend
+        first_name: payer.firstName,
+        last_name: payer.lastName,
         email: payer.email,
       },
       back_urls: {
-        success: `${aplicationBaseUrl}/client`,
+        success: `${aplicationBaseUrl}/client/`,
         failure: `${aplicationBaseUrl}/client`,
-        pending: `${aplicationBaseUrl}/client`,
+        pending: `${aplicationBaseUrl}/client/`,
       },
       auto_return: "approved",
       marketplace_fee: application_fee,
-      metadata: { appointmentDetails, clientId: request.auth.uid },
-      external_reference: `APP_${request.auth.uid}_${Date.now()}`,
+      statement_descriptor: statementDescriptor,
+      metadata: { appointmentId: appointmentId },
+      external_reference: appointmentId,
       notification_url:
         "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/mercadoPagoWebhook",
     };
@@ -271,10 +296,19 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       body: preferenceBody,
     });
 
-    const initPoint = preferenceResponse.sandbox_init_point
-      ? preferenceResponse.sandbox_init_point
-      : preferenceResponse.init_point;
+    // Salva o agendamento "pendente" no Firestore
+    await newAppointmentRef.set({
+      ...appointmentDetails,
+      clientId: request.auth.uid,
+      clientFirstName: payer.firstName,
+      clientLastName: payer.lastName,
+      professionalAuthUid,
+      status: "pending_payment",
+      preferenceId: preferenceResponse.id,
+      createdAt: Timestamp.now(),
+    });
 
+    const initPoint = preferenceResponse.init_point;
     return { success: true, init_point: initPoint };
   } catch (error: any) {
     console.error(
@@ -292,106 +326,73 @@ export const mercadoPagoWebhook = onRequest(
   { secrets: [mercadoPagoAccessToken, mercadoPagoWebhookSecret] },
   async (request, response) => {
     try {
-      const eventId =
-        request.body?.data?.id || request.query?.id || request.query["data.id"];
-      const topic = request.body?.type || request.query?.topic || "payment";
+      const topic = request.body?.type || request.query?.topic;
 
-      if (!eventId) {
-        response.status(200).send("OK (sem ID de evento)");
-        return;
-      }
-
-      const signature = request.headers["x-signature"] as string;
-      const requestId = request.headers["x-request-id"] as string;
-
-      if (signature && requestId) {
-        const parts = signature.split(",").reduce((acc, part) => {
-          const [key, value] = part.split("=");
-          acc[key.trim()] = value.trim();
-          return acc;
-        }, {} as Record<string, string>);
-        const ts = parts.ts;
-        const v1 = parts.v1;
-        const secret = mercadoPagoWebhookSecret.value();
-        const manifest = `id:${eventId};request-id:${requestId};ts:${ts};`;
-        const hmac = crypto.createHmac("sha256", secret);
-        hmac.update(manifest);
-        const hash = hmac.digest("hex");
-        if (hash !== v1) {
-          console.error(
-            "Assinatura do Webhook inválida! A notificação foi descartada."
-          );
-          response.status(401).send("Assinatura inválida.");
-          return;
-        }
-      }
-
+      // Processamos apenas notificações de pagamento
       if (topic === "payment") {
-        const paymentId = String(eventId);
-        const client = new MercadoPagoConfig({
-          accessToken: mercadoPagoAccessToken.value(),
-        });
-        const payment = new Payment(client);
+        const paymentId = String(request.body?.data?.id || request.query?.id);
+
+        // Busca os detalhes completos do pagamento para obter a 'external_reference'
+        const payment = new Payment(
+          new MercadoPagoConfig({ accessToken: mercadoPagoAccessToken.value() })
+        );
         const paymentInfo = await payment.get({ id: paymentId });
 
+        const appointmentId = paymentInfo.external_reference;
+
+        if (!appointmentId) {
+          console.log(
+            `Webhook para pagamento ${paymentId} sem external_reference. Ignorando.`
+          );
+          response.status(200).send("OK (sem referência externa)");
+          return;
+        }
+
+        // Usa uma collectionGroup para encontrar o agendamento em qualquer estabelecimento
+        const querySnapshot = await db
+          .collectionGroup("appointments")
+          .where(admin.firestore.FieldPath.documentId(), "==", appointmentId)
+          .limit(1)
+          .get();
+
+        if (querySnapshot.empty) {
+          console.error(
+            `Agendamento com ID ${appointmentId} (da external_reference) não foi encontrado no Firestore.`
+          );
+          response.status(200).send("OK (agendamento não encontrado)");
+          return;
+        }
+
+        const appointmentRef = querySnapshot.docs[0].ref;
+        const appointmentData = querySnapshot.docs[0].data();
+
+        // Apenas atualiza o status se o pagamento foi aprovado e o agendamento ainda está pendente
         if (
           paymentInfo.status === "approved" &&
-          paymentInfo.metadata?.appointment_details
+          appointmentData.status === "pending_payment"
         ) {
-          const appointmentDetailsFromMP = paymentInfo.metadata
-            .appointment_details as any;
-          const clientId = paymentInfo.metadata.client_id as string;
-
-          const appointmentsRef = db
-            .collection("establishments")
-            .doc(appointmentDetailsFromMP.establishment_id)
-            .collection("appointments");
-          const existingAppointment = await appointmentsRef
-            .where("paymentId", "==", paymentId)
-            .limit(1)
-            .get();
-
-          if (!existingAppointment.empty) {
-            console.log(
-              `O agendamento para o pagamento ${paymentId} já existe. A ignorar.`
-            );
-          } else {
-            const bookingDate = new Date(
-              appointmentDetailsFromMP.booking_timestamp
-            );
-            const professionalDoc = await db
-              .collection("establishments")
-              .doc(appointmentDetailsFromMP.establishment_id)
-              .collection("professionals")
-              .doc(appointmentDetailsFromMP.professional_id)
-              .get();
-            const professionalAuthUid = professionalDoc.data()?.authUid || null;
-
-            await appointmentsRef.add({
-              clientId: clientId,
-              clientName:
-                paymentInfo.payer?.first_name || paymentInfo.payer?.email,
-              establishmentId: appointmentDetailsFromMP.establishment_id,
-              serviceId: appointmentDetailsFromMP.service_id,
-              professionalId: appointmentDetailsFromMP.professional_id,
-              professionalAuthUid: professionalAuthUid,
-              dateTime: Timestamp.fromDate(bookingDate),
-              duration: appointmentDetailsFromMP.duration,
-              price: appointmentDetailsFromMP.price,
-              status: "confirmado",
-              serviceName: appointmentDetailsFromMP.service_name,
-              professionalName: appointmentDetailsFromMP.professional_name,
-              paymentId: paymentInfo.id,
-              paymentProvider: "mercadopago_connect",
+          await appointmentRef.update({
+            status: "confirmado",
+            paymentId: paymentId,
+          });
+          console.log(
+            `SUCESSO: Agendamento ${appointmentId} confirmado pelo pagamento ${paymentId}.`
+          );
+        } else {
+          // Se o pagamento foi recusado, cancelado ou o agendamento já foi processado, atualiza o status para refletir isso
+          if (appointmentData.status === "pending_payment") {
+            await appointmentRef.update({
+              status: "cancelado",
+              cancellationReason: `Pagamento falhou com status: ${paymentInfo.status}`,
             });
             console.log(
-              `SUCESSO: Agendamento para o pagamento ${paymentId} criado.`
+              `Agendamento ${appointmentId} cancelado pois o pagamento ${paymentId} falhou ou foi recusado.`
+            );
+          } else {
+            console.log(
+              `Pagamento ${paymentId} recebido com status '${paymentInfo.status}', mas agendamento ${appointmentId} já estava no estado '${appointmentData.status}'. Nenhuma ação tomada.`
             );
           }
-        } else {
-          console.log(
-            `Pagamento ${paymentId} não está no estado 'approved' ou não tem metadados. Status: ${paymentInfo.status}`
-          );
         }
       }
 
