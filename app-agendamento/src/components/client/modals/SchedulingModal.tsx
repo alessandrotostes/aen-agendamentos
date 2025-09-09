@@ -160,9 +160,11 @@ export default function SchedulingModal({
     const availableSlots = slotsInMinutes.filter((potentialStart) => {
       const potentialEnd = potentialStart + service.duration;
       if (potentialEnd > endInMinutes) return false;
+
       const hasConflict = bookedIntervals.some(
         (booked) => potentialStart < booked.end && potentialEnd > booked.start
       );
+
       return !hasConflict;
     });
 
