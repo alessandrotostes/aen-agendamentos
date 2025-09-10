@@ -21,7 +21,7 @@ interface PendingAppointment {
   price: number;
   duration: number;
   professionalId: string;
-  professionalfirstName: string;
+  professionalFirstName: string;
   bookingTimestamp: string;
   clientFirstName: string;
   clientLastName: string;
@@ -195,7 +195,6 @@ export default function SchedulingModal({
   ]);
 
   const handleGoToCheckout = () => {
-    // A verificação agora inclui firstName e lastName para garantir que os dados do usuário carregaram
     if (!currentUser || !userData?.firstName || !userData?.lastName) {
       alert("Você precisa estar logado para agendar.");
       return;
@@ -210,8 +209,9 @@ export default function SchedulingModal({
     const [hours, minutes] = selectedTime.split(":");
     finalBookingDate.setHours(Number(hours), Number(minutes), 0, 0);
 
-    // MUDANÇA PRINCIPAL AQUI:
-    // Usamos os novos campos 'firstName' e 'lastName' do userData
+    // =================================================================
+    // ===== CORREÇÃO APLICADA AQUI ==================================
+    // =================================================================
     const pendingAppointment: PendingAppointment = {
       establishmentId,
       serviceId: service.id,
@@ -219,11 +219,12 @@ export default function SchedulingModal({
       price: service.price,
       duration: service.duration,
       professionalId: selectedProfessionalId,
-      professionalfirstName: professional?.firstName || "N/A",
+      professionalFirstName: professional?.firstName || "N/A", // <-- CORRIGIDO para 'professionalFirstName'
       bookingTimestamp: finalBookingDate.toISOString(),
-      clientFirstName: userData.firstName, // <-- CORRIGIDO
-      clientLastName: userData.lastName, // <-- CORRIGIDO
+      clientFirstName: userData.firstName,
+      clientLastName: userData.lastName,
     };
+    // =================================================================
 
     sessionStorage.setItem(
       "pendingAppointment",

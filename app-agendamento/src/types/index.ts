@@ -152,7 +152,7 @@ export interface PendingAppointment {
   price: number;
   duration: number;
   professionalId: string;
-  professionalfirstName: string;
+  professionalFirstName: string;
   bookingTimestamp: string;
   clientFirstName: string;
   clientLastName: string;

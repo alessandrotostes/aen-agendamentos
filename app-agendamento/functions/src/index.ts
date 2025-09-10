@@ -288,7 +288,10 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       notification_url:
         "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
     };
-
+    console.log(
+      "Corpo da preferência sendo enviado ao Mercado Pago:",
+      JSON.stringify(preferenceBody, null, 2)
+    );
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
