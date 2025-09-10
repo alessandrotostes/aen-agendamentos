@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [showTestLogins, setShowTestLogins] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -153,60 +153,67 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center">
           <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
+            <div className="absolute inset-0 flex items-center"></div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
+              {/* Botão para mostrar/esconder os logins de teste */}
+              <button
+                type="button"
+                onClick={() => setShowTestLogins(!showTestLogins)}
+                className="px-2 bg-transparent text-gray-500 hover:text-gray-700 font-medium"
+              >
                 Acesso rápido para teste
-              </span>
+                <br />
+                Clique aqui! {showTestLogins ? "⏶" : "⏷"}
+              </button>
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {/* Botão Estabelecimento (sem alterações) */}
-            <button
-              type="button"
-              onClick={() =>
-                setFormData({
-                  email: "aenestabelecimento@gmail.com",
-                  password: "aenteste123",
-                })
-              }
-              className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
-            >
-              🏬 Estabelecimento
-            </button>
+          {/* Os botões só aparecem se showTestLogins for true */}
+          {showTestLogins && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {/* Botão Estabelecimento */}
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    email: "aenestabelecimento@gmail.com",
+                    password: "aenteste123",
+                  })
+                }
+                className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
+              >
+                🏬 Estabelecimento
+              </button>
 
-            {/* Botão Cliente (sem alterações) */}
-            <button
-              type="button"
-              onClick={() =>
-                setFormData({
-                  email: "aencliente@gmail.com",
-                  password: "aenteste123",
-                })
-              }
-              className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
-            >
-              👤 Cliente
-            </button>
+              {/* Botão Cliente */}
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    email: "aencliente@gmail.com",
+                    password: "aenteste123",
+                  })
+                }
+                className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
+              >
+                👤 Cliente
+              </button>
 
-            {/* ===== BOTÃO COLABORADOR (COM A CORREÇÃO) ===== */}
-            <button
-              type="button"
-              onClick={() =>
-                setFormData({
-                  email: "aenteste@gmail.com",
-                  password: "aenteste123",
-                })
-              }
-              // ADICIONAMOS 'col-span-2' AQUI
-              className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 text-center col-span-2"
-            >
-              💼 Colaborador
-            </button>
-          </div>
+              {/* Botão Colaborador */}
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    email: "aenteste@gmail.com",
+                    password: "aenteste123",
+                  })
+                }
+                className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 text-center col-span-2"
+              >
+                💼 Colaborador
+              </button>
+            </div>
+          )}
         </div>
       </form>
     </AuthLayout>
