@@ -163,7 +163,7 @@ export default function EditAvailabilityModal({
                   as="h3"
                   className="text-lg font-bold leading-6 text-gray-900"
                 >
-                  Horário de Trabalho de {professional?.name}
+                  Horário de Trabalho de {professional?.firstName}
                 </Dialog.Title>
                 <div className="mt-4 space-y-4">
                   {formData.weeklySchedule.map((day) => (

@@ -66,14 +66,16 @@ export default function ProfessionalsTab({
                 <div className="relative w-16 h-16">
                   <Image
                     src={p.photoURL || "/images/default-avatar.png"}
-                    alt={p.name}
+                    alt={p.firstName || "Foto do Profissional"}
                     width={64}
                     height={64}
                     className="w-16 h-16 rounded-xl object-cover ring-2 ring-indigo-100 group-hover:ring-indigo-200 transition-all duration-200"
                   />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-lg text-gray-900">{p.name}</h3>
+                  <h3 className="font-bold text-lg text-gray-900">
+                    {p.firstName}
+                  </h3>
                   {p.bio && (
                     <p className="text-gray-600 text-sm line-clamp-2 mt-1">
                       {p.bio}

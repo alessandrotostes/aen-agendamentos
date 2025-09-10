@@ -164,7 +164,7 @@ export function useProfessionals(establishmentId?: string) {
     refresh,
   } = useFirestore<Professional>(collectionPath, {
     realtime: true,
-    orderByField: "name",
+    orderByField: "firstName",
     orderDirection: "asc",
   });
 
@@ -184,26 +184,24 @@ export function useProfessionals(establishmentId?: string) {
     if (!collectionPath || !userData?.uid)
       throw new Error("Usuário não autenticado");
 
-    const { imageFile, ...restOfData } = data;
+    // Desestruturamos os dados do formulário
+    const { imageFile, name, ...restOfData } = data;
 
-    // O objeto 'restOfData' já contém: name, email, phone, bio, serviceIds
-    // A sua lógica para a imagem está perfeita.
-    let finalPhotoURL = restOfData.photoURL || "";
+    let finalPhotoURL = "";
     if (imageFile) {
-      // Usamos um ID temporário para a imagem, o que é ótimo.
       const tempId = doc(collection(db, "temp")).id;
       finalPhotoURL = await handleImageUpload(imageFile, tempId);
     }
 
-    // --- CORREÇÃO APLICADA AQUI ---
-    // O objeto final a ser salvo agora inclui todos os dados do formulário.
     const professionalData = {
-      ...restOfData, // Inclui name, email, phone, bio, e os serviceIds do form
+      ...restOfData, // Inclui email, phone, bio, serviceIds, etc.
+      firstName: name,
+      photoURL: finalPhotoURL || "", // Garante que photoURL sempre seja uma string
       establishmentId: userData.uid,
-      photoURL: finalPhotoURL,
-      // A linha 'serviceIds: []' foi removida, pois ela estava a apagar os serviços selecionados.
     };
+    // ====================================================================
 
+    // O tipo genérico aqui agora está correto
     await firestoreOperations.create<Omit<Professional, "id">>(
       collectionPath,
       professionalData

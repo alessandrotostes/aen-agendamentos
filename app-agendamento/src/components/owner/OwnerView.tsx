@@ -32,6 +32,7 @@ import type {
   OperatingHours,
   Appointment,
 } from "../../types";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 
 type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
@@ -237,7 +238,11 @@ export default function OwnerView() {
       (p) => p.id === id
     );
     if (professional) {
-      setDeleteTarget({ type: "professional", id, name: professional.name });
+      setDeleteTarget({
+        type: "professional",
+        id,
+        name: professional.firstName,
+      });
       openModal("deleteConfirm");
     }
   };
@@ -356,6 +361,13 @@ export default function OwnerView() {
             <Share2 className="w-4 h-4 text-teal-600" />
             Compartilhar Link do Estabelecimento
           </button>
+          <InfoTooltip>
+            Sempre que mudar o nome do estabelecimento será necessário reenviar
+            o link para seus clientes, pois o link é gerado a partir do nome,
+            sendo assim, sempre que atualizado, é gerado uma nova URL. Aguarde
+            alguns minutos para que o link antigo pare de funcionar e o novo
+            seja propagado.
+          </InfoTooltip>
         </div>
 
         {activeTab === "dashboard" && (

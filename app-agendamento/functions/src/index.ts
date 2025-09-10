@@ -657,16 +657,23 @@ export const inviteProfessional = onCall(async (request) => {
   try {
     const userRecord = await admin.auth().createUser({
       email: email,
-      displayName: professionalData?.name,
+      // ALTERAÇÃO 1: Usar 'firstName' do perfil do profissional
+      displayName: professionalData?.firstName,
       password: Math.random().toString(36).slice(-8),
     });
+
+    // Criamos o documento na coleção principal de utilizadores
     await db.collection("users").doc(userRecord.uid).set({
       uid: userRecord.uid,
-      name: professionalData?.name,
+      // ALTERAÇÃO 2: Salvar como 'firstName' para padronizar
+      firstName: professionalData?.firstName,
       email: email,
       role: "professional",
+      // ADIÇÃO IMPORTANTE: Guardar o ID do estabelecimento a que ele pertence
+      establishmentId: ownerId,
       createdAt: Timestamp.now(),
     });
+
     await professionalRef.update({ authUid: userRecord.uid });
     const link = await admin.auth().generatePasswordResetLink(email);
     // TODO: Enviar o link por email para o profissional.
@@ -674,11 +681,14 @@ export const inviteProfessional = onCall(async (request) => {
     return { success: true, message: "Convite enviado com sucesso!" };
   } catch (error: any) {
     if (error.code === "auth/email-already-exists") {
+      // Se o email já existe na autenticação, podemos tentar vincular a conta existente
+      // Esta é uma lógica mais avançada, por agora lançamos o erro.
       throw new HttpsError(
         "already-exists",
-        "Este email já está a ser utilizado."
+        "Este email já está a ser utilizado por outra conta."
       );
     }
+    console.error("Erro detalhado ao convidar profissional:", error);
     throw new HttpsError(
       "internal",
       "Ocorreu um erro inesperado ao processar o convite."
@@ -733,6 +743,11 @@ export const resendInvite = onCall(async (request) => {
     console.log("Link de convite reenviado:", link);
     return { success: true, message: "Convite reenviado com sucesso!" };
   } catch (error: any) {
+    // =================================================================
+    // ===== CORREÇÃO ADICIONADA AQUI ==================================
+    // Adicionamos um log para ver o erro original no painel do Firebase
+    console.error("Erro detalhado ao gerar link de reset:", error);
+    // =================================================================
     throw new HttpsError(
       "internal",
       "Ocorreu um erro inesperado ao reenviar o convite."

@@ -73,7 +73,7 @@ export interface Service {
 export interface Professional {
   id: string;
   establishmentId: string;
-  name: string;
+  firstName: string;
   email?: string;
   authUid?: string;
   phone?: string;

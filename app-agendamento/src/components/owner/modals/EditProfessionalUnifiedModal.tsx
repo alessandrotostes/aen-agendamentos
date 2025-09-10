@@ -62,7 +62,7 @@ export default function EditProfessionalUnifiedModal({
     if (isOpen) {
       // Configura os dados do profissional, carregando os existentes se for edição
       setFormData({
-        name: professional?.name || "",
+        name: professional?.firstName || "",
         email: professional?.email || "",
         phone: professional?.phone || "",
         photoURL: professional?.photoURL || "",

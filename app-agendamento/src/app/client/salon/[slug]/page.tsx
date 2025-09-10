@@ -45,15 +45,17 @@ const ProfessionalCard = ({
   return (
     <div className="bg-white rounded-xl shadow-md p-4 flex items-center gap-4">
       <Image
+        // CORREÇÃO AQUI: Fornecer um caminho de imagem real como alternativa
         src={professional.photoURL || "/images/default-avatar.png"}
-        alt={professional.name}
+        // A propriedade 'alt' continua a ter o texto descritivo
+        alt={professional.firstName || "Foto do Profissional"}
         width={64}
         height={64}
-        className="w-16 h-16 rounded-full object-cover"
+        className="w-16 h-16 rounded-xl object-cover ring-2 ring-indigo-100 group-hover:ring-indigo-200 transition-all duration-200"
       />
       <div className="flex-grow">
         <h4 className="font-bold text-lg text-slate-900">
-          {professional.name}
+          {professional.firstName}
         </h4>
         {professionalServices.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
