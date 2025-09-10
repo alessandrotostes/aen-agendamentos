@@ -57,27 +57,30 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   }
   // =================================================================
 
+  // Variável para guardar o texto de confirmação dinâmico
+  let confirmationText = "Concluído";
+  if (virtualStatus === "concluido") {
+    confirmationText = "Concluído";
+  }
+
   const statusStyles = {
     confirmado: {
       bg: "bg-yellow-50",
       border: "border-yellow-200",
       indicator: "bg-yellow-500",
       textColor: "text-gray-900",
-      lineThrough: "",
     },
     concluido: {
       bg: "bg-emerald-50",
       border: "border-emerald-200",
       indicator: "bg-emerald-500",
       textColor: "text-gray-500",
-      lineThrough: "line-through",
     },
     cancelado: {
       bg: "bg-red-50",
       border: "border-red-200",
       indicator: "bg-red-500",
       textColor: "text-gray-500",
-      lineThrough: "line-through",
     },
   };
   const currentStyle = statusStyles[virtualStatus] || statusStyles.cancelado;
@@ -100,17 +103,24 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
               "Não informado"}
           </p>
           {virtualStatus === "cancelado" && (
-            <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-              {/* O texto agora é dinâmico */}
+            <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full ">
               {cancellationText}
+            </span>
+          )}
+          {virtualStatus === "concluido" && (
+            <span className="mt-1 inline-block bg-emerald-100 text-emerald-800  border-emerald-200 text-xs font-semibold px-2 py-0.5 rounded-full ">
+              {confirmationText}
             </span>
           )}
         </div>
       </div>
       <div
-        className={`text-lg font-semibold text-right ${currentStyle.textColor} ${currentStyle.lineThrough}`}
+        className={`text-lg font-semibold text-right ${currentStyle.textColor} line-through`}
       >
         {format(appointment.dateTime.toDate(), "HH:mm")}
+        <span className="block text-xs font-normal text-gray-500 mt-0.5">
+          ({appointment.duration} min)
+        </span>
       </div>
     </div>
   );

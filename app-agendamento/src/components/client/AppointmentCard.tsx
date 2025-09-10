@@ -4,6 +4,10 @@
 
 "use client";
 
+// src/components/client/AppointmentCard.tsx
+
+"use client";
+
 import React from "react";
 import Image from "next/image";
 import { format, differenceInHours } from "date-fns";
@@ -17,9 +21,8 @@ import {
   Hourglass,
   CheckCircle,
   X,
-} from "lucide-react"; // Adicionados Ícones
+} from "lucide-react";
 
-// ===== ALTERAÇÃO 1: ADICIONAR onDismiss ÀS PROPS =====
 interface AppointmentCardProps {
   appointment: Appointment;
   establishment?: Establishment;
@@ -33,7 +36,7 @@ export default function AppointmentCard({
   establishment,
   onCancel,
   onShowCancellationInfo,
-  onDismiss, // Nova prop
+  onDismiss,
 }: AppointmentCardProps) {
   // =================================================================
   // ===== LÓGICA ATUALIZADA AQUI =====================================
@@ -84,7 +87,6 @@ export default function AppointmentCard({
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
 
-  // ===== ALTERAÇÃO 2: LÓGICA DE STATUS VIRTUAL =====
   let virtualStatus:
     | "confirmado"
     | "concluido"
@@ -99,17 +101,18 @@ export default function AppointmentCard({
   const isCancellable = isUpcoming && hoursUntil >= 3;
 
   const mapsUrl = establishment?.address
-    ? `https://maps.google.com/?q=${encodeURIComponent(establishment.address)}`
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        establishment.address
+      )}`
     : "#";
 
-  // ===== ALTERAÇÃO 3: LÓGICA DE BADGE DE STATUS =====
   let statusBadge = null;
   if (virtualStatus === "cancelado") {
     let text = "CANCELADO";
     if (appointment.cancellationReason?.includes("Pagamento")) {
       text = "CANCELADO - PAGAMENTO RECUSADO";
     } else if (appointment.cancelledBy === "owner") {
-      text = "CANCELADO - ESTABELECIMENTO";
+      text = "CANCELADO - PELO ESTABELECIMENTO";
     } else if (appointment.cancelledBy === "client") {
       text = "CANCELADO - POR VOCÊ";
     }
@@ -137,7 +140,6 @@ export default function AppointmentCard({
     <div
       className={`relative bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 ${cardBorderStyle} flex flex-col sm:flex-row gap-3 sm:gap-5`}
     >
-      {/* ===== ALTERAÇÃO 5: BOTÃO 'X' PARA DISPENSAR ===== */}
       {(virtualStatus === "concluido" || virtualStatus === "cancelado") && (
         <button
           onClick={() => onDismiss(appointment.id)}
@@ -166,7 +168,6 @@ export default function AppointmentCard({
             <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
               {appointment.serviceName}
             </p>
-            {/* O 'statusBadge' agora renderiza todos os status */}
             {statusBadge}
           </div>
           <p className="text-sm sm:text-base text-slate-600">
@@ -190,9 +191,14 @@ export default function AppointmentCard({
             <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
             <span>{format(appointmentDate, "dd/MM/yy", { locale: ptBR })}</span>
           </div>
+          {/* ================================================================= */}
+          {/* ===== ALTERAÇÃO AQUI: DURAÇÃO ADICIONADA ======================== */}
+          {/* ================================================================= */}
           <div className="flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-teal-600 shrink-0" />
-            <span>{format(appointmentDate, "HH:mm")}</span>
+            <span>
+              {format(appointmentDate, "HH:mm")} ({appointment.duration} min)
+            </span>
           </div>
           {establishment?.address && (
             <a
@@ -228,7 +234,7 @@ export default function AppointmentCard({
               } else {
                 onShowCancellationInfo(
                   "Prazo de Cancelamento Expirado",
-                  "Não é possível cancelar agendamentos com menos de 3 horas de antecedência. Por favor, entre em contato diretamente com o estabelecimento caso queira continuar com o cancelamento."
+                  "Não é possível cancelar agendamentos com menos de 3 horas de antecedência."
                 );
               }
             }}
