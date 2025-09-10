@@ -51,6 +51,7 @@ export default function SalonCard({
             fill
             className="object-contain" // object-contain pode ser melhor que object-cover aqui
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority
           />
           <button
             onClick={handleFavoriteClick}

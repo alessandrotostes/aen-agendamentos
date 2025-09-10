@@ -266,7 +266,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalName}`,
+          description: `Com ${appointmentDetails.professionalfirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
@@ -289,7 +289,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       metadata: { appointmentId: appointmentId },
       external_reference: appointmentId,
       notification_url:
-        "https://southamerica-east1-webappagendamento-1c932.cloudfunctions.net/mercadoPagoWebhook",
+        "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
     };
 
     const preferenceResponse = await preference.create({

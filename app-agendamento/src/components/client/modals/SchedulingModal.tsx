@@ -21,7 +21,7 @@ interface PendingAppointment {
   price: number;
   duration: number;
   professionalId: string;
-  professionalName: string;
+  professionalfirstName: string;
   bookingTimestamp: string;
   clientFirstName: string;
   clientLastName: string;
@@ -219,7 +219,7 @@ export default function SchedulingModal({
       price: service.price,
       duration: service.duration,
       professionalId: selectedProfessionalId,
-      professionalName: professional?.firstName || "N/A",
+      professionalfirstName: professional?.firstName || "N/A",
       bookingTimestamp: finalBookingDate.toISOString(),
       clientFirstName: userData.firstName, // <-- CORRIGIDO
       clientLastName: userData.lastName, // <-- CORRIGIDO

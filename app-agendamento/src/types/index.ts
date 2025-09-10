@@ -99,7 +99,7 @@ export interface Appointment {
   status: "confirmado" | "cancelado";
   cancelledBy?: "owner" | "client";
   serviceName: string;
-  professionalName: string;
+  professionalfirstName: string;
   cancellationRequest?: CancellationRequest;
 }
 
@@ -152,7 +152,7 @@ export interface PendingAppointment {
   price: number;
   duration: number;
   professionalId: string;
-  professionalName: string;
+  professionalfirstName: string;
   bookingTimestamp: string;
   clientFirstName: string;
   clientLastName: string;

@@ -90,7 +90,9 @@ const AppointmentCard = ({
       <div className="flex justify-between items-start">
         <div>
           <p className="font-bold text-lg text-gray-800">{app.serviceName}</p>
-          <p className="text-sm text-gray-600">com {app.professionalName}</p>
+          <p className="text-sm text-gray-600">
+            com {app.professionalfirstName}
+          </p>
           <p className="text-sm text-gray-500 mt-1">em {establishmentName}</p>
         </div>
         <div className="text-right">

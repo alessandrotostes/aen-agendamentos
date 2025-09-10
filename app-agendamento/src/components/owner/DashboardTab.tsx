@@ -156,7 +156,7 @@ export default function DashboardTab({
                           })}
                         </p>
                         <p className="text-sm text-indigo-600">
-                          {appointment.professionalName}
+                          {appointment.professionalfirstName}
                         </p>
                         {virtualStatus === "confirmado" && (
                           <button

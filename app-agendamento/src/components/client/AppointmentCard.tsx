@@ -87,7 +87,7 @@ export default function AppointmentCard({
           <p className="text-sm sm:text-base text-slate-600">
             com{" "}
             <span className="font-semibold">
-              {appointment.professionalName}
+              {appointment.professionalfirstName}
             </span>
           </p>
           <p className="text-xs sm:text-sm text-slate-500">
