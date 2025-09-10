@@ -163,7 +163,10 @@ export default function LoginPage() {
               >
                 Acesso rápido para teste
                 <br />
-                Clique aqui! {showTestLogins ? "⏶" : "⏷"}
+                <u>
+                  <strong> Clique aqui </strong>
+                </u>
+                {showTestLogins ? "⏶" : "⏷"}
               </button>
             </div>
           </div>
