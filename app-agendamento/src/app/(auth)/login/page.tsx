@@ -162,30 +162,49 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
+
           <div className="mt-4 grid grid-cols-2 gap-3">
+            {/* Botão Estabelecimento (sem alterações) */}
             <button
               type="button"
               onClick={() =>
                 setFormData({
-                  email: "alessandrotostes.jr@gmail.com",
-                  password: "teste123",
+                  email: "aenestabelecimento@gmail.com",
+                  password: "aenteste123",
                 })
               }
               className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
             >
-              👨‍💼 Estabelecimento
+              🏬 Estabelecimento
             </button>
+
+            {/* Botão Cliente (sem alterações) */}
             <button
               type="button"
               onClick={() =>
                 setFormData({
-                  email: "tostesacustico@gmail.com",
-                  password: "teste123",
+                  email: "aencliente@gmail.com",
+                  password: "aenteste123",
                 })
               }
               className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50"
             >
               👤 Cliente
+            </button>
+
+            {/* ===== BOTÃO COLABORADOR (COM A CORREÇÃO) ===== */}
+            <button
+              type="button"
+              onClick={() =>
+                setFormData({
+                  email: "aenteste@gmail.com",
+                  password: "aenteste123",
+                })
+              }
+              // ADICIONAMOS 'col-span-2' AQUI
+              className="w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 text-center col-span-2"
+            >
+              💼 Colaborador
             </button>
           </div>
         </div>

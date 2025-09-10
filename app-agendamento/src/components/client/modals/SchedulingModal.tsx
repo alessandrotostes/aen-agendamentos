@@ -219,7 +219,7 @@ export default function SchedulingModal({
       price: service.price,
       duration: service.duration,
       professionalId: selectedProfessionalId,
-      professionalName: professional?.name || "N/A",
+      professionalName: professional?.firstName || "N/A",
       bookingTimestamp: finalBookingDate.toISOString(),
       clientFirstName: userData.firstName, // <-- CORRIGIDO
       clientLastName: userData.lastName, // <-- CORRIGIDO
@@ -300,7 +300,7 @@ export default function SchedulingModal({
                                   {prof.photoURL ? (
                                     <Image
                                       src={prof.photoURL}
-                                      alt={prof.name}
+                                      alt={prof.firstName}
                                       width={40}
                                       height={40}
                                       className="w-10 h-10 rounded-full object-cover"
@@ -308,13 +308,13 @@ export default function SchedulingModal({
                                   ) : (
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center shrink-0">
                                       <span className="text-lg font-bold text-white">
-                                        {prof.name.charAt(0)}
+                                        {prof.firstName.charAt(0)}
                                       </span>
                                     </div>
                                   )}
                                 </>
                                 <p className="font-bold text-gray-800 text-md">
-                                  {prof.name}
+                                  {prof.firstName}
                                 </p>
                               </button>
                             ))

@@ -367,6 +367,9 @@ export default function OwnerView() {
             sendo assim, sempre que atualizado, é gerado uma nova URL. Aguarde
             alguns minutos para que o link antigo pare de funcionar e o novo
             seja propagado.
+            <br />
+            <strong>Importante!</strong>: Atualize a página para que seja gerado
+            o novo link após a modificação do nome.
           </InfoTooltip>
         </div>
 
