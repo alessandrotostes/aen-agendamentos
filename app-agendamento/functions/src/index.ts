@@ -257,7 +257,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalFirstName}`,
+          description: `Com ${appointmentDetails.professionalfirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
