@@ -1,3 +1,4 @@
+// ClientDashboardView.tsx (COMPLETO E CORRIGIDO)
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -172,7 +173,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       setSuccessModalOpen(true);
       refreshAppointments();
     } catch (error: unknown) {
-      // CORRIGIDO AQUI
       console.error("Erro ao chamar a função de cancelamento:", error);
       const message =
         error instanceof Error
@@ -208,18 +208,22 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setAlertModalOpen(true);
   };
 
+  // =================================================================
+  // ===== CORREÇÃO APLICADA AQUI ==================================
+  // =================================================================
   const upcomingAppointments = appointments.filter(
     (a) =>
-      !a.cancellationRequest &&
       a.status === "confirmado" &&
+      a.dateTime && // Garante que a data existe
       a.dateTime.toDate() > new Date()
   );
+
   const pastAppointments = appointments.filter(
     (a) =>
-      a.cancellationRequest ||
-      a.status !== "confirmado" ||
-      a.dateTime.toDate() < new Date()
+      a.status !== "confirmado" || // Inclui 'cancelado' e 'pending_payment'
+      (a.dateTime && a.dateTime.toDate() < new Date()) // Inclui os que têm data e já passaram
   );
+  // =================================================================
 
   if (loading || appointmentsLoading) {
     return <LoadingSpinner />;

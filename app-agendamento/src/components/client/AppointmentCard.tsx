@@ -67,6 +67,7 @@ export default function AppointmentCard({
             src={establishment.imageURL}
             alt={`Logo de ${establishment.name}`}
             fill
+            sizes="(max-width: 640px) 100vw, 112px"
             className="object-contain"
           />
         </div>

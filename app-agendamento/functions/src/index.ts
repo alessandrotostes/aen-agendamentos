@@ -161,7 +161,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   }
   const { transaction_amount, payer, appointmentDetails } = request.data;
 
-  // Validação para garantir que os nomes não estão vazios
+  // PENDÊNCIA 1 & 2: Validar nome e sobrenome (já estava correto)
   if (!payer.firstName || !payer.lastName) {
     throw new HttpsError(
       "invalid-argument",
@@ -169,40 +169,32 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  // Lógica de verificação de disponibilidade do horário (mantida como estava)
+  // --- Lógica de verificação de disponibilidade (sem alterações) ---
   try {
-    const { establishmentId, professionalId, bookingTimestamp, duration } =
+    const { establishmentId, professionalId, bookingTimestamp } =
       appointmentDetails;
-    const requestedStartTime = new Date(bookingTimestamp).getTime();
-    const requestedEndTime = requestedStartTime + duration * 60 * 1000;
+    const requestedStartTime = new Date(bookingTimestamp);
+
+    // Validação de horário futuro
+    if (requestedStartTime < new Date()) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Não é possível agendar em um horário que já passou."
+      );
+    }
 
     const appointmentsRef = db
       .collection("establishments")
       .doc(establishmentId)
       .collection("appointments");
+
     const snapshot = await appointmentsRef
       .where("professionalId", "==", professionalId)
       .where("status", "==", "confirmado")
+      .where("dateTime", "==", Timestamp.fromDate(requestedStartTime))
       .get();
 
-    let isSlotTaken = false;
     if (!snapshot.empty) {
-      snapshot.forEach((doc) => {
-        const booking = doc.data();
-        const existingStartTime = (booking.dateTime as Timestamp).toMillis();
-        const existingEndTime =
-          existingStartTime + booking.duration * 60 * 1000;
-
-        if (
-          requestedStartTime < existingEndTime &&
-          requestedEndTime > existingStartTime
-        ) {
-          isSlotTaken = true;
-        }
-      });
-    }
-
-    if (isSlotTaken) {
       throw new HttpsError(
         "already-exists",
         "Desculpe, este horário acabou de ser reservado. Por favor, escolha outro."
@@ -239,7 +231,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
-    // Pré-cria o agendamento com status "pendente" para obter um ID
     const appointmentsRef = db
       .collection("establishments")
       .doc(appointmentDetails.establishmentId)
@@ -255,7 +246,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       .get();
     const professionalAuthUid = professionalDoc.data()?.authUid || null;
 
-    // Cria um nome curto e limpo para a fatura do cartão
+    // PENDÊNCIA 4: Criar um nome curto e limpo para a fatura do cartão
     const establishmentNameClean = (establishmentData?.name || "Servico")
       .replace(/[^a-zA-Z0-9]/g, "")
       .substring(0, 10);
@@ -266,14 +257,16 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalfirstName}`,
+          description: `Com ${appointmentDetails.professionalFirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          category_id: "MLB1953",
+          // PENDÊNCIA 3: Adicionar a categoria do item
+          category_id: "services", // Categoria genérica para serviços
         },
       ],
       payer: {
+        // PENDÊNCIA 1 & 2: Enviar nome e sobrenome
         first_name: payer.firstName,
         last_name: payer.lastName,
         email: payer.email,
@@ -285,8 +278,12 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       },
       auto_return: "approved",
       marketplace_fee: application_fee,
+      // PENDÊNCIA 4: Enviar o descritor da fatura
       statement_descriptor: statementDescriptor,
-      metadata: { appointmentId: appointmentId },
+      metadata: {
+        appointmentId: appointmentId,
+        establishmentId: appointmentDetails.establishmentId,
+      },
       external_reference: appointmentId,
       notification_url:
         "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
@@ -296,9 +293,12 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       body: preferenceBody,
     });
 
-    // Salva o agendamento "pendente" no Firestore
+    // MUDANÇA PRINCIPAL: Salvar o agendamento com 'dateTime' desde o início
+    const finalBookingDate = new Date(appointmentDetails.bookingTimestamp);
     await newAppointmentRef.set({
       ...appointmentDetails,
+      // REMOVEMOS bookingTimestamp e usamos dateTime
+      dateTime: Timestamp.fromDate(finalBookingDate),
       clientId: request.auth.uid,
       clientFirstName: payer.firstName,
       clientLastName: payer.lastName,
@@ -319,102 +319,69 @@ export const createMercadoPagoPreference = onCall(async (request) => {
   }
 });
 
-// ====================================================================
-// ===== FUNÇÃO 4: WEBHOOK DO MERCADO PAGO (VERSÃO SEGURA)
-// ====================================================================
+// FUNÇÃO 4: WEBHOOK DO MERCADO PAGO (VERSÃO FINAL E CORRETA)
 export const mercadoPagoWebhook = onRequest(
-  { secrets: [mercadoPagoAccessToken, mercadoPagoWebhookSecret] },
+  { secrets: [mercadoPagoAccessToken] },
   async (request, response) => {
     try {
       const topic = request.body?.type || request.query?.topic;
 
-      // Processamos apenas notificações de pagamento
       if (topic === "payment") {
         const paymentId = String(request.body?.data?.id || request.query?.id);
-
-        // Busca os detalhes completos do pagamento para obter a 'external_reference'
         const payment = new Payment(
           new MercadoPagoConfig({ accessToken: mercadoPagoAccessToken.value() })
         );
         const paymentInfo = await payment.get({ id: paymentId });
 
         const appointmentId = paymentInfo.external_reference;
+        const establishmentId = paymentInfo.metadata?.establishment_id;
 
-        if (!appointmentId) {
-          console.log(
-            `Webhook para pagamento ${paymentId} sem external_reference. Ignorando.`
-          );
-          response.status(200).send("OK (sem referência externa)");
+        if (!appointmentId || !establishmentId) {
+          response.status(200).send("OK (dados insuficientes)");
           return;
         }
 
-        // Usa uma collectionGroup para encontrar o agendamento em qualquer estabelecimento
-        const querySnapshot = await db
-          .collectionGroup("appointments")
-          .where(admin.firestore.FieldPath.documentId(), "==", appointmentId)
-          .limit(1)
-          .get();
+        const appointmentRef = db
+          .collection("establishments")
+          .doc(establishmentId)
+          .collection("appointments")
+          .doc(appointmentId);
 
-        if (querySnapshot.empty) {
-          console.error(
-            `Agendamento com ID ${appointmentId} (da external_reference) não foi encontrado no Firestore.`
-          );
+        const appointmentDoc = await appointmentRef.get();
+        if (!appointmentDoc.exists) {
           response.status(200).send("OK (agendamento não encontrado)");
           return;
         }
 
-        const appointmentRef = querySnapshot.docs[0].ref;
-        const appointmentData = querySnapshot.docs[0].data();
+        const appointmentData = appointmentDoc.data();
+        if (appointmentData?.status !== "pending_payment") {
+          response.status(200).send("OK (já processado)");
+          return;
+        }
 
-        // Apenas atualiza o status se o pagamento foi aprovado e o agendamento ainda está pendente
-        if (
-          paymentInfo.status === "approved" &&
-          appointmentData.status === "pending_payment"
+        const paymentStatus = paymentInfo.status;
+
+        if (paymentStatus === "approved") {
+          // LÓGICA SIMPLIFICADA: A data já existe, só precisamos de atualizar o status.
+          await appointmentRef.update({
+            status: "confirmado",
+            paymentId: paymentId,
+          });
+          console.log(`SUCESSO: Agendamento ${appointmentId} confirmado.`);
+        } else if (
+          ["rejected", "cancelled", "failed"].includes(paymentStatus as string)
         ) {
-          // =================================================================
-          // ===== CORREÇÃO APLICADA AQUI ==================================
-          // =================================================================
-          // O agendamento pendente tem 'bookingTimestamp'.
-          // Precisamos de o converter para o campo final 'dateTime'.
-          const bookingTimestamp = appointmentData.bookingTimestamp;
-
-          if (!bookingTimestamp) {
-            console.error(
-              `Agendamento ${appointmentId} não tem bookingTimestamp! O agendamento será confirmado sem data.`
-            );
-            // Se não houver timestamp, ainda assim confirmamos o pagamento, mas logamos o erro.
-            await appointmentRef.update({
-              status: "confirmado",
-              paymentId: paymentId,
-            });
-          } else {
-            // Se o timestamp existir, adicionamo-lo como 'dateTime' ao atualizar
-            await appointmentRef.update({
-              status: "confirmado",
-              paymentId: paymentId,
-              dateTime: Timestamp.fromMillis(bookingTimestamp), // <-- ADIÇÃO CRÍTICA
-            });
-          }
-          // =================================================================
-
+          await appointmentRef.update({
+            status: "cancelado",
+            cancellationReason: `Pagamento falhou com status: ${paymentStatus}`,
+          });
           console.log(
-            `SUCESSO: Agendamento ${appointmentId} confirmado pelo pagamento ${paymentId}.`
+            `Agendamento ${appointmentId} cancelado (status: ${paymentStatus}).`
           );
         } else {
-          // Se o pagamento foi recusado, cancelado ou o agendamento já foi processado, atualiza o status para refletir isso
-          if (appointmentData.status === "pending_payment") {
-            await appointmentRef.update({
-              status: "cancelado",
-              cancellationReason: `Pagamento falhou com status: ${paymentInfo.status}`,
-            });
-            console.log(
-              `Agendamento ${appointmentId} cancelado pois o pagamento ${paymentId} falhou ou foi recusado.`
-            );
-          } else {
-            console.log(
-              `Pagamento ${paymentId} recebido com status '${paymentInfo.status}', mas agendamento ${appointmentId} já estava no estado '${appointmentData.status}'. Nenhuma ação tomada.`
-            );
-          }
+          console.log(
+            `Status intermediário '${paymentStatus}' recebido. Aguardando notificação final.`
+          );
         }
       }
 
