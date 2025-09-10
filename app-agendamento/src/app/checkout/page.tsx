@@ -71,8 +71,13 @@ export default function CheckoutPage() {
           transaction_amount: pendingAppointment.price,
           payer: {
             email: userData.email,
-            firstName: pendingAppointment.clientFirstName,
-            lastName: pendingAppointment.clientLastName,
+            // =======================================================
+            // ===== CORREÇÃO APLICADA AQUI ==========================
+            // =======================================================
+            // Usar a fonte de dados do utilizador logado (userData)
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            // =======================================================
           },
           appointmentDetails: pendingAppointment,
         };
