@@ -20,6 +20,7 @@ const MercadoPagoBadge = () => (
       alt="Logo do Mercado Pago"
       width={200}
       height={50}
+      className="w-48 h-auto"
     />
   </div>
 );
