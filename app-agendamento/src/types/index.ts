@@ -96,7 +96,7 @@ export interface Appointment {
   dateTime: Timestamp;
   duration: number;
   price: number;
-  status: "confirmado" | "cancelado";
+  status: "confirmado" | "cancelado" | "pending_payment";
   cancelledBy?: "owner" | "client";
   serviceName: string;
   professionalfirstName: string;

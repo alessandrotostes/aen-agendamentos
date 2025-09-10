@@ -14,7 +14,25 @@ import { LogOut } from "lucide-react"; // Ícone para o botão de sair
 
 // NOVO AppointmentCard com lógica de status visual
 const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
-  // Lógica para determinar o status visual (igual a do painel do Owner)
+  // Verificação para agendamentos pendentes ou sem data
+  if (appointment.status === "pending_payment" || !appointment.dateTime) {
+    return (
+      <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-gray-50 border border-gray-200 opacity-70">
+        <div className="flex items-center space-x-4">
+          <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-400" />
+          <div>
+            <p className="font-bold truncate text-gray-700">
+              {appointment.serviceName}
+            </p>
+            <p className="text-sm text-gray-500">
+              Aguardando confirmação de pagamento.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const now = new Date();
   let virtualStatus: "confirmado" | "concluido" | "cancelado" =
     appointment.status;
@@ -25,9 +43,22 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     virtualStatus = "concluido";
   }
 
+  // =================================================================
+  // ===== LÓGICA ADICIONADA AQUI ====================================
+  // =================================================================
+  // Variável para guardar o texto de cancelamento dinâmico
+  let cancellationText = "Cancelado";
+  if (virtualStatus === "cancelado") {
+    if (appointment.cancelledBy === "owner") {
+      cancellationText = "Pelo Estabelecimento";
+    } else if (appointment.cancelledBy === "client") {
+      cancellationText = "Pelo Cliente";
+    }
+  }
+  // =================================================================
+
   const statusStyles = {
     confirmado: {
-      // Próximos (Amarelo)
       bg: "bg-yellow-50",
       border: "border-yellow-200",
       indicator: "bg-yellow-500",
@@ -35,7 +66,6 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
       lineThrough: "",
     },
     concluido: {
-      // Concluídos (Verde)
       bg: "bg-emerald-50",
       border: "border-emerald-200",
       indicator: "bg-emerald-500",
@@ -43,7 +73,6 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
       lineThrough: "line-through",
     },
     cancelado: {
-      // Cancelados (Vermelho)
       bg: "bg-red-50",
       border: "border-red-200",
       indicator: "bg-red-500",
@@ -51,8 +80,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
       lineThrough: "line-through",
     },
   };
-
-  const currentStyle = statusStyles[virtualStatus];
+  const currentStyle = statusStyles[virtualStatus] || statusStyles.cancelado;
 
   return (
     <div
@@ -73,7 +101,8 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
           </p>
           {virtualStatus === "cancelado" && (
             <span className="mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-              Cancelado
+              {/* O texto agora é dinâmico */}
+              {cancellationText}
             </span>
           )}
         </div>

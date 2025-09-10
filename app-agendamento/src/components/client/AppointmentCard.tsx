@@ -1,3 +1,5 @@
+// src/components/client/AppointmentCard.tsx
+
 "use client";
 
 import React from "react";
@@ -5,7 +7,7 @@ import Image from "next/image";
 import { format, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Appointment, Establishment } from "@/types";
-import { Calendar, Clock, Map, Phone } from "lucide-react";
+import { Calendar, Clock, Map, Phone, Hourglass } from "lucide-react";
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -21,14 +23,50 @@ export default function AppointmentCard({
   onShowCancellationInfo,
 }: AppointmentCardProps) {
   // =================================================================
-  // ===== CORREÇÃO ADICIONADA AQUI ==================================
+  // ===== LÓGICA ATUALIZADA AQUI =====================================
   // =================================================================
-  // Se o agendamento (ex: pendente) não tiver uma data/hora,
-  // não renderizamos o card para evitar erros.
+  // Se o status for 'pending_payment', renderiza um card especial.
+  if (appointment.status === "pending_payment") {
+    return (
+      <div className="bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 border-yellow-400 flex flex-col sm:flex-row gap-3 sm:gap-5">
+        {establishment?.imageURL && (
+          <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+            <Image
+              src={establishment.imageURL}
+              alt={`Logo de ${establishment.name}`}
+              fill
+              sizes="(max-width: 640px) 100vw, 112px"
+              className="object-contain"
+            />
+          </div>
+        )}
+        <div className="flex-grow flex flex-col justify-center space-y-2">
+          <div>
+            <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+              {appointment.serviceName}
+            </p>
+            <p className="text-sm sm:text-base text-slate-600">
+              com{" "}
+              <span className="font-semibold">
+                {appointment.professionalfirstName}
+              </span>
+            </p>
+          </div>
+          <div className="border-t border-slate-100 !my-2"></div>
+          <div className="flex items-center gap-2 text-yellow-700">
+            <Hourglass className="w-4 h-4" />
+            <p className="text-sm font-semibold">Aguardando seu pagamento</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // =================================================================
+
+  // Se o agendamento não tiver data (ex: um erro), não renderiza nada.
   if (!appointment.dateTime) {
     return null;
   }
-  // =================================================================
 
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();

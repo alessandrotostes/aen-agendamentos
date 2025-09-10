@@ -10,8 +10,8 @@ import { ptBR } from "date-fns/locale";
 import { format, isToday, isTomorrow } from "date-fns";
 import LoadingSpinner from "./common/LoadingSpinner";
 import { Appointment } from "@/types";
+import { Hourglass } from "lucide-react"; // Importar o ícone
 
-// A prop agora espera o objeto 'Appointment' completo
 interface Props {
   stats: {
     services: number;
@@ -49,9 +49,17 @@ export default function DashboardTab({
     }
   };
 
-  const sortedAppointments = [...appointmentsForDate].sort(
-    (a, b) => a.dateTime.toMillis() - b.dateTime.toMillis()
-  );
+  // =================================================================
+  // ===== ALTERAÇÃO 1: ORDENAÇÃO SEGURA =============================
+  // =================================================================
+  const sortedAppointments = [...appointmentsForDate].sort((a, b) => {
+    // Agendamentos sem data (pendentes) vão para o final
+    if (!a.dateTime) return 1;
+    if (!b.dateTime) return -1;
+    // Ordena os restantes por data
+    return a.dateTime.toMillis() - b.dateTime.toMillis();
+  });
+  // =================================================================
 
   return (
     <div className="space-y-8">
@@ -75,6 +83,31 @@ export default function DashboardTab({
             ) : sortedAppointments.length > 0 ? (
               <div className="space-y-4">
                 {sortedAppointments.map((appointment) => {
+                  // =================================================================
+                  // ===== ALTERAÇÃO 2: CARD PARA PAGAMENTOS PENDENTES =========
+                  // =================================================================
+                  if (appointment.status === "pending_payment") {
+                    return (
+                      <div
+                        key={appointment.id}
+                        className="flex items-center justify-between py-3 px-4 rounded-lg bg-yellow-50 border border-yellow-200"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <Hourglass className="w-5 h-5 text-yellow-600 shrink-0" />
+                          <div>
+                            <p className="font-medium text-gray-800">
+                              {appointment.serviceName}
+                            </p>
+                            <p className="text-sm text-yellow-700 font-semibold">
+                              Aguardando confirmação de pagamento do cliente
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // =================================================================
+
                   const isPast = appointment.dateTime.toDate() < new Date();
                   const virtualStatus =
                     appointment.status === "cancelado"
