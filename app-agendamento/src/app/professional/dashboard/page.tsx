@@ -50,9 +50,9 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   let cancellationText = "Cancelado";
   if (virtualStatus === "cancelado") {
     if (appointment.cancelledBy === "owner") {
-      cancellationText = "Pelo Estabelecimento";
+      cancellationText = "Cancelado Pelo Estabelecimento";
     } else if (appointment.cancelledBy === "client") {
-      cancellationText = "Pelo Cliente";
+      cancellationText = "Cancelado Pelo Cliente";
     }
   }
   // =================================================================
