@@ -41,8 +41,22 @@ export function useAppointments() {
         const apps = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
         );
-        apps.sort((a, b) => b.dateTime.toMillis() - a.dateTime.toMillis());
-        setAppointments(apps);
+
+        // =================================================================
+        // ===== CORREÇÃO APLICADA AQUI ==================================
+        // =================================================================
+        const sortedApps = apps.sort((a, b) => {
+          // Se 'b' não tem data, ele vai para o fim da lista.
+          if (!b.dateTime) return -1;
+          // Se 'a' não tem data, ele vai para o fim da lista.
+          if (!a.dateTime) return 1;
+
+          // Se ambos têm data, ordena pela mais recente primeiro.
+          return b.dateTime.toMillis() - a.dateTime.toMillis();
+        });
+        // =================================================================
+
+        setAppointments(sortedApps);
         setLoading(false);
       },
       (err) => {

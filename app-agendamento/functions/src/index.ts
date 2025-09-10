@@ -371,10 +371,32 @@ export const mercadoPagoWebhook = onRequest(
           paymentInfo.status === "approved" &&
           appointmentData.status === "pending_payment"
         ) {
-          await appointmentRef.update({
-            status: "confirmado",
-            paymentId: paymentId,
-          });
+          // =================================================================
+          // ===== CORREÇÃO APLICADA AQUI ==================================
+          // =================================================================
+          // O agendamento pendente tem 'bookingTimestamp'.
+          // Precisamos de o converter para o campo final 'dateTime'.
+          const bookingTimestamp = appointmentData.bookingTimestamp;
+
+          if (!bookingTimestamp) {
+            console.error(
+              `Agendamento ${appointmentId} não tem bookingTimestamp! O agendamento será confirmado sem data.`
+            );
+            // Se não houver timestamp, ainda assim confirmamos o pagamento, mas logamos o erro.
+            await appointmentRef.update({
+              status: "confirmado",
+              paymentId: paymentId,
+            });
+          } else {
+            // Se o timestamp existir, adicionamo-lo como 'dateTime' ao atualizar
+            await appointmentRef.update({
+              status: "confirmado",
+              paymentId: paymentId,
+              dateTime: Timestamp.fromMillis(bookingTimestamp), // <-- ADIÇÃO CRÍTICA
+            });
+          }
+          // =================================================================
+
           console.log(
             `SUCESSO: Agendamento ${appointmentId} confirmado pelo pagamento ${paymentId}.`
           );
