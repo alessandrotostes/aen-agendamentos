@@ -1,5 +1,7 @@
 // src/components/client/AppointmentCard.tsx
 
+// src/components/client/AppointmentCard.tsx
+
 "use client";
 
 import React from "react";
@@ -7,13 +9,23 @@ import Image from "next/image";
 import { format, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Appointment, Establishment } from "@/types";
-import { Calendar, Clock, Map, Phone, Hourglass } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Map,
+  Phone,
+  Hourglass,
+  CheckCircle,
+  X,
+} from "lucide-react"; // Adicionados Ícones
 
+// ===== ALTERAÇÃO 1: ADICIONAR onDismiss ÀS PROPS =====
 interface AppointmentCardProps {
   appointment: Appointment;
   establishment?: Establishment;
   onCancel: (appointment: Appointment) => void;
   onShowCancellationInfo: (title: string, message: string) => void;
+  onDismiss: (appointmentId: string) => void;
 }
 
 export default function AppointmentCard({
@@ -21,6 +33,7 @@ export default function AppointmentCard({
   establishment,
   onCancel,
   onShowCancellationInfo,
+  onDismiss, // Nova prop
 }: AppointmentCardProps) {
   // =================================================================
   // ===== LÓGICA ATUALIZADA AQUI =====================================
@@ -71,9 +84,17 @@ export default function AppointmentCard({
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
 
-  const isUpcoming =
-    appointment.status === "confirmado" && appointmentDate >= now;
+  // ===== ALTERAÇÃO 2: LÓGICA DE STATUS VIRTUAL =====
+  let virtualStatus:
+    | "confirmado"
+    | "concluido"
+    | "cancelado"
+    | "pending_payment" = appointment.status;
+  if (appointment.status === "confirmado" && appointmentDate < now) {
+    virtualStatus = "concluido";
+  }
 
+  const isUpcoming = virtualStatus === "confirmado";
   const hoursUntil = differenceInHours(appointmentDate, now);
   const isCancellable = isUpcoming && hoursUntil >= 3;
 
@@ -81,24 +102,52 @@ export default function AppointmentCard({
     ? `https://maps.google.com/?q=${encodeURIComponent(establishment.address)}`
     : "#";
 
-  let cancellationText = "CANCELADO";
-  if (appointment.status === "cancelado") {
-    if (appointment.cancelledBy === "owner") {
-      cancellationText = "CANCELADO PELO ESTABELECIMENTO";
+  // ===== ALTERAÇÃO 3: LÓGICA DE BADGE DE STATUS =====
+  let statusBadge = null;
+  if (virtualStatus === "cancelado") {
+    let text = "CANCELADO";
+    if (appointment.cancellationReason?.includes("Pagamento")) {
+      text = "CANCELADO - PAGAMENTO RECUSADO";
+    } else if (appointment.cancelledBy === "owner") {
+      text = "CANCELADO - ESTABELECIMENTO";
     } else if (appointment.cancelledBy === "client") {
-      cancellationText = "CANCELADO POR VOCÊ";
+      text = "CANCELADO - POR VOCÊ";
     }
+    statusBadge = (
+      <span className="text-[10px] sm:text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full ml-2 shrink-0 text-center">
+        {text}
+      </span>
+    );
+  } else if (virtualStatus === "concluido") {
+    statusBadge = (
+      <span className="text-[10px] sm:text-xs font-bold text-white bg-emerald-500 px-2 py-1 rounded-full ml-2 shrink-0 flex items-center gap-1">
+        <CheckCircle className="w-3 h-3" />
+        CONCLUÍDO
+      </span>
+    );
   }
 
+  // ===== ALTERAÇÃO 4: ESTILO "APAGADO" PARA HISTÓRICO =====
   const cardBorderStyle =
-    appointment.status === "cancelado"
-      ? "border-red-400 opacity-70"
+    virtualStatus === "cancelado" || virtualStatus === "concluido"
+      ? "border-gray-300 opacity-70"
       : "border-teal-500";
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 ${cardBorderStyle} flex flex-col sm:flex-row gap-3 sm:gap-5`}
+      className={`relative bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 ${cardBorderStyle} flex flex-col sm:flex-row gap-3 sm:gap-5`}
     >
+      {/* ===== ALTERAÇÃO 5: BOTÃO 'X' PARA DISPENSAR ===== */}
+      {(virtualStatus === "concluido" || virtualStatus === "cancelado") && (
+        <button
+          onClick={() => onDismiss(appointment.id)}
+          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition z-10"
+          aria-label="Dispensar agendamento"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+
       {establishment?.imageURL && (
         <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0 bg-slate-100">
           <Image
@@ -117,11 +166,8 @@ export default function AppointmentCard({
             <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
               {appointment.serviceName}
             </p>
-            {appointment.status === "cancelado" && (
-              <span className="text-[10px] sm:text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full ml-2 shrink-0 text-center">
-                {cancellationText}
-              </span>
-            )}
+            {/* O 'statusBadge' agora renderiza todos os status */}
+            {statusBadge}
           </div>
           <p className="text-sm sm:text-base text-slate-600">
             com{" "}

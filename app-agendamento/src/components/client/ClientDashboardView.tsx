@@ -1,4 +1,3 @@
-// ClientDashboardView.tsx (COMPLETO E CORRIGIDO)
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -62,6 +61,30 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     title: "",
     message: "",
   });
+
+  // =================================================================
+  // ===== LÓGICA PARA GERIR CARDS DISPENSADOS (ADICIONADA) =========
+  // =================================================================
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+
+  // Ao carregar, busca os IDs salvos no localStorage
+  useEffect(() => {
+    const storedIds = localStorage.getItem("dismissedAppointments");
+    if (storedIds) {
+      setDismissedIds(JSON.parse(storedIds));
+    }
+  }, []);
+
+  // Ao dispensar um novo card, salva a lista atualizada no localStorage
+  useEffect(() => {
+    localStorage.setItem("dismissedAppointments", JSON.stringify(dismissedIds));
+  }, [dismissedIds]);
+
+  // Função que será passada para o AppointmentCard para dispensar um agendamento
+  const handleDismiss = (appointmentId: string) => {
+    setDismissedIds((prevIds) => [...prevIds, appointmentId]);
+  };
+  // =================================================================
 
   useEffect(() => {
     if (appointmentsLoading || appointments.length === 0) {
@@ -208,22 +231,22 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setAlertModalOpen(true);
   };
 
-  // =================================================================
-  // ===== CORREÇÃO APLICADA AQUI ==================================
-  // =================================================================
+  // ===== FILTROS ATUALIZADOS PARA ESCONDER CARDS DISPENSADOS (ALTERADO) =====
   const upcomingAppointments = appointments.filter(
     (a) =>
       a.status === "confirmado" &&
-      a.dateTime && // Garante que a data existe
-      a.dateTime.toDate() > new Date()
+      a.dateTime &&
+      a.dateTime.toDate() > new Date() &&
+      !dismissedIds.includes(a.id) // Esconde se estiver na lista de dispensados
   );
 
   const pastAppointments = appointments.filter(
     (a) =>
-      a.status !== "confirmado" || // Inclui 'cancelado' e 'pending_payment'
-      (a.dateTime && a.dateTime.toDate() < new Date()) // Inclui os que têm data e já passaram
+      (a.status !== "confirmado" ||
+        (a.dateTime && a.dateTime.toDate() < new Date())) &&
+      !dismissedIds.includes(a.id) // Esconde se estiver na lista de dispensados
   );
-  // =================================================================
+  // =======================================================================
 
   if (loading || appointmentsLoading) {
     return <LoadingSpinner />;
@@ -259,6 +282,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   establishment={establishments.get(app.establishmentId)}
                   onCancel={handleOpenCancellationFlow}
                   onShowCancellationInfo={handleShowAlert}
+                  onDismiss={handleDismiss} // <-- PROP 'onDismiss' PASSADA
                 />
               ))}
             </div>
@@ -283,6 +307,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                   establishment={establishments.get(app.establishmentId)}
                   onCancel={() => {}}
                   onShowCancellationInfo={handleShowAlert}
+                  onDismiss={handleDismiss} // <-- PROP 'onDismiss' PASSADA
                 />
               ))}
             </div>

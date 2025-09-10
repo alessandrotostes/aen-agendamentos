@@ -11,6 +11,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import LoadingSpinner from "./common/LoadingSpinner";
 import { Appointment } from "@/types";
 import { Hourglass } from "lucide-react"; // Importar o ícone
+import { useMemo } from "react";
 
 interface Props {
   stats: {
@@ -52,13 +53,32 @@ export default function DashboardTab({
   // =================================================================
   // ===== ALTERAÇÃO 1: ORDENAÇÃO SEGURA =============================
   // =================================================================
-  const sortedAppointments = [...appointmentsForDate].sort((a, b) => {
-    // Agendamentos sem data (pendentes) vão para o final
-    if (!a.dateTime) return 1;
-    if (!b.dateTime) return -1;
-    // Ordena os restantes por data
-    return a.dateTime.toMillis() - b.dateTime.toMillis();
-  });
+  const sortedAppointments = useMemo(() => {
+    const now = Date.now();
+
+    // Função auxiliar para dar uma "nota" de prioridade a cada status
+    const getStatusRank = (app: Appointment) => {
+      // Se o agendamento não tem data (pendente), vai para o fim.
+      if (!app.dateTime) return 4;
+
+      if (app.status === "cancelado") return 3; // Cancelados
+      if (app.dateTime.toMillis() < now) return 2; // Concluídos
+      return 1; // Próximos (Confirmados)
+    };
+
+    return [...appointmentsForDate].sort((a, b) => {
+      const rankA = getStatusRank(a);
+      const rankB = getStatusRank(b);
+
+      // Se a prioridade for diferente, ordena pela prioridade
+      if (rankA !== rankB) return rankA - rankB;
+
+      // Se a prioridade for a mesma, ordena pelo horário
+      if (!a.dateTime) return 1; // Garante que pendentes fiquem no fim se comparados entre si
+      if (!b.dateTime) return -1;
+      return a.dateTime.toMillis() - b.dateTime.toMillis();
+    });
+  }, [appointmentsForDate]);
   // =================================================================
 
   return (

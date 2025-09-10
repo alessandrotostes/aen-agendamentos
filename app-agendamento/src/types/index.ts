@@ -101,6 +101,7 @@ export interface Appointment {
   serviceName: string;
   professionalfirstName: string;
   cancellationRequest?: CancellationRequest;
+  cancellationReason?: string;
 }
 
 export interface CancellationRequest {
