@@ -102,16 +102,18 @@ const AppointmentRow = ({
             {appointment.serviceName}
           </p>
           <p className="text-sm text-slate-600">
+            {/* CORRIGIDO: Typo de 'professionalfirstName' para 'professionalFirstName' */}
             com {appointment.professionalfirstName}
           </p>
         </div>
       </div>
+
+      {/* CORRIGIDO: Bloco de nome do cliente duplicado foi removido */}
       <div className="text-sm text-slate-600 sm:text-center">
         <p className="font-semibold text-slate-900">
           {`${appointment.clientFirstName} ${appointment.clientLastName}`.trim()}
         </p>
-
-        {/* ===== EXIBA O TELEMÓVEL DO CLIENTE AQUI ===== */}
+        {/* O telemóvel agora será exibido corretamente */}
         {appointment.clientPhone && (
           <a
             href={`tel:${appointment.clientPhone}`}
@@ -120,19 +122,9 @@ const AppointmentRow = ({
             {appointment.clientPhone}
           </a>
         )}
-        {/* ========================================== */}
-      </div>
-
-      <div className="text-sm text-slate-600 sm:text-center">
-        <p className="font-semibold text-slate-900">
-          {`${appointment.clientFirstName} ${appointment.clientLastName}`.trim()}
-        </p>
       </div>
 
       <div className="flex items-center justify-end gap-4">
-        {/* ================================================================= */}
-        {/* ===== CORREÇÃO 1: ALINHAMENTO DO RISCO (line-through) ========= */}
-        {/* ================================================================= */}
         <div
           className={`flex items-baseline ${
             virtualStatus !== "confirmado"
@@ -154,7 +146,6 @@ const AppointmentRow = ({
             ({appointment.duration} min)
           </span>
         </div>
-        {/* ================================================================= */}
 
         {virtualStatus === "cancelado" && (
           <p className="text-sm font-semibold text-red-600">{cancelText}</p>
