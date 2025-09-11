@@ -352,7 +352,7 @@ export default function OwnerView() {
           </ul>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         <div className="flex justify-end">
           <button
             onClick={handleShareLink}
