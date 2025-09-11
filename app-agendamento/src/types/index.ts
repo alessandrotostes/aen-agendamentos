@@ -214,4 +214,9 @@ export interface Salon {
   phone?: string;
   rating?: number;
   favoritesCount?: number;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+  };
+  mainService?: string;
 }
