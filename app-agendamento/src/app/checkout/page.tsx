@@ -55,10 +55,12 @@ export default function CheckoutPage() {
   // ===== BLOCO useEffect CORRIGIDO =================================
   // =================================================================
   useEffect(() => {
+    // Condições de guarda para evitar execuções desnecessárias
     if (authLoading || !pendingAppointment || isRedirecting) {
       return;
     }
 
+    // Validação dos dados do utilizador
     if (
       !userData ||
       !userData.firstName ||
@@ -74,43 +76,47 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Função assíncrona para criar a preferência e redirecionar
     const createPreferenceAndRedirect = async () => {
       setIsRedirecting(true);
       setIsLoading(true);
       setError(null);
 
       try {
-        // Este log só será executado se todas as verificações acima passarem.
+        // ✅ ALTERAÇÃO 1: CRIAR UMA VERSÃO SEGURA DOS DADOS DO AGENDAMENTO
+        // Garantimos que qualquer campo de data seja convertido para texto (string ISO)
+        // para evitar erros de serialização (o erro 400).
+        const serializableAppointmentDetails = {
+          ...pendingAppointment,
+          // Supondo que o campo de data se chama 'bookingTimestamp'.
+          // Se o nome for outro, ajuste a linha abaixo.
+          bookingTimestamp: new Date(
+            pendingAppointment.bookingTimestamp
+          ).toISOString(),
+        };
+
+        // ✅ ALTERAÇÃO 2: AJUSTAR O PAYLOAD PARA O NOVO CONTRATO DA FUNÇÃO
+        const preferenceData = {
+          transaction_amount: pendingAppointment.price,
+          payer: {
+            email: userData.email,
+            first_name: userData.firstName, // Chave ajustada para snake_case
+            last_name: userData.lastName, // Chave ajustada para snake_case
+          },
+          // Usamos a versão segura dos dados do agendamento
+          appointmentDetails: serializableAppointmentDetails,
+        };
+
         console.log(
-          "✅ [CHECKOUT] Dados validados e prontos para enviar para a Cloud Function:",
-          {
-            timestamp: new Date().toISOString(),
-            payerData: {
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-              email: userData.email,
-            },
-            // Adicionamos também os detalhes do agendamento para uma verificação completa
-            appointmentDetails: pendingAppointment,
-          }
+          "✅ [CHECKOUT] DADOS FINAIS ENVIADOS PARA A FUNÇÃO:",
+          JSON.parse(JSON.stringify(preferenceData))
         );
-        // ================================================================
 
         const functions = getFunctions(getApp(), "southamerica-east1");
         const createMercadoPagoPreference = httpsCallable(
           functions,
           "createMercadoPagoPreference"
         );
-
-        const preferenceData = {
-          transaction_amount: pendingAppointment.price,
-          payer: {
-            email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-          },
-          appointmentDetails: pendingAppointment,
-        };
 
         const result = (await createMercadoPagoPreference(
           preferenceData
