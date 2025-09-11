@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Building, CreditCard, Clock } from "lucide-react";
+import { Building, CreditCard, Clock, CheckCircle } from "lucide-react"; // Adicionado CheckCircle
 import InfoTooltip from "@/components/shared/InfoTooltip";
 
 interface MpData {
@@ -16,6 +16,37 @@ interface Props {
   onEditEstablishment: () => void;
   onManageOperatingHours: () => void;
 }
+
+// ==========================================================
+// ===== COMPONENTE INTERNO: SettingCard (para Reutilização) ==
+// ==========================================================
+const SettingCard = ({
+  icon: Icon,
+  title,
+  description,
+  buttonText,
+  onClick,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  buttonText: string;
+  onClick: () => void;
+}) => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+    <div className="flex items-center gap-3">
+      <Icon className="w-6 h-6 text-teal-600" />
+      <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+    </div>
+    <p className="text-sm text-slate-500 mt-2 flex-grow">{description}</p>
+    <button
+      onClick={onClick}
+      className="mt-4 w-full px-4 py-2 bg-teal-50 text-teal-700 font-semibold rounded-lg hover:bg-teal-100 transition-colors"
+    >
+      {buttonText}
+    </button>
+  </div>
+);
 
 export default function SettingsTab({
   mpData,
@@ -37,112 +68,76 @@ export default function SettingsTab({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card de Informações do Estabelecimento (sem alterações) */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="flex items-center gap-3">
-            <Building className="w-6 h-6 text-teal-600" />
-            <h3 className="text-lg font-bold text-slate-900">
-              Informações Gerais
-            </h3>
-          </div>
-          <p className="text-sm text-slate-500 mt-2">
-            Edite o nome, endereço e outras informações do seu estabelecimento.{" "}
-            <br /> Essas informações são importantes para que seus clientes
-            possam encontrar e conhecer melhor o seu negócio.
-          </p>
-          <button
-            onClick={onEditEstablishment}
-            className="mt-4 w-full px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg"
-          >
-            Editar Informações
-          </button>
-        </div>
+        <SettingCard
+          icon={Building}
+          title="Informações Gerais"
+          description="Edite o nome, endereço, telefone e outras informações que seus clientes veem sobre o seu negócio."
+          buttonText="Editar Informações"
+          onClick={onEditEstablishment}
+        />
 
-        {/* Card de Horário de Funcionamento (sem alterações) */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="flex items-center gap-3">
-            <Clock className="w-6 h-6 text-teal-600" />
-            <h3 className="text-lg font-bold text-slate-900">
-              Horário de Funcionamento
-            </h3>
-          </div>
-          <p className="text-sm text-slate-500 mt-2">
-            Defina os horários em que seu estabelecimento está aberto.
-          </p>
-          <button
-            onClick={onManageOperatingHours}
-            className="mt-4 w-full px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg"
-          >
-            Gerir Horários
-          </button>
-        </div>
+        <SettingCard
+          icon={Clock}
+          title="Horário de Funcionamento"
+          description="Defina os dias e horários padrão em que seu estabelecimento está aberto para agendamentos."
+          buttonText="Gerir Horários"
+          onClick={onManageOperatingHours}
+        />
 
-        {/* --- CARD DE PAGAMENTOS ATUALIZADO COM BOTÃO "TROCAR CONTA" --- */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border md:col-span-2">
-          <div className="flex items-center gap-3">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+          <div className="flex items-center gap-3 mb-4">
             <CreditCard className="w-6 h-6 text-teal-600" />
             <h3 className="text-lg font-bold text-slate-900">
-              Configuração de Pagamentos
+              Pagamentos Online
             </h3>
           </div>
-          <div className="mt-4">
+          <div>
             {mpData.loading ? (
               <p className="text-slate-500">A processar...</p>
             ) : mpData.hasMpAccount ? (
-              <div className="text-center p-4 bg-emerald-50 text-emerald-700 rounded-lg">
-                {/* ========================================================== */}
-                {/* ===== CORREÇÃO APLICADA AQUI =========================== */}
-                {/* ========================================================== */}
-                <div className="font-semibold flex items-center justify-center">
-                  <span>✅ Sua conta do Mercado Pago está conectada.</span>
+              <div className="text-center p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 space-y-2">
+                <div className="font-semibold flex items-center justify-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  <span>Sua conta do Mercado Pago está conectada.</span>
+                </div>
+                <p className="text-sm">
+                  Você está pronto para receber pagamentos online.
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={mpData.connectMercadoPago}
+                    disabled={mpData.loading}
+                    className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                  >
+                    Trocar de conta
+                  </button>
                   <InfoTooltip>
-                    Caso queira mudar a conta do mercado pago que está vinculada
-                    ao seu estabelecimento, acesse mercadopago.com.br, clique em
-                    sair da conta. Após se certificar que está
-                    &quot;deslogado&quot; é só clicar em &quot;Trocar de
-                    conta&quot; que abrirá a página do mercado livre para que
-                    você possa se conectar com a conta desejada.
+                    Para trocar, saia da sua conta atual no site do Mercado Pago
+                    e clique aqui para conectar uma nova.
                   </InfoTooltip>
                 </div>
-
-                <p className="text-sm mt-1">
-                  Você está pronto para receber pagamentos online com split de
-                  taxas.
-                </p>
-                <button
-                  onClick={mpData.connectMercadoPago}
-                  disabled={mpData.loading}
-                  className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-800 transition"
-                >
-                  Trocar de conta
-                </button>
               </div>
             ) : (
               <div>
                 <p className="text-slate-500 mb-4">
-                  Conecte com o Mercado Pago para receber pagamentos online dos
-                  seus clientes e gerir o seu negócio.
+                  Conecte sua conta do Mercado Pago para aceitar pagamentos
+                  online de forma segura e automatizada.
                 </p>
-                <InfoTooltip>
-                  Antes de se conctar ao Mercado Pago, certifique-se de que a
-                  conta que está &quot;logada&quot; no seu navagador é a conta
-                  do seu estabelecimento, para que o pagamento seja direcionado
-                  corretamente. Certifique-se também de que a conta do Mercado
-                  Pago está verificada e apta a receber pagamentos online. Se
-                  você ainda não tem uma conta no Mercado Pago, pode criar uma
-                  gratuitamente em mercadopago.com.br.
-                </InfoTooltip>
                 <button
                   onClick={mpData.connectMercadoPago}
                   disabled={mpData.loading}
-                  className="w-full px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition"
+                  className="w-full px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-sm"
                 >
                   Conectar com Mercado Pago
                 </button>
+                <InfoTooltip>
+                  Certifique-se de que a conta logada no seu navegador é a conta
+                  correta do seu estabelecimento.
+                </InfoTooltip>
               </div>
             )}
             {mpData.error && (
-              <p className="text-red-500 text-sm mt-2">{mpData.error}</p>
+              <p className="text-red-600 text-sm mt-2">{mpData.error}</p>
             )}
           </div>
         </div>

@@ -120,7 +120,7 @@ export interface CreateServiceData {
 }
 
 export interface CreateProfessionalData {
-  name: string;
+  firstName: string;
   email: string;
   phone: string;
   serviceIds: string[];

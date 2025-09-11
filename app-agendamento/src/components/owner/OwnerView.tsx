@@ -38,7 +38,6 @@ type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
 };
 
-// Interface para a resposta da função de onboarding do MP
 interface OnboardingLinkData {
   url: string;
 }
@@ -58,6 +57,13 @@ export default function OwnerView() {
     success: false,
     ownerCancel: false,
   });
+
+  // ====================================================================
+  // ===== ALTERAÇÃO 1: NOVO ESTADO PARA CONTROLAR A VISÃO DO MODAL =====
+  // ====================================================================
+  const [modalInitialView, setModalInitialView] = useState<
+    "details" | "availability"
+  >("details");
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedProfessional, setSelectedProfessional] =
@@ -222,6 +228,7 @@ export default function OwnerView() {
   };
   const handleCreateProfessional = () => {
     setSelectedProfessional(null);
+    setModalInitialView("details"); // Padrão para 'detalhes' ao criar
     openModal("editProfessionalUnified");
   };
   const handleUpdateProfessional = (id: string) => {
@@ -230,9 +237,16 @@ export default function OwnerView() {
     );
     if (professional) {
       setSelectedProfessional(professional);
+      setModalInitialView("details"); // Define a visão inicial para 'detalhes'
       openModal("editProfessionalUnified");
     }
   };
+  const handleManageAvailability = (professional: Professional) => {
+    setSelectedProfessional(professional);
+    setModalInitialView("availability"); // Define a visão inicial para 'horários'
+    openModal("editProfessionalUnified");
+  };
+
   const handleDeleteProfessional = (id: string) => {
     const professional = professionalsData.professionals.find(
       (p) => p.id === id
@@ -352,7 +366,7 @@ export default function OwnerView() {
           </ul>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         <div className="flex justify-end">
           <button
             onClick={handleShareLink}
@@ -401,10 +415,7 @@ export default function OwnerView() {
             createProfessional={handleCreateProfessional}
             updateProfessional={handleUpdateProfessional}
             deleteProfessional={handleDeleteProfessional}
-            onManageAvailability={(professional) => {
-              setSelectedProfessional(professional);
-              openModal("editProfessionalUnified");
-            }}
+            onManageAvailability={handleManageAvailability} // <-- Usa a nova função
             onInviteProfessional={handleInviteProfessional}
             onResendInvite={handleResendInvite}
           />
@@ -426,6 +437,7 @@ export default function OwnerView() {
         isSuccessOpen={modals.success}
         selectedService={selectedService}
         selectedProfessional={selectedProfessional}
+        initialView={modalInitialView} // <-- Passa a visão inicial
         establishmentToEdit={establishment}
         deleteTarget={deleteTarget}
         successMessage={successMessage}

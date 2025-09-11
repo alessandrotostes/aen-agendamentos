@@ -22,6 +22,9 @@ type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
 };
 
+// ==========================================================
+// ===== ALTERAÇÃO 1: ADICIONADA A NOVA PROP 'initialView' ====
+// ==========================================================
 interface ModalsManagerProps {
   isServiceOpen: boolean;
   isProfessionalUnifiedOpen: boolean;
@@ -31,6 +34,7 @@ interface ModalsManagerProps {
   isSuccessOpen: boolean;
   selectedService: Service | null;
   selectedProfessional: Professional | null;
+  initialView: "details" | "availability"; // <-- ADICIONADO AQUI
   establishmentToEdit: Establishment | null;
   deleteTarget: {
     type: "service" | "professional";
@@ -61,6 +65,7 @@ export default function ModalsManager({
   isSuccessOpen,
   selectedService,
   selectedProfessional,
+  initialView, // <-- ALTERAÇÃO 2: RECEBIDA A PROP
   establishmentToEdit,
   deleteTarget,
   successMessage,
@@ -92,6 +97,7 @@ export default function ModalsManager({
         onSave={onSaveProfessional}
         professional={selectedProfessional}
         allServices={allServices}
+        initialView={initialView} // <-- ALTERAÇÃO 3: PROP PASSADA PARA O MODAL
       />
 
       <EditEstablishmentModal

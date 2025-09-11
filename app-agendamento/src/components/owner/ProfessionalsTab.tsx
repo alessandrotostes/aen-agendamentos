@@ -1,9 +1,135 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import EmptyState from "./common/EmptyState";
 import Image from "next/image";
 import type { Professional } from "../../types";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Clock,
+  Send,
+  Search,
+  CheckCircle,
+  Mail,
+  X,
+} from "lucide-react";
+
+// ====================================================================
+// ===== COMPONENTE INTERNO: ProfessionalCard (Refatorado) ============
+// ====================================================================
+const ProfessionalCard = ({
+  professional,
+  onUpdate,
+  onDelete,
+  onManageAvailability,
+  onInvite,
+  onResendInvite,
+}: {
+  professional: Professional;
+  onUpdate: () => void;
+  onDelete: () => void;
+  onManageAvailability: () => void;
+  onInvite: () => void;
+  onResendInvite: () => void;
+}) => {
+  return (
+    <div className="bg-white p-5 rounded-xl shadow-sm flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-indigo-200">
+      {/* --- Seção Superior: Foto, Nome e Status --- */}
+      <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
+        <div className="relative w-16 h-16 shrink-0">
+          <Image
+            src={professional.photoURL || "/images/default-avatar.png"}
+            alt={professional.firstName || "Foto do Profissional"}
+            fill
+            sizes="64px"
+            className="rounded-full object-cover"
+          />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-lg text-slate-900">
+            {professional.firstName}
+          </h3>
+          {professional.authUid ? (
+            <span className="mt-1 text-xs font-bold inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-md">
+              <CheckCircle className="w-3.5 h-3.5" /> Convidado
+            </span>
+          ) : (
+            <span className="mt-1 text-xs font-bold inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 text-amber-800 rounded-md">
+              <Mail className="w-3.5 h-3.5" /> Convite Pendente
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* --- Seção do Meio: Bio e Especialidades --- */}
+      <div className="flex-grow py-4">
+        {professional.bio && (
+          <p className="text-sm text-slate-600 line-clamp-3 mb-3">
+            {professional.bio}
+          </p>
+        )}
+        {professional.specialties && professional.specialties.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {professional.specialties.map((s, idx) => (
+              <span
+                key={`${professional.id}-spec-${idx}`}
+                className="text-xs font-medium bg-slate-100 text-slate-700 px-2 py-1 rounded-full"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* --- Rodapé: Ações --- */}
+      <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+        <div>
+          {!professional.authUid && professional.email ? (
+            <button
+              onClick={onInvite}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-teal-500 hover:bg-teal-600 rounded-lg transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" /> Convidar
+            </button>
+          ) : (
+            <button
+              onClick={onResendInvite}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Reenviar
+            </button>
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={onManageAvailability}
+            className="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-md transition"
+            aria-label="Gerenciar horários"
+          >
+            <Clock className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onUpdate}
+            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition"
+            aria-label="Editar profissional"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+            aria-label="Excluir profissional"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface Props {
   professionals: Professional[];
@@ -24,6 +150,17 @@ export default function ProfessionalsTab({
   onInviteProfessional,
   onResendInvite,
 }: Props) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredProfessionals = useMemo(() => {
+    if (!searchTerm) {
+      return professionals;
+    }
+    return professionals.filter((p) =>
+      p.firstName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [professionals, searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -36,131 +173,66 @@ export default function ProfessionalsTab({
         </div>
         <button
           onClick={createProfessional}
-          className="px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white rounded-xl hover:from-teal-600 hover:to-indigo-500 transition-all duration-200 hover:scale-105 shadow-lg font-medium flex items-center"
+          className="px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white rounded-xl hover:from-teal-600 hover:to-indigo-500 transition-all duration-200 hover:scale-105 shadow-lg font-medium flex items-center justify-center"
         >
-          <svg
-            className="w-5 h-5 inline mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
+          <Plus className="w-5 h-5 inline mr-2" />
           <span>Novo Profissional</span>
         </button>
       </div>
 
-      {professionals.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {professionals.map((p) => (
-            <div
-              key={p.id}
-              className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-indigo-100 hover:shadow-lg hover:border-indigo-200 transition-all duration-200 group flex flex-col"
+      {professionals.length > 0 && (
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por nome do profissional..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              aria-label="Limpar busca"
             >
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="relative w-16 h-16">
-                  <Image
-                    src={p.photoURL || "/images/default-avatar.png"}
-                    alt={p.firstName || "Foto do Profissional"}
-                    width={64}
-                    height={64}
-                    className="w-16 h-16 rounded-xl object-cover ring-2 ring-indigo-100 group-hover:ring-indigo-200 transition-all duration-200"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-gray-900">
-                    {p.firstName}
-                  </h3>
-                  {p.bio && (
-                    <p className="text-gray-600 text-sm line-clamp-2 mt-1">
-                      {p.bio}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+      )}
 
-              {p.specialties && p.specialties.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-2">
-                    {p.specialties.slice(0, 3).map((s, idx) => (
-                      <span
-                        key={`${p.id}-spec-${idx}`}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-teal-100 to-indigo-100 text-teal-700"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                    {p.specialties.length > 3 && (
-                      <span className="text-xs text-teal-600 font-medium px-2 py-1 bg-teal-50 rounded-full">
-                        +{p.specialties.length - 3}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {p.authUid ? (
-                <span className="mb-4 text-xs font-bold inline-flex items-center self-start px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md">
-                  ✔️ Convidado
-                </span>
-              ) : (
-                <span className="mb-4 text-xs font-bold inline-flex items-center self-start px-2 py-1 bg-yellow-100 text-yellow-700 rounded-md">
-                  ✉️ Convite Pendente
-                </span>
-              )}
-
-              <div className="mt-auto pt-4 border-t flex justify-end space-x-2">
-                {!p.authUid && p.email && (
-                  <button
-                    onClick={() => onInviteProfessional(p.id)}
-                    className="px-3 py-1 text-xs font-medium text-white bg-teal-500 hover:bg-teal-600 rounded-lg"
-                  >
-                    Convidar
-                  </button>
-                )}
-                {p.authUid && (
-                  <button
-                    onClick={() => onResendInvite(p.id)}
-                    className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                  >
-                    Reenviar Convite
-                  </button>
-                )}
-                <button
-                  onClick={() => onManageAvailability(p)}
-                  className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                >
-                  Horários
-                </button>
-                <button
-                  onClick={() => updateProfessional(p.id)}
-                  className="px-3 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => deleteProfessional(p.id)}
-                  className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
+      {filteredProfessionals.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProfessionals.map((p) => (
+            <ProfessionalCard
+              key={p.id}
+              professional={p}
+              onUpdate={() => updateProfessional(p.id)}
+              onDelete={() => deleteProfessional(p.id)}
+              onManageAvailability={() => onManageAvailability(p)}
+              onInvite={() => onInviteProfessional(p.id)}
+              onResendInvite={() => onResendInvite(p.id)}
+            />
           ))}
         </div>
       ) : (
         <div className="bg-white/60 backdrop-blur-sm rounded-xl border-2 border-dashed border-indigo-200 p-12">
-          <EmptyState
-            message="Sua equipe ainda está vazia."
-            icon="👨‍💼"
-            actionText="Adicionar Primeiro Profissional"
-            onAction={createProfessional}
-          />
+          {searchTerm && professionals.length > 0 ? (
+            <EmptyState
+              message={`Nenhum profissional encontrado para "${searchTerm}".`}
+              icon="🤷"
+            />
+          ) : (
+            <EmptyState
+              message="Sua equipe ainda está vazia."
+              icon="👨‍💼"
+              actionText="Adicionar Primeiro Profissional"
+              onAction={createProfessional}
+            />
+          )}
         </div>
       )}
     </div>
