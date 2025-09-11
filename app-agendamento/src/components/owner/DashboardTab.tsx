@@ -106,6 +106,22 @@ const AppointmentRow = ({
           </p>
         </div>
       </div>
+      <div className="text-sm text-slate-600 sm:text-center">
+        <p className="font-semibold text-slate-900">
+          {`${appointment.clientFirstName} ${appointment.clientLastName}`.trim()}
+        </p>
+
+        {/* ===== EXIBA O TELEMÓVEL DO CLIENTE AQUI ===== */}
+        {appointment.clientPhone && (
+          <a
+            href={`tel:${appointment.clientPhone}`}
+            className="text-xs text-teal-600 hover:underline"
+          >
+            {appointment.clientPhone}
+          </a>
+        )}
+        {/* ========================================== */}
+      </div>
 
       <div className="text-sm text-slate-600 sm:text-center">
         <p className="font-semibold text-slate-900">

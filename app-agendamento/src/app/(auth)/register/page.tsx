@@ -1,6 +1,4 @@
 //src/app/(auth)/register/page.tsx
-"use client";
-
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,12 +7,12 @@ import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
 
 export default function RegisterPage() {
-  // O estado agora armazena firstName e lastName separadamente
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
+    phone: "", //
     role: "client" as "client" | "owner",
     imageFile: null as File | null,
   });
@@ -39,7 +37,6 @@ export default function RegisterPage() {
   };
 
   const validateForm = (): string | null => {
-    // A validação agora checa os dois campos de nome
     if (!formData.firstName || !formData.lastName)
       return "Nome e sobrenome são obrigatórios.";
     if (!formData.email) return "Email é obrigatório.";
@@ -47,11 +44,12 @@ export default function RegisterPage() {
     if (!formData.password) return "Senha é obrigatória.";
     if (formData.password.length < 6)
       return "Senha deve ter pelo menos 6 caracteres.";
+    // ===== ALTERAÇÃO 1: TORNAR O TELEMÓVEL OBRIGATÓRIO =====
+    if (!formData.phone) return "O número de telemóvel é obrigatório.";
     if (formData.role === "owner" && !formData.imageFile)
       return "A foto do estabelecimento é obrigatória.";
     return null;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateForm();
@@ -63,18 +61,18 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Passamos firstName e lastName separadamente para a função register
+      // ===== ALTERAÇÃO 2: ENVIAR O TELEMÓVEL PARA A FUNÇÃO REGISTER =====
       const newUser = await register(
         formData.email,
         formData.password,
         formData.firstName,
         formData.lastName,
         formData.role,
-        formData.imageFile
+        formData.imageFile,
+        formData.phone // Passando o telemóvel
       );
 
       const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
-
       if (redirectUrl) {
         sessionStorage.removeItem("redirectAfterLogin");
         router.push(redirectUrl);
@@ -177,7 +175,24 @@ export default function RegisterPage() {
             className="mt-1 block w-full px-3 py-2 border rounded-md"
           />
         </div>
-
+        <div>
+          <label
+            htmlFor="phone"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Telemóvel
+          </label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            value={formData.phone}
+            onChange={handleChange}
+            required // Tornando o campo obrigatório no HTML
+            className="mt-1 block w-full px-3 py-2 border rounded-md"
+            placeholder="(XX) XXXXX-XXXX"
+          />
+        </div>
         <div>
           <label
             htmlFor="password"

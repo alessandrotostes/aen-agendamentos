@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   role: "owner" | "client" | "professional";
   createdAt: Date | null;
+  phone?: string;
 }
 
 // ESTABLISHMENT & RELATED
@@ -88,8 +89,9 @@ export interface Professional {
 export interface Appointment {
   id: string;
   clientId: string;
-  clientFirstName: string; // <-- MUDANÇA
-  clientLastName: string; // <-- MUDANÇA
+  clientFirstName: string;
+  clientLastName: string;
+  clientPhone?: string;
   establishmentId: string;
   serviceId: string;
   professionalId: string;

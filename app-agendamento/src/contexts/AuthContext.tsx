@@ -21,7 +21,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
-// MUDANÇA 1: A "planta" da função register foi atualizada.
+// ===== ALTERAÇÃO 1: ATUALIZAR A "PLANTA" DA FUNÇÃO REGISTER =====
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
@@ -30,10 +30,11 @@ interface AuthContextType {
   register: (
     email: string,
     password: string,
-    firstName: string, // <-- Mudou de 'name'
-    lastName: string, // <-- Novo
+    firstName: string,
+    lastName: string,
     role: "owner" | "client",
-    imageFile?: File | null
+    imageFile?: File | null,
+    phone?: string // Adicionado telemóvel
   ) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -82,7 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firstName: string,
     lastName: string,
     role: "owner" | "client",
-    imageFile?: File | null
+    imageFile?: File | null,
+    phone?: string // Recebe o telemóvel
   ): Promise<AuthUser> {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -92,13 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = userCredential.user.uid;
     const createdAt = serverTimestamp();
 
-    // O objeto para salvar no Firestore agora usa os campos separados
     const newUser: Omit<AuthUser, "createdAt"> = {
       uid,
       firstName,
       lastName,
       email,
       role,
+      phone: phone || "", // Salva o telemóvel no perfil do utilizador
     };
 
     await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
@@ -114,19 +116,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         imageURL = await getDownloadURL(imageRef);
       }
 
-      // Para o nome do estabelecimento, juntamos o nome e sobrenome do proprietário
       const establishmentName = `${firstName} ${lastName}`.trim();
 
+      // Salva também o telemóvel no perfil do estabelecimento
       await setDoc(doc(db, "establishments", uid), {
         ownerId: uid,
-        name: establishmentName, // Usamos o nome completo aqui
+        name: establishmentName,
         email,
+        phone: phone || "", // <-- Adicionado telemóvel ao estabelecimento
         address: "",
         imageURL,
         rating: 0,
         createdAt,
       });
     }
+
     await userCredential.user.getIdToken(true);
     return { ...newUser, createdAt: new Date() };
   }

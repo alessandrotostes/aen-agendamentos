@@ -160,8 +160,9 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
   const { transaction_amount, payer, appointmentDetails } = request.data;
+  const clientId = request.auth.uid; // ID do cliente logado
 
-  // PENDÊNCIA 1 & 2: Validar nome e sobrenome (já estava correto)
+  // Validação para garantir que os nomes não estão vazios
   if (!payer.firstName || !payer.lastName) {
     throw new HttpsError(
       "invalid-argument",
@@ -169,13 +170,12 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  // --- Lógica de verificação de disponibilidade (sem alterações) ---
+  // Lógica de verificação de disponibilidade do horário
   try {
     const { establishmentId, professionalId, bookingTimestamp } =
       appointmentDetails;
     const requestedStartTime = new Date(bookingTimestamp);
 
-    // Validação de horário futuro
     if (requestedStartTime < new Date()) {
       throw new HttpsError(
         "failed-precondition",
@@ -187,7 +187,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       .collection("establishments")
       .doc(establishmentId)
       .collection("appointments");
-
     const snapshot = await appointmentsRef
       .where("professionalId", "==", professionalId)
       .where("status", "==", "confirmado")
@@ -226,6 +225,11 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
+  // Busca os dados do cliente para obter o número de telemóvel
+  const clientDoc = await db.collection("users").doc(clientId).get();
+  const clientData = clientDoc.data();
+  const clientPhone = clientData?.phone || "";
+
   const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
   const preference = new Preference(client);
   const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
@@ -246,7 +250,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       .get();
     const professionalAuthUid = professionalDoc.data()?.authUid || null;
 
-    // PENDÊNCIA 4: Criar um nome curto e limpo para a fatura do cartão
     const establishmentNameClean = (establishmentData?.name || "Servico")
       .replace(/[^a-zA-Z0-9]/g, "")
       .substring(0, 10);
@@ -257,18 +260,16 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalfirstName}`,
+          description: `Com ${appointmentDetails.professionalFirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          // PENDÊNCIA 3: Adicionar a categoria do item
-          category_id: "services", // Categoria genérica para serviços
+          category_id: "services",
         },
       ],
       payer: {
-        // PENDÊNCIA 1 & 2: Enviar nome e sobrenome
-        first_name: payer.firstName,
-        last_name: payer.lastName,
+        first_name: payer.firstName, // Chave explícita como o MP pede
+        last_name: payer.lastName, // Chave explícita como o MP pede
         email: payer.email,
       },
       back_urls: {
@@ -278,7 +279,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       },
       auto_return: "approved",
       marketplace_fee: application_fee,
-      // PENDÊNCIA 4: Enviar o descritor da fatura
       statement_descriptor: statementDescriptor,
       metadata: {
         appointmentId: appointmentId,
@@ -288,23 +288,20 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       notification_url:
         "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
     };
-    console.log(
-      "Corpo da preferência sendo enviado ao Mercado Pago:",
-      JSON.stringify(preferenceBody, null, 2)
-    );
+
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
 
-    // MUDANÇA PRINCIPAL: Salvar o agendamento com 'dateTime' desde o início
+    // Salva o agendamento pendente com todos os dados corretos
     const finalBookingDate = new Date(appointmentDetails.bookingTimestamp);
     await newAppointmentRef.set({
       ...appointmentDetails,
-      // REMOVEMOS bookingTimestamp e usamos dateTime
       dateTime: Timestamp.fromDate(finalBookingDate),
-      clientId: request.auth.uid,
+      clientId: clientId,
       clientFirstName: payer.firstName,
       clientLastName: payer.lastName,
+      clientPhone: clientPhone,
       professionalAuthUid,
       status: "pending_payment",
       preferenceId: preferenceResponse.id,
