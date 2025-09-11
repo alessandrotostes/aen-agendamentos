@@ -1,4 +1,3 @@
-//src/app/checkout/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -33,11 +32,12 @@ const MercadoPagoBadge = () => (
 );
 
 export default function CheckoutPage() {
-  const { userData } = useAuth();
+  const { userData, authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingAppointment, setPendingAppointment] =
     useState<PendingAppointment | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     const appointmentData = sessionStorage.getItem("pendingAppointment");
@@ -51,12 +51,18 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  // =================================================================
+  // ===== BLOCO useEffect CORRIGIDO =================================
+  // =================================================================
   useEffect(() => {
-    if (!pendingAppointment || !userData) {
+    // Esta verificação garante que só continuamos se tudo estiver pronto.
+    // Ela resolve todos os erros de "possivelmente 'null'".
+    if (authLoading || !userData || !pendingAppointment || isRedirecting) {
       return;
     }
 
     const createPreferenceAndRedirect = async () => {
+      setIsRedirecting(true);
       setIsLoading(true);
       setError(null);
 
@@ -66,21 +72,18 @@ export default function CheckoutPage() {
           functions,
           "createMercadoPagoPreference"
         );
+
         console.log(
           "CheckoutPage: Dados do userData no momento do pagamento:",
           userData
         );
+
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {
             email: userData.email,
-            // =======================================================
-            // ===== CORREÇÃO APLICADA AQUI ==========================
-            // =======================================================
-            // Usar a fonte de dados do utilizador logado (userData)
             firstName: userData.firstName,
             lastName: userData.lastName,
-            // =======================================================
           },
           appointmentDetails: pendingAppointment,
         };
@@ -104,11 +107,13 @@ export default function CheckoutPage() {
             : "Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.";
         setError(message);
         setIsLoading(false);
+        setIsRedirecting(false); // Libera para nova tentativa se der erro
       }
     };
 
     createPreferenceAndRedirect();
-  }, [pendingAppointment, userData]);
+  }, [authLoading, userData, pendingAppointment, isRedirecting]);
+  // =================================================================
 
   return (
     <ClientRoute>
@@ -123,7 +128,7 @@ export default function CheckoutPage() {
                 className="animate-spin h-8 w-8 text-teal-600"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
-                viewBox="0 0 24 24" // <-- A CORREÇÃO ESTÁ AQUI
+                viewBox="0 0 24 24"
               >
                 <circle
                   className="opacity-25"

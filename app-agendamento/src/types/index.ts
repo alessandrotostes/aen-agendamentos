@@ -104,6 +104,7 @@ export interface Appointment {
   professionalfirstName: string;
   cancellationRequest?: CancellationRequest;
   cancellationReason?: string;
+  reminderSent?: boolean;
 }
 
 export interface CancellationRequest {
@@ -122,7 +123,6 @@ export interface CreateServiceData {
 }
 
 export interface CreateProfessionalData {
-  name: string;
   firstName: string;
   email: string;
   phone: string;
