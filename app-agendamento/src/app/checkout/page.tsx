@@ -66,7 +66,10 @@ export default function CheckoutPage() {
           functions,
           "createMercadoPagoPreference"
         );
-
+        console.log(
+          "CheckoutPage: Dados do userData no momento do pagamento:",
+          userData
+        );
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {

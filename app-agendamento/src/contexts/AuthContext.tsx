@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (userSnap.exists()) {
           const data = userSnap.data() as AuthUser;
+          console.log("AuthContext: Dados carregados do Firestore:", data);
           setUserData(data);
           setCurrentUser(user);
         } else {
