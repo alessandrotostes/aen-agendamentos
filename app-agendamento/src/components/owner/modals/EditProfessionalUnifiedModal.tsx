@@ -48,6 +48,7 @@ export default function EditProfessionalUnifiedModal({
 }: EditProfessionalUnifiedModalProps) {
   const isEdit = !!professional;
   const [formData, setFormData] = useState<CreateProfessionalData>({
+    name: "",
     firstName: "",
     email: "",
     phone: "",
@@ -65,6 +66,7 @@ export default function EditProfessionalUnifiedModal({
       setActiveTab(initialView); // Define a aba inicial ao abrir
 
       setFormData({
+        name: professional?.firstName || "", // Mantém o campo 'name' para compatibilidade
         firstName: professional?.firstName || "",
         email: professional?.email || "",
         phone: professional?.phone || "",
