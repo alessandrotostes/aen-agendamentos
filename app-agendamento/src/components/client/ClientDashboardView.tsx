@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppointments } from "../../hooks/useAppointments";
 import { db, functions } from "../../lib/firebaseConfig";
@@ -15,15 +15,40 @@ import {
 } from "firebase/firestore";
 import { Establishment, Appointment } from "../../types";
 import EmptyState from "../owner/common/EmptyState";
-import LoadingSpinner from "../owner/common/LoadingSpinner";
 import AppointmentCard from "./AppointmentCard";
 import SalonCard from "./SalonCard";
-import { Plus } from "lucide-react";
-
+import { Plus, Calendar, History, Heart } from "lucide-react";
 import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
 import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 import AlertModal from "../shared/modals/AlertModal";
 import SuccessModal from "../shared/modals/SuccessModal";
+
+// Componente de Esqueleto para o loading
+const AppointmentCardSkeleton = () => (
+  <div className="bg-white rounded-xl shadow-sm p-4 h-40 animate-pulse">
+    <div className="flex gap-4">
+      <div className="w-24 h-24 bg-slate-200 rounded-lg"></div>
+      <div className="flex-1 space-y-3 py-1">
+        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+        <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+        <div className="h-3 bg-slate-200 rounded w-1/3"></div>
+      </div>
+    </div>
+  </div>
+);
+
+const SalonCardSkeleton = () => (
+  <div className="bg-white rounded-xl shadow-md overflow-hidden h-full flex flex-col">
+    <div className="relative w-full h-40 bg-slate-200 animate-pulse" />
+    <div className="p-4 flex flex-col flex-grow">
+      <div className="h-6 w-3/4 bg-slate-200 rounded animate-pulse" />
+      <div className="h-4 w-1/2 bg-slate-200 rounded mt-2 animate-pulse" />
+      <div className="mt-auto pt-4">
+        <div className="w-full h-10 bg-slate-200 rounded-lg animate-pulse" />
+      </div>
+    </div>
+  </div>
+);
 
 interface Props {
   onNavigateToSearch: () => void;
@@ -31,6 +56,9 @@ interface Props {
 
 export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   const { userData } = useAuth();
+  const [activeTab, setActiveTab] = useState<
+    "upcoming" | "history" | "favorites"
+  >("upcoming");
   const [favoriteSalons, setFavoriteSalons] = useState<Establishment[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
 
@@ -39,63 +67,52 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     loading: appointmentsLoading,
     refresh: refreshAppointments,
   } = useAppointments();
+
   const [establishments, setEstablishments] = useState<
     Map<string, Establishment>
   >(new Map());
-  const [loading, setLoading] = useState(true);
+  const [loadingEstablishments, setLoadingEstablishments] = useState(true);
 
   const [isInfoModalOpen, setInfoModalOpen] = useState(false);
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-
   const [isAlertModalOpen, setAlertModalOpen] = useState(false);
   const [alertModalContent, setAlertModalContent] = useState({
     title: "",
     message: "",
   });
-
   const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({
     title: "",
     message: "",
   });
-
-  // =================================================================
-  // ===== LÓGICA PARA GERIR CARDS DISPENSADOS (ADICIONADA) =========
-  // =================================================================
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
-  // Ao carregar, busca os IDs salvos no localStorage
   useEffect(() => {
     const storedIds = localStorage.getItem("dismissedAppointments");
-    if (storedIds) {
-      setDismissedIds(JSON.parse(storedIds));
-    }
+    if (storedIds) setDismissedIds(JSON.parse(storedIds));
   }, []);
 
-  // Ao dispensar um novo card, salva a lista atualizada no localStorage
   useEffect(() => {
     localStorage.setItem("dismissedAppointments", JSON.stringify(dismissedIds));
   }, [dismissedIds]);
 
-  // Função que será passada para o AppointmentCard para dispensar um agendamento
   const handleDismiss = (appointmentId: string) => {
     setDismissedIds((prevIds) => [...prevIds, appointmentId]);
   };
-  // =================================================================
 
   useEffect(() => {
-    if (appointmentsLoading || appointments.length === 0) {
-      setLoading(false);
+    if (appointments.length === 0) {
+      setLoadingEstablishments(false);
       return;
     }
     const establishmentIds = [
       ...new Set(appointments.map((a) => a.establishmentId)),
     ];
     if (establishmentIds.length === 0) {
-      setLoading(false);
+      setLoadingEstablishments(false);
       return;
     }
     const q = query(
@@ -113,15 +130,15 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
           } as Establishment);
         });
         setEstablishments(establishmentsMap);
-        setLoading(false);
+        setLoadingEstablishments(false);
       },
       (error) => {
         console.error("Erro ao ouvir detalhes dos estabelecimentos:", error);
-        setLoading(false);
+        setLoadingEstablishments(false);
       }
     );
     return () => unsubscribe();
-  }, [appointments, appointmentsLoading]);
+  }, [appointments]);
 
   useEffect(() => {
     if (!userData?.uid) {
@@ -196,7 +213,6 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       setSuccessModalOpen(true);
       refreshAppointments();
     } catch (error: unknown) {
-      console.error("Erro ao chamar a função de cancelamento:", error);
       const message =
         error instanceof Error
           ? error.message
@@ -231,38 +247,36 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setAlertModalOpen(true);
   };
 
-  // ===== FILTROS ATUALIZADOS PARA ESCONDER CARDS DISPENSADOS (ALTERADO) =====
-  const upcomingAppointments = appointments.filter(
-    (a) =>
-      a.status === "confirmado" &&
-      a.dateTime &&
-      a.dateTime.toDate() > new Date() &&
-      !dismissedIds.includes(a.id) // Esconde se estiver na lista de dispensados
-  );
+  const { upcomingAppointments, pastAppointments } = useMemo(() => {
+    const upcoming = appointments.filter(
+      (a) =>
+        a.status === "confirmado" &&
+        a.dateTime &&
+        a.dateTime.toDate() > new Date() &&
+        !dismissedIds.includes(a.id)
+    );
+    const past = appointments.filter(
+      (a) =>
+        (a.status !== "confirmado" ||
+          (a.dateTime && a.dateTime.toDate() < new Date())) &&
+        !dismissedIds.includes(a.id)
+    );
+    return { upcomingAppointments: upcoming, pastAppointments: past };
+  }, [appointments, dismissedIds]);
 
-  const pastAppointments = appointments.filter(
-    (a) =>
-      (a.status !== "confirmado" ||
-        (a.dateTime && a.dateTime.toDate() < new Date())) &&
-      !dismissedIds.includes(a.id) // Esconde se estiver na lista de dispensados
-  );
-  // =======================================================================
-
-  if (loading || appointmentsLoading) {
-    return <LoadingSpinner />;
-  }
+  const isLoading = appointmentsLoading || loadingEstablishments;
 
   return (
     <>
-      <div className="space-y-12">
-        <section>
-          <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
+      <div className="bg-slate-50 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900">
-                Meus Agendamentos
-              </h2>
+              <h1 className="text-3xl font-bold text-slate-900">
+                Olá, {userData?.firstName || "Cliente"}!
+              </h1>
               <p className="text-slate-500 mt-1">
-                Aqui estão os seus próximos compromissos.
+                Bem-vindo ao seu painel. Aqui estão os seus compromissos.
               </p>
             </div>
             <button
@@ -272,80 +286,136 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
               <Plus className="w-5 h-5" />
               <span>Novo Agendamento</span>
             </button>
+          </header>
+
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab("upcoming")}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === "upcoming"
+                    ? "border-teal-500 text-teal-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Calendar /> Próximos
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === "history"
+                    ? "border-teal-500 text-teal-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <History /> Histórico
+              </button>
+              <button
+                onClick={() => setActiveTab("favorites")}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === "favorites"
+                    ? "border-teal-500 text-teal-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Heart /> Favoritos
+              </button>
+            </nav>
           </div>
-          {upcomingAppointments.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingAppointments.map((app) => (
-                <AppointmentCard
-                  key={app.id}
-                  appointment={app}
-                  establishment={establishments.get(app.establishmentId)}
-                  onCancel={handleOpenCancellationFlow}
-                  onShowCancellationInfo={handleShowAlert}
-                  onDismiss={handleDismiss} // <-- PROP 'onDismiss' PASSADA
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              message="Você não tem agendamentos futuros."
-              icon="📅"
-              actionText="Encontrar um Horário"
-              onAction={onNavigateToSearch}
-            />
-          )}
-        </section>
 
-        <section>
-          <h2 className="text-3xl font-bold text-gray-800 mb-6">Histórico</h2>
-          {pastAppointments.length > 0 ? (
-            <div className="space-y-4">
-              {pastAppointments.map((app) => (
-                <AppointmentCard
-                  key={app.id}
-                  appointment={app}
-                  establishment={establishments.get(app.establishmentId)}
-                  onCancel={() => {}}
-                  onShowCancellationInfo={handleShowAlert}
-                  onDismiss={handleDismiss} // <-- PROP 'onDismiss' PASSADA
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <p className="text-gray-600">
-                Seu histórico de agendamentos aparecerá aqui.
-              </p>
-            </div>
-          )}
-        </section>
+          <div className="mt-8">
+            {activeTab === "upcoming" && (
+              <section>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    <AppointmentCardSkeleton />
+                    <AppointmentCardSkeleton />
+                  </div>
+                ) : upcomingAppointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {upcomingAppointments.map((app) => (
+                      <AppointmentCard
+                        key={app.id}
+                        appointment={app}
+                        establishment={establishments.get(app.establishmentId)}
+                        onCancel={handleOpenCancellationFlow}
+                        onShowCancellationInfo={handleShowAlert}
+                        onDismiss={handleDismiss}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    message="Você não tem agendamentos futuros."
+                    icon="📅"
+                    actionText="Encontrar um Horário"
+                    onAction={onNavigateToSearch}
+                  />
+                )}
+              </section>
+            )}
 
-        <section>
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">
-            Seus Favoritos
-          </h2>
-          {favoritesLoading ? (
-            <LoadingSpinner />
-          ) : favoriteSalons.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {favoriteSalons.map((salon) => (
-                <SalonCard
-                  key={salon.id}
-                  salon={salon}
-                  isFavorite={true}
-                  onToggleFavorite={handleUnfavorite}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              message="Você ainda não favoritou nenhum estabelecimento."
-              icon="❤️"
-              actionText="Encontrar Estabelecimentos"
-              onAction={onNavigateToSearch}
-            />
-          )}
-        </section>
+            {activeTab === "history" && (
+              <section>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    <AppointmentCardSkeleton />
+                    <AppointmentCardSkeleton />
+                  </div>
+                ) : pastAppointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {pastAppointments.map((app) => (
+                      <AppointmentCard
+                        key={app.id}
+                        appointment={app}
+                        establishment={establishments.get(app.establishmentId)}
+                        onCancel={() => {}}
+                        onShowCancellationInfo={handleShowAlert}
+                        onDismiss={handleDismiss}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    message="Seu histórico de agendamentos está vazio."
+                    icon="🗂️"
+                  />
+                )}
+              </section>
+            )}
+
+            {activeTab === "favorites" && (
+              <section>
+                {favoritesLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <SalonCardSkeleton />
+                    <SalonCardSkeleton />
+                    <SalonCardSkeleton />
+                    <SalonCardSkeleton />
+                  </div>
+                ) : favoriteSalons.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {favoriteSalons.map((salon) => (
+                      <SalonCard
+                        key={salon.id}
+                        salon={salon}
+                        isFavorite={true}
+                        onToggleFavorite={handleUnfavorite}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    message="Você ainda não favoritou nenhum estabelecimento."
+                    icon="❤️"
+                    actionText="Encontrar Estabelecimentos"
+                    onAction={onNavigateToSearch}
+                  />
+                )}
+              </section>
+            )}
+          </div>
+        </div>
       </div>
 
       <CancellationInfoModal

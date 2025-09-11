@@ -16,13 +16,15 @@ import { Appointment, Establishment } from "@/types";
 import {
   Calendar,
   Clock,
-  Map,
+  MapPin,
   Phone,
   Hourglass,
   CheckCircle,
   X,
   CalendarPlus,
-} from "lucide-react"; // Adicionado CalendarPlus
+  Building,
+  User,
+} from "lucide-react";
 
 // =================================================================
 // ===== ALTERAÇÃO 1: FUNÇÃO PARA GERAR O LINK DO GOOGLE CALENDAR ====
@@ -69,60 +71,32 @@ export default function AppointmentCard({
   onShowCancellationInfo,
   onDismiss,
 }: AppointmentCardProps) {
-  // =================================================================
-  // ===== LÓGICA ATUALIZADA AQUI =====================================
-  // =================================================================
-  // Se o status for 'pending_payment', renderiza um card especial.
   if (appointment.status === "pending_payment") {
     return (
-      <div className="bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 border-yellow-400 flex flex-col sm:flex-row gap-3 sm:gap-5">
-        {establishment?.imageURL && (
-          <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0 bg-slate-100">
-            <Image
-              src={establishment.imageURL}
-              alt={`Logo de ${establishment.name}`}
-              fill
-              sizes="(max-width: 640px) 100vw, 112px"
-              className="object-contain"
-            />
-          </div>
-        )}
-        <div className="flex-grow flex flex-col justify-center space-y-2">
-          <div>
-            <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
-              {appointment.serviceName}
-            </p>
-            <p className="text-sm sm:text-base text-slate-600">
-              com{" "}
-              <span className="font-semibold">
-                {appointment.professionalfirstName}
-              </span>
-            </p>
-          </div>
-          <div className="border-t border-slate-100 !my-2"></div>
-          <div className="flex items-center gap-2 text-yellow-700">
-            <Hourglass className="w-4 h-4" />
-            <p className="text-sm font-semibold">Aguardando seu pagamento</p>
-          </div>
+      <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-amber-400 flex items-center gap-4">
+        <div className="w-16 h-16 bg-amber-50 rounded-lg flex items-center justify-center">
+          <Hourglass className="w-8 h-8 text-amber-500" />
+        </div>
+        <div className="flex-grow">
+          <p className="font-bold text-slate-800">{appointment.serviceName}</p>
+          <p className="text-sm text-slate-500">
+            com {appointment.professionalfirstName}
+          </p>
+          <p className="text-sm font-semibold text-amber-600 mt-1">
+            Aguardando seu pagamento
+          </p>
         </div>
       </div>
     );
   }
-  // =================================================================
 
-  // Se o agendamento não tiver data (ex: um erro), não renderiza nada.
-  if (!appointment.dateTime) {
-    return null;
-  }
+  if (!appointment.dateTime) return null;
 
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
 
-  let virtualStatus:
-    | "confirmado"
-    | "concluido"
-    | "cancelado"
-    | "pending_payment" = appointment.status;
+  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
+    appointment.status;
   if (appointment.status === "confirmado" && appointmentDate < now) {
     virtualStatus = "concluido";
   }
@@ -137,162 +111,165 @@ export default function AppointmentCard({
       )}`
     : "#";
 
+  const statusConfig = {
+    confirmado: {
+      borderColor: "border-teal-500",
+      bgColor: "bg-white",
+      opacity: "opacity-100",
+    },
+    concluido: {
+      borderColor: "border-gray-300",
+      bgColor: "bg-slate-50",
+      opacity: "opacity-70",
+    },
+    cancelado: {
+      borderColor: "border-gray-300",
+      bgColor: "bg-slate-50",
+      opacity: "opacity-70",
+    },
+  };
+  const currentStyle = statusConfig[virtualStatus];
+
   let statusBadge = null;
   if (virtualStatus === "cancelado") {
     let text = "CANCELADO";
-    if (appointment.cancellationReason?.includes("Pagamento")) {
-      text = "CANCELADO - PAGAMENTO RECUSADO";
-    } else if (appointment.cancelledBy === "owner") {
-      text = "CANCELADO - PELO ESTABELECIMENTO";
-    } else if (appointment.cancelledBy === "client") {
-      text = "CANCELADO - POR VOCÊ";
-    }
+    if (appointment.cancellationReason?.includes("Pagamento"))
+      text = "PAGAMENTO RECUSADO";
+    else if (appointment.cancelledBy === "owner") text = "PELO ESTABELECIMENTO";
+    else if (appointment.cancelledBy === "client") text = "POR VOCÊ";
     statusBadge = (
-      <span className="text-[10px] sm:text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full ml-2 shrink-0 text-center">
+      <span className="text-[10px] font-bold text-white bg-red-500 px-2 py-1 rounded-full">
         {text}
       </span>
     );
   } else if (virtualStatus === "concluido") {
     statusBadge = (
-      <span className="text-[10px] sm:text-xs font-bold text-white bg-emerald-500 px-2 py-1 rounded-full ml-2 shrink-0 flex items-center gap-1">
+      <span className="text-[10px] font-bold text-white bg-emerald-500 px-2 py-1 rounded-full flex items-center gap-1">
         <CheckCircle className="w-3 h-3" />
         CONCLUÍDO
       </span>
     );
   }
 
-  // ===== ALTERAÇÃO 4: ESTILO "APAGADO" PARA HISTÓRICO =====
-  const cardBorderStyle =
-    virtualStatus === "cancelado" || virtualStatus === "concluido"
-      ? "border-gray-300 opacity-70"
-      : "border-teal-500";
-
   return (
     <div
-      className={`relative bg-white rounded-xl shadow-md p-3 sm:p-5 border-l-4 ${cardBorderStyle} flex flex-col sm:flex-row gap-3 sm:gap-5`}
+      className={`relative ${currentStyle.bgColor} rounded-xl shadow-md p-4 border-l-4 ${currentStyle.borderColor} ${currentStyle.opacity} transition-all`}
     >
       {(virtualStatus === "concluido" || virtualStatus === "cancelado") && (
         <button
           onClick={() => onDismiss(appointment.id)}
-          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition z-10"
-          aria-label="Dispensar agendamento"
+          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full z-10"
+          aria-label="Dispensar"
         >
           <X className="w-4 h-4" />
         </button>
       )}
 
-      {establishment?.imageURL && (
-        <div className="relative w-full h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden shrink-0 bg-slate-100">
-          <Image
-            src={establishment.imageURL}
-            alt={`Logo de ${establishment.name}`}
-            fill
-            sizes="(max-width: 640px) 100vw, 112px"
-            className="object-contain"
-          />
-        </div>
-      )}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {establishment?.imageURL && (
+          <div className="relative w-full h-24 sm:w-28 sm:h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100">
+            <Image
+              src={establishment.imageURL}
+              alt={`Logo de ${establishment.name ?? "Estabelecimento"}`}
+              fill
+              className="object-contain"
+              sizes="112px"
+            />
+          </div>
+        )}
 
-      <div className="flex-grow flex flex-col justify-center space-y-2">
-        <div>
-          <div className="flex justify-between items-start">
-            <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
-              {appointment.serviceName}
-            </p>
+        <div className="flex-grow">
+          <header className="flex justify-between items-start mb-3">
+            <div>
+              <p className="text-lg font-bold text-slate-900">
+                {appointment.serviceName}
+              </p>
+              <p className="text-sm text-slate-500">
+                em{" "}
+                <span className="font-semibold">
+                  {establishment?.name || "..."}
+                </span>
+              </p>
+            </div>
             {statusBadge}
-          </div>
-          <p className="text-sm sm:text-base text-slate-600">
-            com{" "}
-            <span className="font-semibold">
-              {appointment.professionalfirstName}
-            </span>
-          </p>
-          <p className="text-xs sm:text-sm text-slate-500">
-            em{" "}
-            <span className="font-semibold">
-              {establishment?.name || "..."}
-            </span>
-          </p>
-        </div>
+          </header>
 
-        <div className="border-t border-slate-100 !my-2"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700 pt-3 border-t">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>{appointment.professionalfirstName}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>
+                {format(appointmentDate, "dd/MM/yy", { locale: ptBR })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="truncate">{establishment?.address}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>
+                {format(appointmentDate, "HH:mm")} ({appointment.duration} min)
+              </span>
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-800">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
-            <span>{format(appointmentDate, "dd/MM/yy", { locale: ptBR })}</span>
-          </div>
-          {/* ================================================================= */}
-          {/* ===== ALTERAÇÃO AQUI: DURAÇÃO ADICIONADA ======================== */}
-          {/* ================================================================= */}
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-teal-600 shrink-0" />
-            <span>
-              {format(appointmentDate, "HH:mm")} ({appointment.duration} min)
-            </span>
-          </div>
-          {establishment?.address && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800"
-            >
-              <Map className="w-4 h-4 shrink-0" />
-              <span className="text-xs underline decoration-dotted">
-                Ver endereço
-              </span>
-            </a>
-          )}
-          {establishment?.phone && (
-            <a
-              href={`tel:${establishment.phone}`}
-              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800"
-            >
-              <Phone className="w-4 h-4 shrink-0" />
-              <span className="text-xs underline decoration-dotted">Ligar</span>
-            </a>
-          )}
-          {isUpcoming && (
-            <a
-              href={generateGoogleCalendarLink(appointment, establishment)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800"
-            >
-              <CalendarPlus className="w-4 h-4 shrink-0" />
-              <span className="text-xs underline decoration-dotted">
-                Adicionar à Agenda
-              </span>
-            </a>
-          )}
-          {/* ================================================================= */}
+          <footer className="flex justify-around items-center gap-2 sm:gap-4 mt-4 pt-3 border-t flex-wrap">
+            {isUpcoming && (
+              <>
+                {establishment?.address && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-teal-700 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4" /> VER ENDEREÇO
+                  </a>
+                )}
+                {establishment?.phone && (
+                  <a
+                    href={`tel:${establishment.phone}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-teal-700 transition-colors"
+                  >
+                    <Phone className="w-4 h-4" /> LIGAR
+                  </a>
+                )}
+                <a
+                  href={generateGoogleCalendarLink(appointment, establishment)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                >
+                  <CalendarPlus className="w-4 h-4" /> AGENDA
+                </a>
+                <button
+                  onClick={() => {
+                    if (isCancellable) {
+                      onCancel(appointment);
+                    } else {
+                      onShowCancellationInfo(
+                        "Prazo Expirado",
+                        "Não é possível cancelar com menos de 3 horas de antecedência."
+                      );
+                    }
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${
+                    isCancellable
+                      ? "text-red-700 bg-red-100 hover:bg-red-200"
+                      : "text-gray-500 bg-gray-100 cursor-not-allowed"
+                  }`}
+                >
+                  CANCELAR
+                </button>
+              </>
+            )}
+          </footer>
         </div>
       </div>
-
-      {isUpcoming && (
-        <div className="border-t sm:border-none pt-3 sm:pt-0 sm:ml-auto flex items-center self-stretch sm:self-center">
-          <button
-            onClick={() => {
-              if (isCancellable) {
-                onCancel(appointment);
-              } else {
-                onShowCancellationInfo(
-                  "Prazo de Cancelamento Expirado",
-                  "Não é possível cancelar agendamentos com menos de 3 horas de antecedência."
-                );
-              }
-            }}
-            className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md transition ${
-              isCancellable
-                ? "text-red-700 bg-red-100 hover:bg-red-200"
-                : "text-gray-500 bg-gray-100 cursor-not-allowed"
-            }`}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
     </div>
   );
 }
