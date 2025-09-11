@@ -107,7 +107,7 @@ export default function EstablishmentSearchView({
           Encontre seu próximo agendamento
         </h1>
         <p className="mt-3 max-w-2xl mx-auto text-lg text-slate-600">
-          Explore os melhores salões e barbearias perto de você.
+          Explore os melhores estabelecimentos para você.
         </p>
       </div>
 

@@ -21,7 +21,38 @@ import {
   Hourglass,
   CheckCircle,
   X,
-} from "lucide-react";
+  CalendarPlus,
+} from "lucide-react"; // Adicionado CalendarPlus
+
+// =================================================================
+// ===== ALTERAÇÃO 1: FUNÇÃO PARA GERAR O LINK DO GOOGLE CALENDAR ====
+// =================================================================
+const generateGoogleCalendarLink = (
+  appointment: Appointment,
+  establishment?: Establishment
+) => {
+  if (!appointment.dateTime) return "#";
+
+  const startTime = appointment.dateTime.toDate();
+  const endTime = new Date(startTime.getTime() + appointment.duration * 60000); // Adiciona a duração em milissegundos
+
+  // Formata as datas para o formato UTC que o Google Calendar espera (YYYYMMDDTHHMMSSZ)
+  const formatGoogleDate = (date: Date) => {
+    return date.toISOString().replace(/-|:|\.\d{3}/g, "");
+  };
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `Agendamento: ${appointment.serviceName} em ${
+      establishment?.name || ""
+    }`,
+    dates: `${formatGoogleDate(startTime)}/${formatGoogleDate(endTime)}`,
+    details: `Seu agendamento para ${appointment.serviceName} com ${appointment.professionalfirstName}.`,
+    location: establishment?.address || "",
+  });
+
+  return `https://www.google.com/calendar/render?${params.toString()}`;
+};
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -222,6 +253,20 @@ export default function AppointmentCard({
               <span className="text-xs underline decoration-dotted">Ligar</span>
             </a>
           )}
+          {isUpcoming && (
+            <a
+              href={generateGoogleCalendarLink(appointment, establishment)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800"
+            >
+              <CalendarPlus className="w-4 h-4 shrink-0" />
+              <span className="text-xs underline decoration-dotted">
+                Adicionar à Agenda
+              </span>
+            </a>
+          )}
+          {/* ================================================================= */}
         </div>
       </div>
 

@@ -24,9 +24,10 @@ import {
   MapPin,
   Phone,
   Instagram,
+  Clock,
 } from "lucide-react";
 
-// --- COMPONENTE: CARD DO PROFISSIONAL ---
+// --- COMPONENTE: CARD DO PROFISSIONAL (Estilo Refinado) ---
 const ProfessionalCard = ({
   professional,
   allServices,
@@ -43,16 +44,20 @@ const ProfessionalCard = ({
   );
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 flex items-center gap-4">
-      <Image
-        // CORREÇÃO AQUI: Fornecer um caminho de imagem real como alternativa
-        src={professional.photoURL || "/images/default-avatar.png"}
-        // A propriedade 'alt' continua a ter o texto descritivo
-        alt={professional.firstName || "Foto do Profissional"}
-        width={64}
-        height={64}
-        className="w-16 h-16 rounded-xl object-cover ring-2 ring-indigo-100 group-hover:ring-indigo-200 transition-all duration-200"
-      />
+    <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 border border-transparent hover:border-teal-200 hover:shadow-lg transition-all duration-300">
+      {/* ================================================================= */}
+      {/* ===== ALTERAÇÃO AQUI: CONTAINER DE IMAGEM REDONDO E FIXO ======== */}
+      {/* ================================================================= */}
+      <div className="relative w-16 h-16 shrink-0 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+        <Image
+          src={professional.photoURL || "/images/default-avatar.png"}
+          alt={professional.firstName || "Foto do Profissional"}
+          fill // Usa 'fill' para que a imagem preencha o container
+          className="object-cover" // Garante que a imagem cubra o espaço sem distorção
+          sizes="64px" // Otimização de tamanho para a imagem
+        />
+      </div>
+      {/* ================================================================= */}
       <div className="flex-grow">
         <h4 className="font-bold text-lg text-slate-900">
           {professional.firstName}
@@ -79,7 +84,7 @@ const ProfessionalCard = ({
   );
 };
 
-// --- COMPONENTE: CARD DE SERVIÇO ---
+// --- COMPONENTE: CARD DE SERVIÇO (Refatorado com Duração) ---
 const ServiceCard = ({
   service,
   onServiceClick,
@@ -88,18 +93,24 @@ const ServiceCard = ({
   onServiceClick: (service: Service) => void;
 }) => {
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
-      <div className="max-w-[70%]">
+    <div className="bg-white p-5 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border border-transparent hover:border-teal-200">
+      <div className="flex-grow">
         <p className="font-bold text-slate-900 text-lg">{service.name}</p>
-        <p className="text-sm text-slate-600 mt-1">{service.description}</p>
+        <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+          {service.description}
+        </p>
+        <div className="flex items-center text-sm text-gray-500 mt-3">
+          <Clock className="w-4 h-4 mr-1.5 text-gray-400" />
+          <span>Duração: {service.duration} min</span>
+        </div>
       </div>
-      <div className="text-right shrink-0 ml-4">
+      <div className="text-left sm:text-right shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
         <p className="font-bold text-xl text-teal-600">
           {currencyUtils.format(service.price)}
         </p>
         <button
           onClick={() => onServiceClick(service)}
-          className="mt-2 px-5 py-2 text-sm bg-teal-600 text-white font-semibold rounded-lg shadow-sm hover:bg-teal-700 transition"
+          className="mt-2 w-full sm:w-auto px-6 py-2 text-sm bg-teal-600 text-white font-semibold rounded-lg shadow-sm hover:bg-teal-700 transition"
         >
           Agendar
         </button>
@@ -218,47 +229,51 @@ export default function SalonDetailPage() {
   }
 
   const imageSrc = salon.imageURL || "/placeholder.png";
-  // A MUDANÇA ESTÁ AQUI: Corrigimos a URL do Google Maps
-  const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(
-    salon.address
-  )}`;
+  const mapsUrl = salon.address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        salon.address
+      )}`
+    : "#";
 
   return (
     <ClientRoute>
       <div className="bg-slate-50 min-h-screen">
         <main className="max-w-6xl mx-auto pb-12">
-          <div className="relative w-full h-52 md:h-64">
+          <div className="relative w-full h-52 md:h-64 rounded-b-3xl overflow-hidden">
             <Image
               src={imageSrc}
-              alt={salon.name}
+              alt={`Imagem de ${salon.name}`}
               fill
               className="object-contain"
               sizes="100vw"
+              priority
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
             <div className="absolute top-4 left-4 z-10">
               <button
                 onClick={() => router.back()}
-                className="bg-white/80 backdrop-blur-sm text-slate-800 p-2 rounded-full hover:bg-white transition-all"
+                className="bg-white/80 backdrop-blur-sm text-slate-800 p-2 rounded-full hover:bg-white transition-all shadow-md"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
             </div>
-            <div className="absolute bottom-0 left-0 p-6">
+            <div className="absolute bottom-0 left-0 p-6 ">
               <h1 className="text-3xl md:text-4xl font-bold text-white shadow-md">
                 {salon.name}
               </h1>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mt-2">
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-slate-200 hover:text-white transition-colors"
-                >
-                  <MapPin className="w-4 h-4 shrink-0" />
-                  <span>{salon.address}</span>
-                </a>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 mt-3">
+                {salon.address && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-slate-200 hover:text-white transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 shrink-0" />
+                    <span className="text-sm">{salon.address}</span>
+                  </a>
+                )}
 
                 {salon.phone && (
                   <a
@@ -266,7 +281,7 @@ export default function SalonDetailPage() {
                     className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
                   >
                     <Phone className="w-4 h-4 shrink-0" />
-                    <span>{salon.phone}</span>
+                    <span className="text-sm">{salon.phone}</span>
                   </a>
                 )}
 
@@ -278,14 +293,14 @@ export default function SalonDetailPage() {
                     className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
                   >
                     <Instagram className="w-4 h-4 shrink-0" />
-                    <span className="hidden sm:inline">Instagram</span>
+                    <span className="text-sm">Instagram</span>
                   </a>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 mt-4">
             <div className="lg:col-span-2 space-y-10">
               <section>
                 <div className="flex items-center gap-3 mb-5">
