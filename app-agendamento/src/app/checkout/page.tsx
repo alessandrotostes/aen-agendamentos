@@ -55,13 +55,7 @@ export default function CheckoutPage() {
   // ===== BLOCO useEffect CORRIGIDO =================================
   // =================================================================
   useEffect(() => {
-    // Documentação: Este é o nosso "portão de controlo". Se qualquer uma destas
-    // condições for verdadeira, o efeito para imediatamente.
-    if (
-      authLoading || // Condição 1: A autenticação ainda está a carregar os dados.
-      !pendingAppointment || // Condição 2: Os dados do agendamento ainda não foram carregados da sessão.
-      isRedirecting // Condição 3: O processo de redirecionamento já foi iniciado.
-    ) {
+    if (authLoading || !pendingAppointment || isRedirecting) {
       return;
     }
 
@@ -71,10 +65,12 @@ export default function CheckoutPage() {
       !userData.lastName ||
       !userData.email
     ) {
-      setError(
-        "Os seus dados de utilizador estão incompletos. Por favor, verifique o seu perfil."
-      );
-      setIsLoading(false);
+      if (!authLoading) {
+        setError(
+          "Os seus dados de utilizador estão incompletos. Por favor, verifique o seu perfil."
+        );
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -84,24 +80,34 @@ export default function CheckoutPage() {
       setError(null);
 
       try {
+        // Este log só será executado se todas as verificações acima passarem.
+        console.log(
+          "✅ [CHECKOUT] Dados validados e prontos para enviar para a Cloud Function:",
+          {
+            timestamp: new Date().toISOString(),
+            payerData: {
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              email: userData.email,
+            },
+            // Adicionamos também os detalhes do agendamento para uma verificação completa
+            appointmentDetails: pendingAppointment,
+          }
+        );
+        // ================================================================
+
         const functions = getFunctions(getApp(), "southamerica-east1");
         const createMercadoPagoPreference = httpsCallable(
           functions,
           "createMercadoPagoPreference"
         );
 
-        console.log("DADOS ENVIADOS PARA A PREFERÊNCIA:", {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-        });
-
         const preferenceData = {
           transaction_amount: pendingAppointment.price,
           payer: {
-            email: userData.email, // Dado agora 100% seguro
-            firstName: userData.firstName, // Dado agora 100% seguro
-            lastName: userData.lastName, // Dado agora 100% seguro
+            email: userData.email,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
           },
           appointmentDetails: pendingAppointment,
         };
@@ -111,7 +117,6 @@ export default function CheckoutPage() {
         )) as HttpsCallableResult<PreferenceResultData>;
 
         if (result.data.success && result.data.init_point) {
-          // Redireciona o utilizador para o link de pagamento do Mercado Pago
           window.location.href = result.data.init_point;
         } else {
           throw new Error(
@@ -126,7 +131,7 @@ export default function CheckoutPage() {
             : "Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.";
         setError(message);
         setIsLoading(false);
-        setIsRedirecting(false); // Libera para uma nova tentativa se der erro
+        setIsRedirecting(false);
       }
     };
 
