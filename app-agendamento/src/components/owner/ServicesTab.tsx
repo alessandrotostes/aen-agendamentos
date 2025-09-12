@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import EmptyState from "./common/EmptyState";
 import { currencyUtils } from "../../lib/utils";
 import type { Service } from "../../types";
+// ALTERAÇÃO: Importar os ícones necessários
 import {
   Plus,
   Pencil,
@@ -12,9 +13,10 @@ import {
   DollarSign,
   Search,
   X,
-} from "lucide-react"; // Adicionado ícone X
+  ClipboardList, // Ícone para o título e estado vazio
+  SearchX, // Ícone para busca sem resultados
+} from "lucide-react";
 
-// Componente ServiceCard (sem alterações)
 const ServiceCard = ({
   service,
   onUpdate,
@@ -26,7 +28,6 @@ const ServiceCard = ({
 }) => {
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-teal-200">
-      {/* Cabeçalho: Nome e Ações */}
       <div className="flex justify-between items-start pb-3 border-b border-slate-100">
         <h3 className="font-bold text-lg text-slate-900 pr-4">
           {service.name}
@@ -48,15 +49,11 @@ const ServiceCard = ({
           </button>
         </div>
       </div>
-
-      {/* Corpo: Descrição */}
       <div className="flex-grow py-3">
         <p className="text-sm text-slate-600 line-clamp-3">
           {service.description}
         </p>
       </div>
-
-      {/* Rodapé: Detalhes */}
       <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-sm">
         <div className="flex items-center gap-2 text-emerald-700 font-semibold">
           <DollarSign className="w-4 h-4" />
@@ -99,17 +96,18 @@ export default function ServicesTab({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-            <span className="text-4xl mr-3">📋</span>
+          {/* ALTERAÇÃO: Substituir emoji por ícone */}
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <ClipboardList className="w-8 h-8 text-teal-600" />
             Serviços
           </h2>
-          <p className="text-teal-600 mt-1">
+          <p className="text-slate-500 mt-1">
             Gerencie os serviços do seu estabelecimento
           </p>
         </div>
         <button
           onClick={createService}
-          className="px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white rounded-xl hover:from-teal-600 hover:to-indigo-500 transition-all duration-200 hover:scale-105 shadow-lg font-medium flex items-center justify-center"
+          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 font-medium flex items-center justify-center"
         >
           <Plus className="w-5 h-5 inline mr-2" />
           <span>Novo Serviço</span>
@@ -126,11 +124,8 @@ export default function ServicesTab({
             placeholder="Buscar por nome do serviço..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+            className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
-          {/* ========================================================== */}
-          {/* ===== ALTERAÇÃO AQUI: BOTÃO DE LIMPAR BUSCA ============== */}
-          {/* ========================================================== */}
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
@@ -140,7 +135,6 @@ export default function ServicesTab({
               <X className="h-5 w-5" />
             </button>
           )}
-          {/* ========================================================== */}
         </div>
       )}
 
@@ -156,16 +150,17 @@ export default function ServicesTab({
           ))}
         </div>
       ) : (
-        <div className="bg-white/60 backdrop-blur-sm rounded-xl border-2 border-dashed border-teal-200 p-12">
+        <div className="bg-white rounded-xl border-2 border-dashed border-slate-200 p-12">
+          {/* ALTERAÇÃO: Substituir emojis por ícones no EmptyState */}
           {searchTerm && services.length > 0 ? (
             <EmptyState
               message={`Nenhum serviço encontrado para "${searchTerm}".`}
-              icon="🤷"
+              icon={SearchX}
             />
           ) : (
             <EmptyState
               message="Ainda não há serviços cadastrados."
-              icon="📋"
+              icon={ClipboardList}
               actionText="Criar Primeiro Serviço"
               onAction={createService}
             />

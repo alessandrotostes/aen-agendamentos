@@ -23,7 +23,6 @@ import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 import AlertModal from "../shared/modals/AlertModal";
 import SuccessModal from "../shared/modals/SuccessModal";
 
-// Componente de Esqueleto para o loading
 const AppointmentCardSkeleton = () => (
   <div className="bg-white rounded-xl shadow-sm p-4 h-40 animate-pulse">
     <div className="flex gap-4">
@@ -61,18 +60,15 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   >("upcoming");
   const [favoriteSalons, setFavoriteSalons] = useState<Establishment[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
-
   const {
     appointments,
     loading: appointmentsLoading,
     refresh: refreshAppointments,
   } = useAppointments();
-
   const [establishments, setEstablishments] = useState<
     Map<string, Establishment>
   >(new Map());
   const [loadingEstablishments, setLoadingEstablishments] = useState(true);
-
   const [isInfoModalOpen, setInfoModalOpen] = useState(false);
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] =
@@ -281,7 +277,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
             </div>
             <button
               onClick={onNavigateToSearch}
-              className="w-full sm:w-auto px-5 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
             >
               <Plus className="w-5 h-5" />
               <span>Novo Agendamento</span>
@@ -294,7 +290,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                 onClick={() => setActiveTab("upcoming")}
                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === "upcoming"
-                    ? "border-teal-500 text-teal-600"
+                    ? "border-indigo-500 text-indigo-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
@@ -304,7 +300,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                 onClick={() => setActiveTab("history")}
                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === "history"
-                    ? "border-teal-500 text-teal-600"
+                    ? "border-indigo-500 text-indigo-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
@@ -314,7 +310,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                 onClick={() => setActiveTab("favorites")}
                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === "favorites"
-                    ? "border-teal-500 text-teal-600"
+                    ? "border-indigo-500 text-indigo-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
@@ -345,9 +341,10 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                     ))}
                   </div>
                 ) : (
+                  // ALTERAÇÃO: Substituir emoji por ícone
                   <EmptyState
                     message="Você não tem agendamentos futuros."
-                    icon="📅"
+                    icon={Calendar}
                     actionText="Encontrar um Horário"
                     onAction={onNavigateToSearch}
                   />
@@ -376,9 +373,10 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                     ))}
                   </div>
                 ) : (
+                  // ALTERAÇÃO: Substituir emoji por ícone
                   <EmptyState
                     message="Seu histórico de agendamentos está vazio."
-                    icon="🗂️"
+                    icon={History}
                   />
                 )}
               </section>
@@ -405,9 +403,10 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
                     ))}
                   </div>
                 ) : (
+                  // ALTERAÇÃO: Substituir emoji por ícone
                   <EmptyState
                     message="Você ainda não favoritou nenhum estabelecimento."
-                    icon="❤️"
+                    icon={Heart}
                     actionText="Encontrar Estabelecimentos"
                     onAction={onNavigateToSearch}
                   />

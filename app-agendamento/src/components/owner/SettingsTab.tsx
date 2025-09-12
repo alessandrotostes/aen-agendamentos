@@ -1,7 +1,14 @@
 "use client";
 
 import React from "react";
-import { Building, CreditCard, Clock, CheckCircle } from "lucide-react"; // Adicionado CheckCircle
+// ALTERAÇÃO: Importar o ícone de Configurações
+import {
+  Building,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Settings,
+} from "lucide-react";
 import InfoTooltip from "@/components/shared/InfoTooltip";
 
 interface MpData {
@@ -17,9 +24,6 @@ interface Props {
   onManageOperatingHours: () => void;
 }
 
-// ==========================================================
-// ===== COMPONENTE INTERNO: SettingCard (para Reutilização) ==
-// ==========================================================
 const SettingCard = ({
   icon: Icon,
   title,
@@ -41,7 +45,7 @@ const SettingCard = ({
     <p className="text-sm text-slate-500 mt-2 flex-grow">{description}</p>
     <button
       onClick={onClick}
-      className="mt-4 w-full px-4 py-2 bg-teal-50 text-teal-700 font-semibold rounded-lg hover:bg-teal-100 transition-colors"
+      className="mt-4 w-full px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 transition-colors"
     >
       {buttonText}
     </button>
@@ -57,11 +61,12 @@ export default function SettingsTab({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-            <span className="text-4xl mr-3">⚙️</span>
+          {/* ALTERAÇÃO: Substituir emoji por ícone */}
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Settings className="w-8 h-8 text-slate-600" />
             Configurações
           </h2>
-          <p className="text-teal-600 mt-1">
+          <p className="text-slate-500 mt-1">
             Gerencie as informações do seu negócio e pagamentos.
           </p>
         </div>

@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import EmptyState from "./common/EmptyState";
 import Image from "next/image";
 import type { Professional } from "../../types";
+// ALTERAÇÃO: Importar os ícones necessários
 import {
   Plus,
   Pencil,
@@ -14,11 +15,10 @@ import {
   CheckCircle,
   Mail,
   X,
+  Users, // Ícone para o título e estado vazio
+  UserX, // Ícone para busca sem resultados
 } from "lucide-react";
 
-// ====================================================================
-// ===== COMPONENTE INTERNO: ProfessionalCard (Refatorado) ============
-// ====================================================================
 const ProfessionalCard = ({
   professional,
   onUpdate,
@@ -36,7 +36,6 @@ const ProfessionalCard = ({
 }) => {
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-indigo-200">
-      {/* --- Seção Superior: Foto, Nome e Status --- */}
       <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
         <div className="relative w-16 h-16 shrink-0">
           <Image
@@ -53,7 +52,7 @@ const ProfessionalCard = ({
           </h3>
           {professional.authUid ? (
             <span className="mt-1 text-xs font-bold inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-md">
-              <CheckCircle className="w-3.5 h-3.5" /> Convidado
+              <CheckCircle className="w-3.5 h-3.5" /> Conectado
             </span>
           ) : (
             <span className="mt-1 text-xs font-bold inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 text-amber-800 rounded-md">
@@ -62,8 +61,6 @@ const ProfessionalCard = ({
           )}
         </div>
       </div>
-
-      {/* --- Seção do Meio: Bio e Especialidades --- */}
       <div className="flex-grow py-4">
         {professional.bio && (
           <p className="text-sm text-slate-600 line-clamp-3 mb-3">
@@ -83,8 +80,6 @@ const ProfessionalCard = ({
           </div>
         )}
       </div>
-
-      {/* --- Rodapé: Ações --- */}
       <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
         <div>
           {!professional.authUid && professional.email ? (
@@ -165,15 +160,16 @@ export default function ProfessionalsTab({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-            <span className="text-4xl mr-3">👨‍💼</span>
+          {/* ALTERAÇÃO: Substituir emoji por ícone */}
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Users className="w-8 h-8 text-indigo-600" />
             Profissionais
           </h2>
-          <p className="text-teal-600 mt-1">Sua equipe de especialistas</p>
+          <p className="text-slate-500 mt-1">Sua equipe de especialistas</p>
         </div>
         <button
           onClick={createProfessional}
-          className="px-6 py-3 bg-gradient-to-r from-teal-500 to-indigo-400 text-white rounded-xl hover:from-teal-600 hover:to-indigo-500 transition-all duration-200 hover:scale-105 shadow-lg font-medium flex items-center justify-center"
+          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 font-medium flex items-center justify-center"
         >
           <Plus className="w-5 h-5 inline mr-2" />
           <span>Novo Profissional</span>
@@ -190,7 +186,7 @@ export default function ProfessionalsTab({
             placeholder="Buscar por nome do profissional..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+            className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
           {searchTerm && (
             <button
@@ -219,16 +215,17 @@ export default function ProfessionalsTab({
           ))}
         </div>
       ) : (
-        <div className="bg-white/60 backdrop-blur-sm rounded-xl border-2 border-dashed border-indigo-200 p-12">
+        <div className="bg-white rounded-xl border-2 border-dashed border-slate-200 p-12">
+          {/* ALTERAÇÃO: Substituir emojis por ícones no EmptyState */}
           {searchTerm && professionals.length > 0 ? (
             <EmptyState
               message={`Nenhum profissional encontrado para "${searchTerm}".`}
-              icon="🤷"
+              icon={UserX}
             />
           ) : (
             <EmptyState
               message="Sua equipe ainda está vazia."
-              icon="👨‍💼"
+              icon={Users}
               actionText="Adicionar Primeiro Profissional"
               onAction={createProfessional}
             />
