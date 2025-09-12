@@ -32,6 +32,8 @@ export function useEstablishment() {
       setLoading(false);
       return;
     }
+
+    console.log("Buscando os dados mais recentes do estabelecimento...");
     setLoading(true);
     setError(null);
 
@@ -44,6 +46,7 @@ export function useEstablishment() {
           ...docSnap.data(),
         } as Establishment;
         setEstablishment(establishmentData);
+      } else {
         setEstablishment(null);
         console.log("Nenhum documento de estabelecimento encontrado.");
       }

@@ -126,7 +126,7 @@ const MercadoPagoCheckoutForm = ({
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       {isLoading && (
         <p className="text-gray-500 text-sm mt-2">
-          A processar o seu pagamento...
+          Processando o seu pagamento...
         </p>
       )}
     </div>
