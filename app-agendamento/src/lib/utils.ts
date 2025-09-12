@@ -1,4 +1,5 @@
 //src/lib/utils.ts
+//src/lib/utils.ts
 import { Timestamp } from "firebase/firestore";
 
 // ========== TAILWIND UTILITIES (sem dependências externas) ==========
@@ -115,6 +116,21 @@ export const validationUtils = {
     return emailRegex.test(email);
   },
 
+  // Validar força da senha
+  validatePasswordStrength: (password: string) => {
+    const criteria = {
+      minLength: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+      specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+
+    const isValid = Object.values(criteria).every(Boolean);
+
+    return { ...criteria, isValid };
+  },
+
   // Validar telefone brasileiro
   isValidPhone: (phone: string): boolean => {
     const phoneRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
@@ -198,8 +214,6 @@ export const errorUtils = {
           return "Este email já está em uso.";
         case "auth/weak-password":
           return "Senha muito fraca.";
-        case "auth/network-request-failed":
-          return "Erro de conexão. Verifique sua internet.";
         case "permission-denied":
           return "Permissão negada.";
         case "unavailable":

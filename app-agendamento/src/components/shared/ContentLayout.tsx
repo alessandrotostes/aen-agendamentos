@@ -20,7 +20,7 @@ export default function ContentLayout({
         {/* ALTERAÇÃO: Cartão com borda de gradiente e sombra mais suave */}
         <div className="bg-white p-8 rounded-2xl shadow-2xl shadow-slate-200/60 relative">
           {/* Borda de gradiente no topo */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-2xl" />
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-600 to-teal-600 rounded-t-2xl" />
 
           {children}
         </div>

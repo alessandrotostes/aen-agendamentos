@@ -1,24 +1,24 @@
 "use client";
 
+import React from "react"; // <--- CORREÇÃO AQUI
 import { TrendingUp, BadgeDollarSign, Globe } from "lucide-react";
-// 1. Importamos o novo componente de preço
 import { PricingCard } from "./PricingCard";
 
 const ownerBenefits = [
   {
-    icon: <TrendingUp className="w-8 h-8 text-indigo-500" />,
+    icon: <TrendingUp />,
     title: "Otimize sua Agenda e Ganhos",
     description:
       "Diga adeus ao caderno de papel. Nossa agenda inteligente evita conflitos e maximiza sua ocupação, seja você uma clínica, um estúdio ou um salão.",
   },
   {
-    icon: <BadgeDollarSign className="w-8 h-8 text-indigo-500" />,
+    icon: <BadgeDollarSign />,
     title: "Reduza Faltas com Pagamento Online",
     description:
       "Ao receber pagamentos antecipados via Mercado Pago, você garante o compromisso do cliente, diminui o 'não comparecimento' e protege seu faturamento.",
   },
   {
-    icon: <Globe className="w-8 h-8 text-indigo-500" />,
+    icon: <Globe />,
     title: "Atraia Mais Clientes",
     description:
       "Ganhe uma página pública personalizada com URL amigável para divulgar seus serviços e ser encontrado por novos clientes na sua região.",
@@ -39,10 +39,14 @@ export const OwnerBenefits = () => (
         {ownerBenefits.map((benefit) => (
           <div
             key={benefit.title}
-            className="bg-gray-50 p-8 rounded-xl shadow-md text-left border border-gray-100"
+            className="bg-slate-50 p-8 rounded-2xl shadow-lg shadow-slate-200/60 text-left border border-transparent hover:border-purple-300 transition-all duration-300 transform hover:-translate-y-2 group"
           >
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-5">
-              {benefit.icon}
+            {/* ALTERAÇÃO NA COR DE FUNDO DO ÍCONE */}
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-100 to-violet-100 mb-6 transition-all duration-300 group-hover:scale-110">
+              {/* ALTERAÇÃO NA COR DO ÍCONE */}
+              {React.cloneElement(benefit.icon, {
+                className: "w-8 h-8 text-purple-600",
+              })}
             </div>
             <h3 className="text-xl font-semibold text-gray-900">
               {benefit.title}
@@ -52,7 +56,6 @@ export const OwnerBenefits = () => (
         ))}
       </div>
 
-      {/* 2. Adicionamos o card de preço aqui no final da seção */}
       <PricingCard />
     </div>
   </section>

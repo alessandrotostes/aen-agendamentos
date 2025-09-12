@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export const CTASection = () => {
   return (
-    <section className="bg-gradient-to-r from-teal-500 to-indigo-600 py-20">
+    <section className="bg-gradient-to-r from-teal-600 to-indigo-600 py-20">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl md:text-4xl font-extrabold text-white">
           Pronto para simplificar sua agenda?

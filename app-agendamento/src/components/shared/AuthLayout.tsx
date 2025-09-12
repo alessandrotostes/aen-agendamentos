@@ -73,11 +73,11 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex bg-white">
       {/* Lado Esquerdo - Formulário */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-50">
+      <div className="flex-1 flex flex-col justify-center py-6 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-50">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center space-x-3 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-teal-600 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                 <span className="text-white font-bold text-xl">A&N</span>
               </div>
               <div>
@@ -98,7 +98,7 @@ export default function AuthLayout({
 
       {/* Lado Direito - Showcase de Funcionalidades */}
       <div className="hidden lg:block relative flex-1 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-teal-600" />
 
         <div
           className="absolute top-10 -left-10 w-48 h-48 bg-white/5 rounded-full animate-float"

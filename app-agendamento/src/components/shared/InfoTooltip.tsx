@@ -74,7 +74,7 @@ export default function InfoTooltip({ children }: InfoTooltipProps) {
                     {/* ALTERAÇÃO: Botão com o mesmo estilo dos botões primários */}
                     <button
                       type="button"
-                      className="inline-flex justify-center py-2 px-5 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-70 transition-all duration-300"
+                      className="inline-flex justify-center py-2 px-5 bg-gradient-to-r from-indigo-600 to-teal-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-70 transition-all duration-300"
                       onClick={closeModal}
                     >
                       Entendi

@@ -1,4 +1,3 @@
-//src/app/(auth)/register/page.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -6,12 +5,20 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
+import PasswordStrengthIndicator from "../../../components/shared/PasswordStrengthIndicator";
 import { AlertTriangle, UserPlus } from "lucide-react";
 
-export default function RegisterPage() {
-  // Estado para controlar a renderização segura no cliente e evitar erro de hidratação
-  const [isClient, setIsClient] = useState(false);
+// Estado inicial para o nosso indicador de força
+const initialPasswordValidation = {
+  minLength: false,
+  lowercase: false,
+  uppercase: false,
+  number: false,
+  specialChar: false,
+};
 
+export default function RegisterPage() {
+  const [isClient, setIsClient] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -23,11 +30,13 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState(
+    initialPasswordValidation
+  );
 
   const { register } = useAuth();
   const router = useRouter();
 
-  // useEffect que só é executado no cliente, após a primeira renderização
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -38,11 +47,19 @@ export default function RegisterPage() {
       | React.ChangeEvent<HTMLSelectElement>
   ) => {
     const { name, value, files } = e.target as HTMLInputElement;
+
     if (name === "image") {
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+
+    // Valida a senha em tempo real
+    if (name === "password") {
+      const validation = validationUtils.validatePasswordStrength(value);
+      setPasswordValidation(validation);
+    }
+
     if (error) setError("");
   };
 
@@ -51,12 +68,19 @@ export default function RegisterPage() {
       return "Nome e sobrenome são obrigatórios.";
     if (!formData.email) return "Email é obrigatório.";
     if (!validationUtils.isValidEmail(formData.email)) return "Email inválido.";
-    if (!formData.password) return "Senha é obrigatória.";
-    if (formData.password.length < 6)
-      return "Senha deve ter pelo menos 6 caracteres.";
+
+    // Usar a nossa nova função de validação de senha
+    const passwordCheck = validationUtils.validatePasswordStrength(
+      formData.password
+    );
+    if (!passwordCheck.isValid) {
+      return "A senha não cumpre todos os requisitos de segurança.";
+    }
+
     if (!formData.phone) return "O número de telemóvel é obrigatório.";
     if (formData.role === "owner" && !formData.imageFile)
       return "A foto do estabelecimento é obrigatória.";
+
     return null;
   };
 
@@ -108,7 +132,6 @@ export default function RegisterPage() {
     }
   };
 
-  // Retorna nulo no servidor e na primeira renderização do cliente para garantir a hidratação correta
   if (!isClient) {
     return null;
   }
@@ -228,6 +251,7 @@ export default function RegisterPage() {
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
             />
+            <PasswordStrengthIndicator validation={passwordValidation} />
           </div>
 
           <div>
@@ -273,7 +297,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
           >
-            {loading ? "A registar..." : "Registar"}
+            {loading ? "A criar conta..." : "Criar Conta"}
           </button>
         </form>
       </div>
