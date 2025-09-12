@@ -414,6 +414,7 @@ export const mercadoPagoWebhook = onRequest(
             status: "confirmado",
             paymentId: paymentId,
           });
+          console.log(`SUCESSO: Agendamento ${appointmentId} confirmado.`);
         } else if (
           ["rejected", "cancelled", "failed"].includes(paymentStatus as string)
         ) {
@@ -421,7 +422,13 @@ export const mercadoPagoWebhook = onRequest(
             status: "cancelado",
             cancellationReason: `Pagamento falhou com status: ${paymentStatus}`,
           });
+          console.log(
+            `Agendamento ${appointmentId} cancelado (status: ${paymentStatus}).`
+          );
         } else {
+          console.log(
+            `Status intermediário '${paymentStatus}' recebido. Aguardando notificação final.`
+          );
         }
       }
 
@@ -631,6 +638,9 @@ export const onUserRoleChange = onDocumentWritten(
     try {
       const userId = event.params.userId;
       await admin.auth().setCustomUserClaims(userId, { role: newRole });
+      console.log(
+        `Custom claim for user ${userId} successfully set to '${newRole}'.`
+      );
       return { success: true };
     } catch (error) {
       console.error("Error setting custom user claims:", error);
@@ -804,6 +814,9 @@ export const onFavoriteCreate = onDocumentCreated(
         const newCount = currentCount + 1;
         transaction.update(establishmentRef, { favoritesCount: newCount });
       });
+      console.log(
+        `[TRANSACTION SUCCESS] Contador de favoritos incrementado para o estabelecimento: ${establishmentId}`
+      );
     } catch (error) {
       console.error(
         `[TRANSACTION ERROR] Erro ao incrementar contador para ${establishmentId}:`,
@@ -835,7 +848,15 @@ export const onFavoriteDelete = onDocumentDeleted(
 
         transaction.update(establishmentRef, { favoritesCount: newCount });
       });
-    } catch (error) {}
+      console.log(
+        `[TRANSACTION SUCCESS] Contador de favoritos decrementado para o estabelecimento: ${establishmentId}`
+      );
+    } catch (error) {
+      console.error(
+        `[TRANSACTION ERROR] Erro ao decrementar contador para ${establishmentId}:`,
+        error
+      );
+    }
   }
 );
 /**

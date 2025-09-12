@@ -48,13 +48,19 @@ export default function RegisterPage() {
   ) => {
     const { name, value, files } = e.target as HTMLInputElement;
 
-    if (name === "image") {
+    // --- LÓGICA PARA O TELEMÓVEL ---
+    if (name === "phone") {
+      // Aplica a formatação automática
+      const formattedPhone = validationUtils.formatPhone(value);
+      setFormData((prev) => ({ ...prev, phone: formattedPhone }));
+    }
+    // --- FIM DA LÓGICA PARA O TELEMÓVEL ---
+    else if (name === "image") {
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
 
-    // Valida a senha em tempo real
     if (name === "password") {
       const validation = validationUtils.validatePasswordStrength(value);
       setPasswordValidation(validation);
