@@ -11,16 +11,16 @@ import {
   BarChart2,
 } from "lucide-react";
 
-// Componente para o selo de segurança do Mercado Pago, agora usando a imagem da pasta 'public'
+// Componente para o selo de segurança do Mercado Pago
 const MercadoPagoBadge = () => (
-  <div className="flex justify-center items-center gap-2 mt-8 border-t pt-6">
+  <div className="flex flex-col sm:flex-row justify-center items-center gap-2 mt-8 border-t border-slate-200 pt-6">
     <p className="text-xs text-gray-500">Pagamento seguro com</p>
     <Image
-      src="/images/mercado-pago-logo.svg" // Caminho para a imagem
+      src="/images/mercado-pago-logo.svg"
       alt="Logo do Mercado Pago"
-      width={200}
-      height={50}
-      className="w-48 h-auto"
+      width={120}
+      height={30}
+      className="h-auto"
     />
   </div>
 );
@@ -31,25 +31,25 @@ const features = [
     Icon: CalendarDays,
     title: "Agendamentos online automáticos",
     description:
-      "Permita que seus clientes marquem horários 24/7, sem precisar de ligar, ou depender de respostas manuais.",
+      "Permita que seus clientes marquem horários 24/7, sem precisar de ligar ou depender de respostas manuais.",
   },
   {
     Icon: CreditCard,
     title: "Pagamentos seguros integrados",
     description:
-      "Receba pagamentos online com segurança através do Mercado Pago.",
+      "Receba pagamentos online com segurança através do Mercado Pago, de forma simples e direta.",
   },
   {
     Icon: LayoutDashboard,
     title: "Dashboard completo de gestão",
     description:
-      "Tenha uma visão completa dos seus agendamentos, serviços e equipe.",
+      "Tenha uma visão completa dos seus agendamentos, serviços e equipe em tempo real.",
   },
   {
     Icon: BarChart2,
-    title: "Dashboard para profissionais do estabelecimento",
+    title: "Dashboard para profissionais",
     description:
-      "Profissionais que trabalham no seu estabelecimento terão acesso ao próprio dashboard, podendo acompanhar suas agendas individuais no dia a dia.",
+      "Colaboradores têm acesso ao próprio dashboard para acompanhar suas agendas individuais.",
   },
 ];
 
@@ -71,22 +71,27 @@ export default function AuthLayout({
   const currentFeature = features[currentFeatureIndex];
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-white">
       {/* Lado Esquerdo - Formulário */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-50">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center mb-8">
-            <Link href="/" className="inline-flex items-center space-x-2">
-              <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center animate-float">
+            <Link href="/" className="inline-flex items-center space-x-3 group">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                 <span className="text-white font-bold text-xl">A&N</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">All & None</h1>
+                <h1 className="text-2xl font-bold text-gray-900">All & None</h1>
                 <p className="text-sm text-gray-500">Sistema de Agendamento</p>
               </div>
             </Link>
           </div>
-          <div>{children}</div>
+
+          {/* O children (formulário) é renderizado num "cartão" branco com sombra */}
+          <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
+            {children}
+          </div>
+
           <MercadoPagoBadge />
         </div>
       </div>
@@ -96,11 +101,11 @@ export default function AuthLayout({
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700" />
 
         <div
-          className="absolute top-10 -left-10 w-48 h-48 bg-white/10 rounded-full animate-float"
+          className="absolute top-10 -left-10 w-48 h-48 bg-white/5 rounded-full animate-float"
           style={{ animationDelay: "1s" }}
         />
         <div
-          className="absolute bottom-10 -right-10 w-72 h-72 bg-white/10 rounded-full animate-float"
+          className="absolute bottom-10 -right-10 w-72 h-72 bg-white/5 rounded-full animate-float"
           style={{ animationDelay: "3s" }}
         />
 
@@ -115,7 +120,7 @@ export default function AuthLayout({
                 <CSSTransition
                   key={currentFeature.title}
                   nodeRef={nodeRef}
-                  timeout={400}
+                  timeout={300} // Transição mais rápida
                   classNames={{
                     enter: "opacity-0 transform -translate-y-4",
                     enterActive:
@@ -126,14 +131,14 @@ export default function AuthLayout({
                   }}
                 >
                   <div ref={nodeRef} className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
                       <currentFeature.Icon className="w-6 h-6" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold">
                         {currentFeature.title}
                       </h3>
-                      <p className="mt-1 text-white text-opacity-80">
+                      <p className="mt-1 text-white/80">
                         {currentFeature.description}
                       </p>
                     </div>
@@ -142,7 +147,7 @@ export default function AuthLayout({
               </SwitchTransition>
             </div>
 
-            <div className="mt-12 p-6 bg-white bg-opacity-10 rounded-lg backdrop-blur-sm border border-white border-opacity-20">
+            <div className="mt-12 p-6 bg-white/10 rounded-lg backdrop-blur-sm border border-white/20">
               <h4 className="font-bold text-lg">Por que All & None?</h4>
               <div className="mt-4 space-y-3 text-sm">
                 <p>

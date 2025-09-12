@@ -15,9 +15,6 @@ const AuthLoading = () => (
 // Tipo para as roles permitidas
 type UserRole = "client" | "owner" | "professional";
 
-// ========================================================================
-// NOSSO NOVO COMPONENTE GENÉRICO E INTELIGENTE
-// ========================================================================
 function ProtectedRoute({
   children,
   role,
@@ -25,7 +22,7 @@ function ProtectedRoute({
   children: React.ReactNode;
   role: UserRole;
 }) {
-  // 1. Usamos o novo 'authLoading' do nosso AuthContext corrigido
+  // 1. Usamos o novo 'authLoading' do nosso AuthContext
   const { userData, authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +32,7 @@ function ProtectedRoute({
     if (!authLoading) {
       if (!userData) {
         // Se não há usuário, salva a rota atual e redireciona para o login
-        console.log("Usuário não logado. Redirecionando para /login...");
+        console.log("Usuário não logado. Redirecionando para o login...");
         sessionStorage.setItem("redirectAfterLogin", pathname);
         router.push("/login");
       } else if (userData.role !== role) {
@@ -45,7 +42,7 @@ function ProtectedRoute({
         );
         const destination = {
           owner: "/owner",
-          client: "/client", // Supondo que a rota do cliente seja /client
+          client: "/client",
           professional: "/professional/dashboard",
         }[userData.role];
         router.push(destination);
@@ -95,9 +92,8 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// ========================================================================
-// EXPORTS ANTIGOS MANTIDOS COMO "ATALHOS" (NÃO PRECISA MUDAR NADA NAS PÁGINAS)
-// ========================================================================
+// EXPORTS ANTIGOS MANTIDOS COMO "ATALHOS"
+
 export const ClientRoute = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute role="client">{children}</ProtectedRoute>
 );

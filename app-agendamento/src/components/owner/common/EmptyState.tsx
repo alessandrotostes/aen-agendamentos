@@ -1,18 +1,26 @@
-export default function EmptyState({
-  message,
-  icon = "📋",
-  actionText,
-  onAction,
-}: {
+import React from "react";
+import type { LucideIcon } from "lucide-react";
+
+interface EmptyStateProps {
   message: string;
-  icon?: string;
+  icon: LucideIcon; // A prop 'icon' agora espera um componente
   actionText?: string;
   onAction?: () => void;
-}) {
+}
+
+export default function EmptyState({
+  message,
+  icon: IconComponent, // Renomeamos para usar como componente
+  actionText,
+  onAction,
+}: EmptyStateProps) {
   return (
     <div className="text-center py-12">
-      <div className="text-6xl mb-4 opacity-20">{icon}</div>
-      <p className="text-gray-500 mb-4">{message}</p>
+      <div className="w-16 h-16 mx-auto bg-slate-100 text-slate-400 flex items-center justify-center rounded-full mb-4">
+        {/* Renderizamos o ícone com o tamanho correto */}
+        <IconComponent className="w-8 h-8" />
+      </div>
+      <p className="text-slate-500 mb-6">{message}</p>
       {actionText && onAction && (
         <button
           onClick={onAction}

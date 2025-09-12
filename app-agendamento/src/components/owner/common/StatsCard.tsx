@@ -1,34 +1,36 @@
+import React from "react";
+import type { LucideIcon } from "lucide-react";
+
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  icon: LucideIcon; // A prop 'icon' agora espera um componente de ícone
+  color?: "blue" | "purple" | "emerald"; // Cores alinhadas com o DashboardTab
+}
+
 export default function StatsCard({
   title,
   value,
-  icon,
-  color = "teal",
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color?: "teal" | "indigo" | "emerald" | "cyan" | "purple";
-}) {
+  icon: IconComponent, // Renomeamos a prop para usar como componente
+  color = "blue",
+}: StatsCardProps) {
   const colorClasses = {
-    teal: "bg-gradient-to-br from-teal-50 to-teal-200 text-teal-600 border-teal-200",
-    indigo:
-      "bg-gradient-to-br from-indigo-50 to-indigo-200 text-indigo-600 border-indigo-200",
-    emerald:
-      "bg-gradient-to-br from-emerald-50 to-emerald-200 text-emerald-600 border-emerald-200",
-    cyan: "bg-gradient-to-br from-cyan-50 to-cyan-200 text-cyan-600 border-cyan-200",
-    purple:
-      "bg-gradient-to-br from-purple-50 to-purple-200 text-purple-600 border-purple-200",
+    blue: "bg-blue-50 text-blue-600",
+    purple: "bg-purple-50 text-purple-600",
+    emerald: "bg-emerald-50 text-emerald-600",
   };
+
   return (
-    <div
-      className={`bg-white rounded-xl shadow-sm border p-6 ${colorClasses[color]}`}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
-        </div>
-        <div className="w-12 h-12 flex items-center justify-center">{icon}</div>
+    <div className="bg-white p-6 rounded-xl shadow-sm border flex items-center gap-5 transition-transform transform hover:scale-105">
+      <div
+        className={`w-14 h-14 rounded-lg flex items-center justify-center ${colorClasses[color]}`}
+      >
+        {/* Renderizamos o ícone com o tamanho correto */}
+        <IconComponent className="w-7 h-7" />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-slate-500">{title}</p>
+        <p className="text-3xl font-bold text-slate-800 mt-1">{value}</p>
       </div>
     </div>
   );

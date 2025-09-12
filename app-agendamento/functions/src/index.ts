@@ -10,6 +10,7 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { MercadoPagoConfig, OAuth, Preference, Payment } from "mercadopago";
+import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
 const db = admin.firestore(); // Definindo o db uma vez aqui para ser usado globalmente
@@ -153,20 +154,69 @@ export const exchangeCodeForCredentials = onCall(
 // ===== FUNÇÃO 3: CRIAR PREFERÊNCIA DE PAGAMENTO (CHECKOUT PRO)
 // ============================================================================
 export const createMercadoPagoPreference = onCall(async (request) => {
+  // LOG 1: Início da execução e verificação de autenticação
+  logger.info("Iniciando createMercadoPagoPreference...", {
+    auth: request.auth,
+  });
+
   if (!request.auth) {
+    logger.error("Falha na autenticação: request.auth está vazio.");
     throw new HttpsError(
       "unauthenticated",
       "Você precisa estar logado para pagar."
     );
   }
-  const { transaction_amount, payer, appointmentDetails } = request.data;
-  const clientId = request.auth.uid; // ID do cliente logado
+  const clientId = request.auth.uid;
 
-  // Validação para garantir que os nomes não estão vazios
-  if (!payer.firstName || !payer.lastName) {
+  const { transaction_amount, appointmentDetails } = request.data;
+  if (!transaction_amount || !appointmentDetails) {
+    logger.error("Argumentos inválidos.", { data: request.data });
     throw new HttpsError(
       "invalid-argument",
-      "Nome e sobrenome do pagador são obrigatórios."
+      "Detalhes do agendamento e valor são obrigatórios."
+    );
+  }
+
+  let clientData;
+  try {
+    const clientDocRef = db.collection("users").doc(clientId);
+    const clientDoc = await clientDocRef.get();
+
+    if (!clientDoc.exists) {
+      logger.error(
+        `Documento do cliente não encontrado no Firestore para o UID: ${clientId}`
+      );
+      throw new HttpsError(
+        "not-found",
+        "Os dados do cliente não foram encontrados."
+      );
+    }
+    clientData = clientDoc.data();
+
+    // LOG 2: DADOS DO CLIENTE LIDOS DO FIRESTORE
+    // Este é o log mais importante. Ele mostra o que o servidor REALMENTE leu do banco de dados.
+    logger.info(`Dados do cliente lidos do Firestore para o UID: ${clientId}`, {
+      clientData,
+    });
+
+    if (!clientData?.firstName || !clientData?.lastName || !clientData?.email) {
+      logger.error("Dados do perfil do cliente estão incompletos.", {
+        clientData,
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        "Os dados do perfil do cliente estão incompletos."
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "Erro CRÍTICO ao buscar dados do cliente no Firestore:",
+      error
+    );
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "internal",
+      "Não foi possível carregar os dados do cliente."
     );
   }
 
@@ -212,7 +262,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     .collection("establishments")
     .doc(appointmentDetails.establishmentId)
     .get();
-
   if (!establishmentDoc.exists) {
     throw new HttpsError("not-found", "Estabelecimento não encontrado.");
   }
@@ -224,11 +273,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       "Este estabelecimento não está conectado para receber pagamentos."
     );
   }
-
-  // Busca os dados do cliente para obter o número de telemóvel
-  const clientDoc = await db.collection("users").doc(clientId).get();
-  const clientData = clientDoc.data();
-  const clientPhone = clientData?.phone || "";
 
   const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
   const preference = new Preference(client);
@@ -260,17 +304,18 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalFirstName}`,
+          description: `Com ${appointmentDetails.professionalfirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
           category_id: "services",
         },
       ],
+      // 4. USAR OS DADOS SEGUROS QUE BUSCAMOS DO FIRESTORE
       payer: {
-        first_name: payer.firstName, // Chave explícita como o MP pede
-        last_name: payer.lastName, // Chave explícita como o MP pede
-        email: payer.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        email: clientData.email,
       },
       back_urls: {
         success: `${aplicationBaseUrl}/client/`,
@@ -292,16 +337,18 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
-
-    // Salva o agendamento pendente com todos os dados corretos
+    logger.info("Objeto de preferência a ser enviado para o Mercado Pago:", {
+      payer: preferenceBody.payer,
+    });
+    // 5. SALVAR O AGENDAMENTO COM OS DADOS CORRETOS E SEGUROS
     const finalBookingDate = new Date(appointmentDetails.bookingTimestamp);
     await newAppointmentRef.set({
       ...appointmentDetails,
       dateTime: Timestamp.fromDate(finalBookingDate),
-      clientId: clientId,
-      clientFirstName: payer.firstName,
-      clientLastName: payer.lastName,
-      clientPhone: clientPhone,
+      clientId: clientId, // O UID do usuário autenticado
+      clientFirstName: clientData.firstName, // O nome vindo do banco de dados
+      clientLastName: clientData.lastName, // O sobrenome vindo do banco de dados
+      clientPhone: clientData.phone || "", // O telemóvel vindo do banco de dados
       professionalAuthUid,
       status: "pending_payment",
       preferenceId: preferenceResponse.id,

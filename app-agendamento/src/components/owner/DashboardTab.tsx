@@ -8,10 +8,25 @@ import { ptBR } from "date-fns/locale";
 import { format, isToday, isTomorrow } from "date-fns";
 import LoadingSpinner from "./common/LoadingSpinner";
 import { Appointment } from "@/types";
-import { Hourglass, Clock, CheckCircle, XCircle } from "lucide-react";
+// =================================================================
+// ===== ALTERAÇÃO 1: REMOVER IMPORTAÇÕES NÃO UTILIZADAS =========
+// =================================================================
+import {
+  Hourglass,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Calendar, // Ícone para o título e estado vazio
+  LucideIcon, // Tipo para as props
+} from "lucide-react";
 
 interface Props {
   stats: { services: number; professionals: number; today: number };
+  icons: {
+    services: LucideIcon;
+    professionals: LucideIcon;
+    today: LucideIcon;
+  };
   appointmentsForDate?: Appointment[];
   selectedDate: Date;
   onDateChange: (date: Date) => void;
@@ -24,9 +39,7 @@ const formatDateTitle = (date: Date): string => {
   if (isTomorrow(date)) return "Amanhã";
   return format(date, "dd 'de' MMMM, yyyy", { locale: ptBR });
 };
-// =================================================================
-// ===== NOVO COMPONENTE INTERNO: LINHA DE AGENDAMENTO =============
-// =================================================================
+
 const AppointmentRow = ({
   appointment,
   onCancel,
@@ -34,7 +47,7 @@ const AppointmentRow = ({
   appointment: Appointment;
   onCancel: (app: Appointment) => void;
 }) => {
-  // Se for pendente, exibe um card especial (sem alterações)
+  // ... (Nenhuma alteração no componente AppointmentRow)
   if (appointment.status === "pending_payment") {
     return (
       <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200">
@@ -58,7 +71,6 @@ const AppointmentRow = ({
     );
   }
 
-  // Lógica de status para agendamentos com data
   const now = new Date();
   const isPast = appointment.dateTime.toDate() < now;
   const virtualStatus =
@@ -102,18 +114,15 @@ const AppointmentRow = ({
             {appointment.serviceName}
           </p>
           <p className="text-sm text-slate-600">
-            {/* CORRIGIDO: Typo de 'professionalfirstName' para 'professionalFirstName' */}
             com {appointment.professionalfirstName}
           </p>
         </div>
       </div>
 
-      {/* CORRIGIDO: Bloco de nome do cliente duplicado foi removido */}
       <div className="text-sm text-slate-600 sm:text-center">
         <p className="font-semibold text-slate-900">
           {`${appointment.clientFirstName} ${appointment.clientLastName}`.trim()}
         </p>
-        {/* O telemóvel agora será exibido corretamente */}
         {appointment.clientPhone && (
           <a
             href={`tel:${appointment.clientPhone}`}
@@ -165,6 +174,7 @@ const AppointmentRow = ({
 
 export default function DashboardTab({
   stats,
+  icons,
   appointmentsForDate = [],
   selectedDate,
   onDateChange,
@@ -178,10 +188,10 @@ export default function DashboardTab({
   const sortedAppointments = useMemo(() => {
     const now = Date.now();
     const getStatusRank = (app: Appointment) => {
-      if (app.status === "pending_payment") return 1;
-      if (app.status === "cancelado") return 4;
-      if (!app.dateTime || app.dateTime.toMillis() < now) return 3;
-      return 2;
+      if (app.status === "pending_payment") return 5; // Aguardando pagamento
+      if (app.status === "cancelado") return 4; // Cancelados
+      if (!app.dateTime || app.dateTime.toMillis() < now) return 3; // Concluídos
+      return 2; // Confirmados (próximos)
     };
     return [...appointmentsForDate].sort((a, b) => {
       const rankA = getStatusRank(a);
@@ -201,37 +211,38 @@ export default function DashboardTab({
         </p>
       </div>
 
-      {/* ================================================================= */}
-      {/* ===== CORREÇÃO 2: REORDENAÇÃO DAS SECÇÕES ======================= */}
-      {/* ================================================================= */}
       <div className="flex flex-col gap-8">
-        {/* No mobile: order-2 (segundo), no desktop: lg:order-1 (primeiro) */}
         <div className="order-2 lg:order-1">
           <p className="text-teal-600 mb-4">Visão geral do seu negócio</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* ================================================================= */}
+            {/* ===== ALTERAÇÃO 2: CORRIGIR O VALOR DA PROP 'color' =========== */}
+            {/* ================================================================= */}
             <StatsCard
               title="Serviços Oferecidos"
               value={stats.services.toString()}
-              icon="📋"
+              icon={icons.services}
+              color="blue"
             />
             <StatsCard
               title="Profissionais Ativos"
               value={stats.professionals.toString()}
-              icon="👨‍💼"
+              icon={icons.professionals}
+              color="purple"
             />
             <StatsCard
               title="Agendamentos Hoje"
               value={stats.today.toString()}
-              icon="📆"
+              icon={icons.today}
+              color="emerald"
             />
           </div>
         </div>
 
-        {/* No mobile: order-1 (primeiro), no desktop: lg:order-2 (segundo) */}
         <div className="order-1 lg:order-2 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-              <span className="text-teal-600 mr-2">📅</span>
+              <Calendar className="w-5 h-5 text-teal-600 mr-2" />
               Agendamentos de {formatDateTitle(selectedDate)}
             </h3>
             <div className="min-h-[200px]">
@@ -252,7 +263,7 @@ export default function DashboardTab({
               ) : (
                 <EmptyState
                   message="Nenhum agendamento para este dia."
-                  icon="🗓️"
+                  icon={Calendar}
                 />
               )}
             </div>
@@ -268,7 +279,6 @@ export default function DashboardTab({
           </div>
         </div>
       </div>
-      {/* ================================================================= */}
     </div>
   );
 }

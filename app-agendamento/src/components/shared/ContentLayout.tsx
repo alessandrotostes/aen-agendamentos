@@ -4,7 +4,7 @@ import React from "react";
 
 interface ContentLayoutProps {
   children: React.ReactNode;
-  footer?: React.ReactNode; // Prop opcional para o rodapé
+  footer?: React.ReactNode;
 }
 
 export default function ContentLayout({
@@ -12,15 +12,24 @@ export default function ContentLayout({
   footer,
 }: ContentLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        {/* O conteúdo principal da página (como o formulário) entra aqui */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+    // ALTERAÇÃO: Fundo mais moderno com gradiente radial subtil
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <div className="absolute top-0 left-0 -translate-x-1/4 -translate-y-1/2 w-[150vw] h-[100vh] bg-gradient-to-br from-indigo-100 via-white to-white rounded-full opacity-50" />
+
+      <div className="w-full max-w-md z-10">
+        {/* ALTERAÇÃO: Cartão com borda de gradiente e sombra mais suave */}
+        <div className="bg-white p-8 rounded-2xl shadow-2xl shadow-slate-200/60 relative">
+          {/* Borda de gradiente no topo */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-2xl" />
+
           {children}
         </div>
 
-        {/* Se um rodapé for fornecido, ele será renderizado aqui em baixo */}
-        {footer && <div className="mt-6 text-center">{footer}</div>}
+        {footer && (
+          <div className="mt-8 text-center text-sm text-slate-500">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

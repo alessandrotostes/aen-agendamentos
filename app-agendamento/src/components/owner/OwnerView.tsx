@@ -21,7 +21,16 @@ import {
   httpsCallable,
   HttpsCallableResult,
 } from "firebase/functions";
-import { Share2 } from "lucide-react";
+import {
+  Share2,
+  LayoutDashboard,
+  ClipboardList,
+  Users,
+  Settings,
+  LayoutGrid,
+  CalendarDays,
+  BriefcaseBusiness,
+} from "lucide-react";
 import type {
   Service,
   Professional,
@@ -310,7 +319,6 @@ export default function OwnerView() {
       return;
     }
 
-    // A MUDANÇA ESTÁ AQUI:
     const url = `${window.location.origin}/client/salon/${establishment.slug}`;
 
     navigator.clipboard
@@ -333,12 +341,11 @@ export default function OwnerView() {
   }
 
   const navItems = [
-    { key: "dashboard", label: "Dashboard", icon: "📊" },
-    { key: "services", label: "Serviços", icon: "📋" },
-    { key: "professionals", label: "Profissionais", icon: "👨‍💼" },
-    { key: "settings", label: "Configurações", icon: "⚙️" },
+    { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { key: "services", label: "Serviços", icon: ClipboardList },
+    { key: "professionals", label: "Profissionais", icon: Users },
+    { key: "settings", label: "Configurações", icon: Settings },
   ] as const;
-
   return (
     <div className="min-h-screen bg-gray-50">
       <OwnerHeader
@@ -348,25 +355,28 @@ export default function OwnerView() {
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6">
           <ul className="flex justify-around sm:justify-start sm:space-x-6 py-4 overflow-x-auto">
-            {navItems.map((tab) => (
-              <li key={tab.key}>
-                <button
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center space-x-2 text-sm font-medium transition whitespace-nowrap ${
-                    activeTab === tab.key
-                      ? "text-white bg-gradient-to-r from-teal-400 to-indigo-500 px-4 py-2 rounded-lg shadow"
-                      : "text-gray-700 hover:text-teal-600 hover:bg-gray-100 px-4 py-2 rounded-lg"
-                  }`}
-                >
-                  <span>{tab.icon}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              </li>
-            ))}
+            {navItems.map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <li key={tab.key}>
+                  <button
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center space-x-2 text-sm font-medium transition whitespace-nowrap ${
+                      activeTab === tab.key
+                        ? "text-white bg-gradient-to-r from-teal-400 to-indigo-500 px-4 py-2 rounded-lg shadow"
+                        : "text-gray-700 hover:text-teal-600 hover:bg-gray-100 px-4 py-2 rounded-lg"
+                    }`}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 lg:py-4 space-y-8">
         <div className="flex justify-end">
           <button
             onClick={handleShareLink}
@@ -394,6 +404,14 @@ export default function OwnerView() {
               professionals: professionalsData.professionals.length,
               today: appointmentsData.appointmentsForDate.length,
             }}
+            icons={{
+              // ========================================================================
+              // ===== ALTERAÇÃO 2: ATUALIZAR O ÍCONE PASSADO COMO PROP            =====
+              // ========================================================================
+              services: LayoutGrid,
+              professionals: BriefcaseBusiness,
+              today: CalendarDays,
+            }}
             appointmentsForDate={appointmentsData.appointmentsForDate}
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
@@ -415,7 +433,7 @@ export default function OwnerView() {
             createProfessional={handleCreateProfessional}
             updateProfessional={handleUpdateProfessional}
             deleteProfessional={handleDeleteProfessional}
-            onManageAvailability={handleManageAvailability} // <-- Usa a nova função
+            onManageAvailability={handleManageAvailability}
             onInviteProfessional={handleInviteProfessional}
             onResendInvite={handleResendInvite}
           />
@@ -437,7 +455,7 @@ export default function OwnerView() {
         isSuccessOpen={modals.success}
         selectedService={selectedService}
         selectedProfessional={selectedProfessional}
-        initialView={modalInitialView} // <-- Passa a visão inicial
+        initialView={modalInitialView}
         establishmentToEdit={establishment}
         deleteTarget={deleteTarget}
         successMessage={successMessage}

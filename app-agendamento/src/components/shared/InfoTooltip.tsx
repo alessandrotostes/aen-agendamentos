@@ -1,7 +1,5 @@
-// src/components/shared/InfoTooltip.tsx
 "use client";
 
-// MUDANÇA 1: Trocamos Popover por Dialog e adicionamos useState para controlar o estado
 import { Dialog, Transition } from "@headlessui/react";
 import { Info } from "lucide-react";
 import { Fragment, useState } from "react";
@@ -23,7 +21,6 @@ export default function InfoTooltip({ children }: InfoTooltipProps) {
 
   return (
     <>
-      {/* MUDANÇA 2: O botão agora controla o estado do modal */}
       <div className="relative inline-flex ml-2 align-middle">
         <button
           type="button"
@@ -34,7 +31,6 @@ export default function InfoTooltip({ children }: InfoTooltipProps) {
         </button>
       </div>
 
-      {/* MUDANÇA 3: A estrutura do Dialog (Overlay, Painel Centralizado) */}
       <Transition appear show={isOpen} as={Fragment}>
         <Dialog as="div" className="relative z-[60]" onClose={closeModal}>
           <Transition.Child
@@ -60,23 +56,25 @@ export default function InfoTooltip({ children }: InfoTooltipProps) {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                {/* MUDANÇA 4: O conteúdo do modal (Título, Mensagem e botão para fechar) */}
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title
                     as="h3"
                     className="text-lg font-medium leading-6 text-gray-900 flex items-center gap-2"
                   >
-                    <Info className="h-5 w-5 text-teal-600" />
+                    <Info className="h-5 w-5 text-indigo-600" />
                     Informação
                   </Dialog.Title>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-600">{children}</p>
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {children}
+                    </p>
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-6 flex justify-end">
+                    {/* ALTERAÇÃO: Botão com o mesmo estilo dos botões primários */}
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-teal-100 px-4 py-2 text-sm font-medium text-teal-900 hover:bg-teal-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center py-2 px-5 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-70 transition-all duration-300"
                       onClick={closeModal}
                     >
                       Entendi
