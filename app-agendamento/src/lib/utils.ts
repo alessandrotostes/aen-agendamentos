@@ -1,5 +1,4 @@
 //src/lib/utils.ts
-//src/lib/utils.ts
 import { Timestamp } from "firebase/firestore";
 
 // ========== TAILWIND UTILITIES (sem dependências externas) ==========

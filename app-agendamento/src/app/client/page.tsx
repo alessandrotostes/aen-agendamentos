@@ -17,7 +17,6 @@ export default function ClientPage() {
 
   const handleFavoritesClick = () => {
     // Futuramente, podemos criar uma nova vista para os favoritos.
-    // Por enquanto, podemos navegar para a busca como exemplo.
     console.log("Botão de favoritos clicado!");
     setActiveView("search"); // Pode ajustar para onde quer navegar
   };

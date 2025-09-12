@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (userSnap.exists()) {
           const data = userSnap.data() as AuthUser;
-          console.log("AuthContext: Dados carregados do Firestore:", data);
           setUserData(data);
           setCurrentUser(user);
         } else {
@@ -85,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName: string,
     role: "owner" | "client",
     imageFile?: File | null,
-    phone?: string // Recebe o telemóvel
+    phone?: string
   ): Promise<AuthUser> {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -101,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName,
       email,
       role,
-      phone: phone || "", // Salva o telemóvel no perfil do utilizador
+      phone: phone || "",
     };
 
     await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
@@ -119,12 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const establishmentName = `${firstName} ${lastName}`.trim();
 
-      // Salva também o telemóvel no perfil do estabelecimento
       await setDoc(doc(db, "establishments", uid), {
         ownerId: uid,
         name: establishmentName,
         email,
-        phone: phone || "", // <-- Adicionado telemóvel ao estabelecimento
+        phone: phone || "",
         address: "",
         imageURL,
         rating: 0,

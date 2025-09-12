@@ -108,9 +108,7 @@ const MercadoPagoCheckoutForm = ({
     );
   };
 
-  const onReady = async () => {
-    console.log("CardPayment Brick está pronto.");
-  };
+  const onReady = async () => {};
 
   return (
     <div className="flex flex-col">
@@ -126,7 +124,7 @@ const MercadoPagoCheckoutForm = ({
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       {isLoading && (
         <p className="text-gray-500 text-sm mt-2">
-          A processar o seu pagamento...
+          Processando o seu pagamento...
         </p>
       )}
     </div>

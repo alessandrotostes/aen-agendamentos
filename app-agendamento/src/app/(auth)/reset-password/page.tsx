@@ -63,8 +63,8 @@ export default function ResetPasswordPage() {
                 Email enviado!
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                Verifique a sua caixa de entrada (e SPAM) para redefinir a sua
-                senha.
+                Verifique a sua caixa de entrada e caixa de{" "}
+                <strong>(SPAM)</strong> para redefinir a sua senha.
               </p>
               <div className="mt-6 space-y-3">
                 <Link
@@ -92,10 +92,11 @@ export default function ResetPasswordPage() {
                   <MailQuestion className="w-8 h-8 text-indigo-600" />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">
-                  Recuperar senha
+                  Esqueceu sua senha?
                 </h2>
                 <p className="mt-2 text-sm text-gray-600">
-                  Sem problemas! Digite o seu email abaixo.
+                  Sem problemas! Digite o seu email abaixo e lhe enviaremos um
+                  link para redefinir sua senha.
                 </p>
               </div>
 
@@ -134,7 +135,7 @@ export default function ResetPasswordPage() {
                   disabled={loading}
                   className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
                 >
-                  {loading ? "A enviar..." : "Enviar link de recuperação"}
+                  {loading ? "Enviando..." : "Enviar link de recuperação"}
                 </button>
 
                 <div className="text-center pt-2">
@@ -142,7 +143,7 @@ export default function ResetPasswordPage() {
                     href="/login"
                     className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
                   >
-                    ← Lembrei-me da senha
+                    ← Voltar ao Login
                   </Link>
                 </div>
               </form>
