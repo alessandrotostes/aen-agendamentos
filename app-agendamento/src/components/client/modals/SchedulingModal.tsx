@@ -11,22 +11,10 @@ import { format, isToday } from "date-fns";
 import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "@/contexts/AuthContext";
-import { Service, Professional } from "@/types";
+import { Service, Professional, PendingAppointment } from "@/types";
 import { motion, AnimatePresence } from "framer-motion"; // Importações para animação
 import { Check } from "lucide-react"; // Ícones adicionais
 
-interface PendingAppointment {
-  establishmentId: string;
-  serviceId: string;
-  serviceName: string;
-  price: number;
-  duration: number;
-  professionalId: string;
-  professionalfirstName: string;
-  bookingTimestamp: string;
-  clientFirstName: string;
-  clientLastName: string;
-}
 
 interface BookedSlot {
   dateTime: string; // Vem como ISO string

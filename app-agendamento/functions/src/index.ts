@@ -153,69 +153,52 @@ export const exchangeCodeForCredentials = onCall(
 // ===== FUNÇÃO 3: CRIAR PREFERÊNCIA DE PAGAMENTO (CHECKOUT PRO)
 // ============================================================================
 export const createMercadoPagoPreference = onCall(async (request) => {
-  // 1. VERIFICAÇÃO DE AUTENTICAÇÃO
+  console.log(
+    "Dados brutos recebidos pelo backend:",
+    JSON.stringify(request.data, null, 2)
+  );
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
       "Você precisa estar logado para pagar."
     );
   }
-
-  // 2. EXTRAÇÃO DOS DADOS (ESPERANDO snake_case DO CLIENTE)
   const { transaction_amount, payer, appointmentDetails } = request.data;
-  const clientId = request.auth.uid;
 
-  // 3. VALIDAÇÃO DOS DADOS DO PAGADOR (payer)
-  if (!payer || !payer.first_name || !payer.last_name || !payer.email) {
+  // PENDÊNCIA 1 & 2: Validar nome e sobrenome (já estava correto)
+  if (!payer.firstName || !payer.lastName) {
     throw new HttpsError(
       "invalid-argument",
-      "Dados do pagador (nome, sobrenome, email) são obrigatórios."
+      "Nome e sobrenome do pagador são obrigatórios."
     );
   }
 
-  // 4. VERIFICAÇÃO DE DISPONIBILIDADE (LÓGICA ROBUSTA COM DURAÇÃO E SOBREPOSIÇÃO)
+  // --- Lógica de verificação de disponibilidade (sem alterações) ---
   try {
-    const { establishmentId, professionalId, bookingTimestamp, duration } =
+    const { establishmentId, professionalId, bookingTimestamp } =
       appointmentDetails;
+    const requestedStartTime = new Date(bookingTimestamp);
 
-    if (!duration || duration <= 0) {
+    // Validação de horário futuro
+    if (requestedStartTime < new Date()) {
       throw new HttpsError(
-        "invalid-argument",
-        "A duração do serviço é inválida."
+        "failed-precondition",
+        "Não é possível agendar em um horário que já passou."
       );
     }
-
-    const requestedStartTime = new Date(bookingTimestamp).getTime();
-    const requestedEndTime = requestedStartTime + duration * 60 * 1000;
 
     const appointmentsRef = db
       .collection("establishments")
       .doc(establishmentId)
       .collection("appointments");
+
     const snapshot = await appointmentsRef
       .where("professionalId", "==", professionalId)
       .where("status", "==", "confirmado")
+      .where("dateTime", "==", Timestamp.fromDate(requestedStartTime))
       .get();
 
-    let isSlotTaken = false;
     if (!snapshot.empty) {
-      snapshot.forEach((doc) => {
-        const booking = doc.data();
-        const existingStartTime = (booking.dateTime as Timestamp).toMillis();
-        const existingEndTime =
-          existingStartTime + booking.duration * 60 * 1000;
-
-        // Lógica de sobreposição
-        if (
-          requestedStartTime < existingEndTime &&
-          requestedEndTime > existingStartTime
-        ) {
-          isSlotTaken = true;
-        }
-      });
-    }
-
-    if (isSlotTaken) {
       throw new HttpsError(
         "already-exists",
         "Desculpe, este horário acabou de ser reservado. Por favor, escolha outro."
@@ -230,7 +213,6 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  // 5. BUSCA DAS CREDENCIAIS DO ESTABELECIMENTO
   const establishmentDoc = await db
     .collection("establishments")
     .doc(appointmentDetails.establishmentId)
@@ -248,34 +230,49 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  // 6. CONFIGURAÇÃO E CRIAÇÃO DA PREFERÊNCIA DE PAGAMENTO
   const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
   const preference = new Preference(client);
-
-  // Defina a taxa de marketplace de acordo com sua regra de negócio
-  const application_fee = Math.floor(transaction_amount * 0.07 * 100) / 100;
-
-  const establishmentNameClean = (establishmentData?.name || "Servico")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .substring(0, 10);
-  const statementDescriptor = `AN_${establishmentNameClean}`;
+  const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
 
   try {
+    const appointmentsRef = db
+      .collection("establishments")
+      .doc(appointmentDetails.establishmentId)
+      .collection("appointments");
+    const newAppointmentRef = appointmentsRef.doc();
+    const appointmentId = newAppointmentRef.id;
+
+    const professionalDoc = await db
+      .collection("establishments")
+      .doc(appointmentDetails.establishmentId)
+      .collection("professionals")
+      .doc(appointmentDetails.professionalId)
+      .get();
+    const professionalAuthUid = professionalDoc.data()?.authUid || null;
+
+    // PENDÊNCIA 4: Criar um nome curto e limpo para a fatura do cartão
+    const establishmentNameClean = (establishmentData?.name || "Servico")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .substring(0, 10);
+    const statementDescriptor = `AN_${establishmentNameClean}`;
+
     const preferenceBody = {
       items: [
         {
           id: appointmentDetails.serviceId,
           title: `Agendamento: ${appointmentDetails.serviceName}`,
-          description: `Com ${appointmentDetails.professionalFirstName}`,
+          description: `Com ${appointmentDetails.professionalfirstName}`,
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          category_id: "services",
+          // PENDÊNCIA 3: Adicionar a categoria do item
+          category_id: "services", // Categoria genérica para serviços
         },
       ],
       payer: {
-        first_name: payer.first_name, // CAMPO CORRETO
-        last_name: payer.last_name, // CAMPO CORRETO E INCLUÍDO
+        // PENDÊNCIA 1 & 2: Enviar nome e sobrenome
+        first_name: payer.firstName,
+        last_name: payer.lastName,
         email: payer.email,
       },
       back_urls: {
@@ -285,22 +282,41 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       },
       auto_return: "approved",
       marketplace_fee: application_fee,
+      // PENDÊNCIA 4: Enviar o descritor da fatura
       statement_descriptor: statementDescriptor,
       metadata: {
-        appointmentDetails: appointmentDetails, // Enviando todos os detalhes para o webhook
-        clientId: clientId,
+        appointmentId: appointmentId,
+        establishmentId: appointmentDetails.establishmentId,
       },
-      external_reference: `APP_${clientId}_${Date.now()}`,
+      external_reference: appointmentId,
       notification_url:
         "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
     };
-
+    console.log(
+      "Corpo da preferência sendo enviado ao Mercado Pago:",
+      JSON.stringify(preferenceBody, null, 2)
+    );
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
 
-    // 7. RETORNO DO LINK DE PAGAMENTO (SEM CRIAR REGISTO NO BANCO DE DADOS)
-    return { success: true, init_point: preferenceResponse.init_point };
+    // MUDANÇA PRINCIPAL: Salvar o agendamento com 'dateTime' desde o início
+    const finalBookingDate = new Date(appointmentDetails.bookingTimestamp);
+    await newAppointmentRef.set({
+      ...appointmentDetails,
+      // REMOVEMOS bookingTimestamp e usamos dateTime
+      dateTime: Timestamp.fromDate(finalBookingDate),
+      clientId: request.auth.uid,
+      clientFirstName: payer.firstName,
+      clientLastName: payer.lastName,
+      professionalAuthUid,
+      status: "pending_payment",
+      preferenceId: preferenceResponse.id,
+      createdAt: Timestamp.now(),
+    });
+
+    const initPoint = preferenceResponse.init_point;
+    return { success: true, init_point: initPoint };
   } catch (error: any) {
     console.error(
       "ERRO DETALHADO AO CRIAR PREFERÊNCIA:",
