@@ -77,7 +77,7 @@ export default function RegisterPage() {
       return "A senha não cumpre todos os requisitos de segurança.";
     }
 
-    if (!formData.phone) return "O número de telemóvel é obrigatório.";
+    if (!formData.phone) return "O número de telefone é obrigatório.";
     if (formData.role === "owner" && !formData.imageFile)
       return "A foto do estabelecimento é obrigatória.";
 
@@ -222,7 +222,7 @@ export default function RegisterPage() {
               htmlFor="phone"
               className="block text-sm font-medium text-gray-700"
             >
-              Telemóvel
+              Telefone
             </label>
             <input
               id="phone"
