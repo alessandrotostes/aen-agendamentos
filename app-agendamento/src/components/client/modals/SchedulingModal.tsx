@@ -12,12 +12,11 @@ import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "@/contexts/AuthContext";
 import { Service, Professional, PendingAppointment } from "@/types";
-import { motion, AnimatePresence } from "framer-motion"; // Importações para animação
-import { Check } from "lucide-react"; // Ícones adicionais
-
+import { motion, AnimatePresence } from "framer-motion";
+import { Check } from "lucide-react";
 
 interface BookedSlot {
-  dateTime: string; // Vem como ISO string
+  dateTime: string;
   duration: number;
 }
 
@@ -37,7 +36,6 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
         {steps.map((step, stepIdx) => (
           <li key={step} className="flex flex-col items-center space-y-2">
             {currentStep > stepIdx + 1 ? (
-              // Passos Concluídos
               <>
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600">
                   <Check className="h-5 w-5 text-white" aria-hidden="true" />
@@ -47,7 +45,6 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
                 </span>
               </>
             ) : currentStep === stepIdx + 1 ? (
-              // Passo Atual
               <>
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-teal-600 bg-white">
                   <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
@@ -57,7 +54,6 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
                 </span>
               </>
             ) : (
-              // Passos Futuros
               <>
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-300 bg-white" />
                 <span className="text-xs text-gray-500">{step}</span>
@@ -78,7 +74,8 @@ export default function SchedulingModal({
   establishmentId,
 }: SchedulingModalProps) {
   const router = useRouter();
-  const { currentUser, userData } = useAuth();
+  // ===== ALTERAÇÃO 1: Obter o estado 'authLoading' do contexto =====
+  const { currentUser, userData, authLoading } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<
@@ -89,7 +86,6 @@ export default function SchedulingModal({
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
-  // Resetar o estado quando o modal é fechado/aberto
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(1);
@@ -113,19 +109,14 @@ export default function SchedulingModal({
           functions,
           "getProfessionalAvailability"
         );
-
         const result = await getAvailability({
           establishmentId: establishmentId,
           professionalId: selectedProfessionalId,
           date: selectedDate.toISOString(),
         });
-
         setBookedSlots(result.data as BookedSlot[]);
       } catch (error) {
-        console.error(
-          "Erro ao buscar disponibilidade via Cloud Function:",
-          error
-        );
+        console.error("Erro ao buscar disponibilidade:", error);
         alert("Não foi possível carregar os horários. Tente novamente.");
         setBookedSlots([]);
       } finally {
@@ -191,21 +182,9 @@ export default function SchedulingModal({
     const availableSlots = slotsInMinutes.filter((potentialStart) => {
       const potentialEnd = potentialStart + service.duration;
       if (potentialEnd > endInMinutes) return false;
-
-      const hasConflict = bookedIntervals.some((booked) => {
-        const isOverlapping =
-          potentialStart < booked.end && potentialEnd > booked.start;
-        // Log para cada horário potencial
-        if (isOverlapping) {
-          console.log({
-            potentialSlot: `${potentialStart} - ${potentialEnd}`,
-            bookedSlot: `${booked.start} - ${booked.end}`,
-            overlaps: isOverlapping,
-          });
-        }
-        return isOverlapping;
-      });
-
+      const hasConflict = bookedIntervals.some(
+        (booked) => potentialStart < booked.end && potentialEnd > booked.start
+      );
       return !hasConflict;
     });
 
@@ -227,7 +206,9 @@ export default function SchedulingModal({
 
   const handleGoToCheckout = () => {
     if (!currentUser || !userData?.firstName || !userData?.lastName) {
-      alert("Você precisa estar logado para agendar.");
+      alert(
+        "Os seus dados de usuário ainda não foram carregados. Por favor, aguarde ou faça login novamente."
+      );
       return;
     }
     if (!service || !selectedProfessionalId || !selectedDate || !selectedTime)
@@ -240,9 +221,6 @@ export default function SchedulingModal({
     const [hours, minutes] = selectedTime.split(":");
     finalBookingDate.setHours(Number(hours), Number(minutes), 0, 0);
 
-    // =================================================================
-    // ===== CORREÇÃO APLICADA AQUI ==================================
-    // =================================================================
     const pendingAppointment: PendingAppointment = {
       establishmentId,
       serviceId: service.id,
@@ -250,12 +228,11 @@ export default function SchedulingModal({
       price: service.price,
       duration: service.duration,
       professionalId: selectedProfessionalId,
-      professionalfirstName: professional?.firstName || "N/A", // <-- CORRIGIDO para 'professionalFirstName'
+      professionalfirstName: professional?.firstName || "N/A",
       bookingTimestamp: finalBookingDate.toISOString(),
       clientFirstName: userData.firstName,
       clientLastName: userData.lastName,
     };
-    // =================================================================
 
     sessionStorage.setItem(
       "pendingAppointment",
@@ -268,7 +245,6 @@ export default function SchedulingModal({
   const selectedProfessional = professionals.find(
     (p) => p.id === selectedProfessionalId
   );
-
   const motionVariants = {
     hidden: { opacity: 0, x: 50 },
     visible: { opacity: 1, x: 0 },
@@ -310,186 +286,198 @@ export default function SchedulingModal({
                   Agendar: <span className="text-teal-600">{service.name}</span>
                 </Dialog.Title>
 
-                <div className="mt-8 mb-10">
-                  <Stepper currentStep={currentStep} />
-                </div>
+                {/* ===== ALTERAÇÃO 2: Mostrar um estado de carregamento para todo o modal ===== */}
+                {authLoading ? (
+                  <div className="min-h-[350px] flex items-center justify-center">
+                    <p className="text-gray-600">
+                      A verificar os seus dados...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-8 mb-10">
+                      <Stepper currentStep={currentStep} />
+                    </div>
 
-                <div className="min-h-[250px]">
-                  <AnimatePresence mode="wait">
-                    {currentStep === 1 && (
-                      <motion.div
-                        key="step1"
-                        variants={motionVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                      >
-                        <h4 className="font-semibold text-gray-800">
-                          1. Escolha o profissional
-                        </h4>
-                        <div className="mt-2 space-y-2 max-h-64 overflow-y-auto pr-2">
-                          {availableProfessionals.map((prof) => (
-                            <button
-                              key={prof.id}
-                              onClick={() => {
-                                setSelectedProfessionalId(prof.id);
-                                setCurrentStep(2);
-                              }}
-                              className={`w-full flex items-center space-x-4 p-3 rounded-lg border-2 transition-all ${
-                                selectedProfessionalId === prof.id
-                                  ? "border-teal-500 bg-teal-50"
-                                  : "border-gray-200 hover:border-teal-400"
-                              }`}
-                            >
-                              {prof.photoURL ? (
-                                <Image
-                                  src={prof.photoURL}
-                                  alt={prof.firstName}
-                                  width={40}
-                                  height={40}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
+                    <div className="min-h-[250px]">
+                      <AnimatePresence mode="wait">
+                        {currentStep === 1 && (
+                          <motion.div
+                            key="step1"
+                            variants={motionVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                          >
+                            <h4 className="font-semibold text-gray-800">
+                              1. Escolha o profissional
+                            </h4>
+                            <div className="mt-2 space-y-2 max-h-64 overflow-y-auto pr-2">
+                              {availableProfessionals.map((prof) => (
+                                <button
+                                  key={prof.id}
+                                  onClick={() => {
+                                    setSelectedProfessionalId(prof.id);
+                                    setCurrentStep(2);
+                                  }}
+                                  className={`w-full flex items-center space-x-4 p-3 rounded-lg border-2 transition-all ${
+                                    selectedProfessionalId === prof.id
+                                      ? "border-teal-500 bg-teal-50"
+                                      : "border-gray-200 hover:border-teal-400"
+                                  }`}
+                                >
+                                  {prof.photoURL ? (
+                                    <Image
+                                      src={prof.photoURL}
+                                      alt={prof.firstName}
+                                      width={40}
+                                      height={40}
+                                      className="w-10 h-10 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center shrink-0">
+                                      <span className="text-lg font-bold text-white">
+                                        {prof.firstName.charAt(0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <p className="font-bold text-gray-800 text-md">
+                                    {prof.firstName}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                        {currentStep === 2 && (
+                          <motion.div
+                            key="step2"
+                            variants={motionVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                          >
+                            <h4 className="font-semibold text-gray-800">
+                              2. Escolha a data
+                            </h4>
+                            <div className="mt-2 flex justify-center bg-gray-50 p-1 rounded-md">
+                              <DayPicker
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    setSelectedDate(date);
+                                    setCurrentStep(3);
+                                  }
+                                }}
+                                locale={ptBR}
+                                disabled={{ before: new Date() }}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                        {currentStep === 3 && (
+                          <motion.div
+                            key="step3"
+                            variants={motionVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                          >
+                            <div className="flex justify-between items-center">
+                              <h4 className="font-semibold text-gray-800">
+                                3. Escolha o horário
+                              </h4>
+                              <div className="bg-slate-100 p-2 rounded-lg text-xs">
+                                <p>
+                                  <strong>Profissional:</strong>{" "}
+                                  {selectedProfessional?.firstName}
+                                </p>
+                                <p>
+                                  <strong>Data:</strong>{" "}
+                                  {selectedDate
+                                    ? format(selectedDate, "dd/MM/yyyy")
+                                    : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto pr-2">
+                              {isLoadingSlots ? (
+                                <p className="col-span-full text-center text-gray-500 p-4">
+                                  Carregando...
+                                </p>
+                              ) : availableTimeSlots.length > 0 ? (
+                                availableTimeSlots.map((time) => (
+                                  <button
+                                    key={time}
+                                    onClick={() => setSelectedTime(time)}
+                                    className={`p-2 border rounded-md text-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${
+                                      selectedTime === time
+                                        ? "bg-teal-600 text-white"
+                                        : "bg-white text-gray-700 hover:bg-gray-100"
+                                    }`}
+                                  >
+                                    {time}
+                                  </button>
+                                ))
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-teal-500 to-indigo-400 flex items-center justify-center shrink-0">
-                                  <span className="text-lg font-bold text-white">
-                                    {prof.firstName.charAt(0)}
-                                  </span>
-                                </div>
+                                <p className="col-span-full text-center text-gray-500 p-4">
+                                  Nenhum horário disponível.
+                                </p>
                               )}
-                              <p className="font-bold text-gray-800 text-md">
-                                {prof.firstName}
-                              </p>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                    {currentStep === 2 && (
-                      <motion.div
-                        key="step2"
-                        variants={motionVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                      >
-                        <h4 className="font-semibold text-gray-800">
-                          2. Escolha a data
-                        </h4>
-                        <div className="mt-2 flex justify-center bg-gray-50 p-1 rounded-md">
-                          <DayPicker
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={(date) => {
-                              if (date) {
-                                setSelectedDate(date);
-                                setCurrentStep(3);
-                              }
-                            }}
-                            locale={ptBR}
-                            disabled={{ before: new Date() }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                    {currentStep === 3 && (
-                      <motion.div
-                        key="step3"
-                        variants={motionVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                      >
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-semibold text-gray-800">
-                            3. Escolha o horário
-                          </h4>
-                          <div className="bg-slate-100 p-2 rounded-lg text-xs">
-                            <p>
-                              <strong>Profissional:</strong>{" "}
-                              {selectedProfessional?.firstName}
-                            </p>
-                            <p>
-                              <strong>Data:</strong>{" "}
-                              {selectedDate
-                                ? format(selectedDate, "dd/MM/yyyy")
-                                : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto pr-2">
-                          {isLoadingSlots ? (
-                            <p className="col-span-full text-center text-gray-500 p-4">
-                              Carregando...
-                            </p>
-                          ) : availableTimeSlots.length > 0 ? (
-                            availableTimeSlots.map((time) => (
-                              <button
-                                key={time}
-                                onClick={() => setSelectedTime(time)}
-                                className={`p-2 border rounded-md text-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${
-                                  selectedTime === time
-                                    ? "bg-teal-600 text-white"
-                                    : "bg-white text-gray-700 hover:bg-gray-100"
-                                }`}
-                              >
-                                {time}
-                              </button>
-                            ))
-                          ) : (
-                            <p className="col-span-full text-center text-gray-500 p-4">
-                              Nenhum horário disponível.
-                            </p>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
 
-                <div className="mt-8 flex justify-between items-center border-t pt-6">
-                  <div>
-                    {currentStep > 1 && (
-                      <button
-                        type="button"
-                        className="text-sm font-semibold text-gray-600 hover:text-gray-900"
-                        onClick={() => setCurrentStep(currentStep - 1)}
-                      >
-                        Voltar
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="px-4 py-2 text-sm font-medium text-gray-700"
-                      onClick={onClose}
-                    >
-                      Cancelar
-                    </button>
-                    {currentStep === 3 ? (
-                      <button
-                        type="button"
-                        onClick={handleGoToCheckout}
-                        className="ml-4 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg shadow-sm hover:bg-teal-700 disabled:bg-gray-300"
-                        disabled={!selectedTime}
-                      >
-                        Ir para Pagamento
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(currentStep + 1)}
-                        className="ml-4 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 disabled:bg-gray-300"
-                        disabled={
-                          (currentStep === 1 && !selectedProfessionalId) ||
-                          (currentStep === 2 && !selectedDate)
-                        }
-                      >
-                        Próximo
-                      </button>
-                    )}
-                  </div>
-                </div>
+                    <div className="mt-8 flex justify-between items-center border-t pt-6">
+                      <div>
+                        {currentStep > 1 && (
+                          <button
+                            type="button"
+                            className="text-sm font-semibold text-gray-600 hover:text-gray-900"
+                            onClick={() => setCurrentStep(currentStep - 1)}
+                          >
+                            Voltar
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          className="px-4 py-2 text-sm font-medium text-gray-700"
+                          onClick={onClose}
+                        >
+                          Cancelar
+                        </button>
+                        {currentStep === 3 ? (
+                          <button
+                            type="button"
+                            onClick={handleGoToCheckout}
+                            className="ml-4 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg shadow-sm hover:bg-teal-700 disabled:bg-gray-300"
+                            // ===== ALTERAÇÃO 3: Desabilitar o botão final se os dados do usuário estiverem carregando =====
+                            disabled={authLoading || !selectedTime}
+                          >
+                            {authLoading ? "Aguarde..." : "Ir para Pagamento"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setCurrentStep(currentStep + 1)}
+                            className="ml-4 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 disabled:bg-gray-300"
+                            disabled={
+                              (currentStep === 1 && !selectedProfessionalId) ||
+                              (currentStep === 2 && !selectedDate)
+                            }
+                          >
+                            Próximo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </Dialog.Panel>
             </Transition.Child>
           </div>
