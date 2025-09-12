@@ -107,7 +107,7 @@ export default function ServicesTab({
         </div>
         <button
           onClick={createService}
-          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 font-medium flex items-center justify-center"
+          className="px-6 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 font-medium flex items-center justify-center"
         >
           <Plus className="w-5 h-5 inline mr-2" />
           <span>Novo Serviço</span>
