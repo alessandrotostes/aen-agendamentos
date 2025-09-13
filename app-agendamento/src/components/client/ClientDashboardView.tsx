@@ -265,8 +265,8 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   return (
     <>
       <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">
                 Olá, {userData?.firstName || "Cliente"}!
@@ -277,7 +277,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
             </div>
             <button
               onClick={onNavigateToSearch}
-              className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
             >
               <Plus className="w-5 h-5" />
               <span>Novo Agendamento</span>

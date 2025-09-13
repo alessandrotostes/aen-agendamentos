@@ -86,7 +86,7 @@ export default function ClientHeader({
       <div className="ml-auto flex items-center">
         <button
           onClick={onSearchClick}
-          className="h-10 md:h-11 px-3 md:px-4 rounded-lg bg-teal-600 text-white font-medium inline-flex items-center gap-2 hover:bg-teal-700 active:scale-[0.98] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+          className="h-10 md:h-11 px-3 md:px-4 rounded-lg bg-indigo-600 text-white font-medium inline-flex items-center gap-2 hover:bg-teal-700 active:scale-[0.98] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
           type="button"
         >
           <MagnifyingGlassIcon className="h-5 w-5" />
