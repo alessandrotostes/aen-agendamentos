@@ -17,6 +17,7 @@ import Image from "next/image";
 import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
+import EmptyState from "../../../../components/owner/common/EmptyState";
 import {
   ArrowLeft,
   Users,
@@ -25,9 +26,12 @@ import {
   Phone,
   Instagram,
   Clock,
+  Search,
+  X,
 } from "lucide-react";
 
-// --- COMPONENTE: CARD DO PROFISSIONAL (Estilo Refinado) ---
+// --- COMPONENTES INTERNOS (Cards) ---
+
 const ProfessionalCard = ({
   professional,
   allServices,
@@ -42,22 +46,17 @@ const ProfessionalCard = ({
         .map((service) => service.name),
     [allServices, professional]
   );
-
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 border border-transparent hover:border-teal-200 hover:shadow-lg transition-all duration-300">
-      {/* ================================================================= */}
-      {/* ===== ALTERAÇÃO AQUI: CONTAINER DE IMAGEM REDONDO E FIXO ======== */}
-      {/* ================================================================= */}
-      <div className="relative w-16 h-16 shrink-0 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+    <div className="bg-white p-4 rounded-xl shadow-lg shadow-slate-200/60 flex items-center gap-4 border border-transparent hover:border-teal-300 transition-all duration-300 transform hover:-translate-y-1">
+      <div className="relative w-16 h-16 shrink-0 rounded-full overflow-hidden bg-slate-100">
         <Image
           src={professional.photoURL || "/images/default-avatar.png"}
           alt={professional.firstName || "Foto do Profissional"}
-          fill // Usa 'fill' para que a imagem preencha o container
-          className="object-cover" // Garante que a imagem cubra o espaço sem distorção
-          sizes="64px" // Otimização de tamanho para a imagem
+          fill
+          className="object-cover"
+          sizes="64px"
         />
       </div>
-      {/* ================================================================= */}
       <div className="flex-grow">
         <h4 className="font-bold text-lg text-slate-900">
           {professional.firstName}
@@ -84,7 +83,6 @@ const ProfessionalCard = ({
   );
 };
 
-// --- COMPONENTE: CARD DE SERVIÇO (Refatorado com Duração) ---
 const ServiceCard = ({
   service,
   onServiceClick,
@@ -93,14 +91,14 @@ const ServiceCard = ({
   onServiceClick: (service: Service) => void;
 }) => {
   return (
-    <div className="bg-white p-5 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border border-transparent hover:border-teal-200">
+    <div className="bg-white p-5 rounded-xl shadow-lg shadow-slate-200/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-300 transform hover:scale-[1.02]">
       <div className="flex-grow">
         <p className="font-bold text-slate-900 text-lg">{service.name}</p>
         <p className="text-sm text-slate-600 mt-1 line-clamp-2">
           {service.description}
         </p>
-        <div className="flex items-center text-sm text-gray-500 mt-3">
-          <Clock className="w-4 h-4 mr-1.5 text-gray-400" />
+        <div className="flex items-center text-sm text-slate-500 mt-3">
+          <Clock className="w-4 h-4 mr-1.5 text-slate-400" />
           <span>Duração: {service.duration} min</span>
         </div>
       </div>
@@ -110,7 +108,7 @@ const ServiceCard = ({
         </p>
         <button
           onClick={() => onServiceClick(service)}
-          className="mt-2 w-full sm:w-auto px-6 py-2 text-sm bg-teal-600 text-white font-semibold rounded-lg shadow-sm hover:bg-teal-700 transition"
+          className="mt-2 w-full sm:w-auto px-6 py-2 text-sm bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
         >
           Agendar
         </button>
@@ -119,7 +117,29 @@ const ServiceCard = ({
   );
 };
 
-// --- PÁGINA PRINCIPAL DE DETALHES DO SALÃO ---
+// --- COMPONENTE DE ESQUELETO PARA LOADING ---
+const SalonPageSkeleton = () => (
+  <div className="max-w-6xl mx-auto pb-12 animate-pulse">
+    <div className="relative w-full h-52 md:h-64 rounded-b-3xl bg-slate-200" />
+    <div className="p-4 sm:p-6">
+      <div className="h-16 w-full bg-slate-200 rounded-xl" />
+    </div>
+    <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+      <div className="lg:col-span-2 space-y-4">
+        <div className="h-8 w-1/2 bg-slate-200 rounded-lg" />
+        <div className="h-10 w-full bg-slate-200 rounded-lg" />
+        <div className="h-32 w-full bg-slate-200 rounded-xl mt-6" />
+        <div className="h-32 w-full bg-slate-200 rounded-xl" />
+      </div>
+      <div className="lg:col-span-1 space-y-4">
+        <div className="h-8 w-3/4 bg-slate-200 rounded-lg" />
+        <div className="h-24 w-full bg-slate-200 rounded-xl mt-6" />
+        <div className="h-24 w-full bg-slate-200 rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
+
 export default function SalonDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -131,6 +151,7 @@ export default function SalonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (!salonSlug) return;
@@ -216,14 +237,28 @@ export default function SalonDetailPage() {
     };
   }, [salonSlug]);
 
+  const filteredServices = useMemo(() => {
+    if (!searchTerm) {
+      return services;
+    }
+    return services.filter((service) =>
+      service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [services, searchTerm]);
+
   const openSchedulingModal = (service: Service) => {
     setSelectedService(service);
     setIsModalOpen(true);
   };
 
   if (loading) {
-    return <div className="text-center p-8 text-slate-500">Carregando...</div>;
+    return (
+      <div className="bg-slate-50 min-h-screen">
+        <SalonPageSkeleton />
+      </div>
+    );
   }
+
   if (!salon) {
     return notFound();
   }
@@ -237,14 +272,17 @@ export default function SalonDetailPage() {
 
   return (
     <ClientRoute>
-      <div className="bg-slate-50 min-h-screen">
-        <main className="max-w-6xl mx-auto pb-12">
-          <div className="relative w-full h-52 md:h-64 rounded-b-3xl overflow-hidden">
+      <div className="bg-slate-50 min-h-screen relative overflow-hidden">
+        <div className="absolute top-0 left-0 -translate-x-1/4 -translate-y-1/2 w-[150vw] h-[100vh] bg-gradient-to-br from-teal-100 via-white to-white rounded-full opacity-50" />
+
+        <main className="max-w-6xl mx-auto pb-12 z-10 relative">
+          {/* HEADER COM IMAGEM */}
+          <div className="relative w-full h-52 md:h-64 rounded-b-3xl overflow-hidden shadow-2xl shadow-slate-300/50">
             <Image
               src={imageSrc}
               alt={`Imagem de ${salon.name}`}
               fill
-              className="object-contain"
+              className="object-contain bg-slate-800"
               sizes="100vw"
               priority
             />
@@ -261,57 +299,84 @@ export default function SalonDetailPage() {
               <h1 className="text-3xl md:text-4xl font-bold text-white shadow-md">
                 {salon.name}
               </h1>
+            </div>
+          </div>
 
-              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 mt-3">
-                {salon.address && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-slate-200 hover:text-white transition-colors"
-                  >
-                    <MapPin className="w-4 h-4 shrink-0" />
-                    <span className="text-sm">{salon.address}</span>
-                  </a>
-                )}
-
+          {/* Bloco de informações de contacto */}
+          <div className="p-4 sm:p-6">
+            <div className="bg-white rounded-xl p-4 shadow-lg shadow-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-slate-600 hover:text-teal-600 transition-colors"
+              >
+                <MapPin className="w-5 h-5 shrink-0 text-slate-400" />
+                <span className="text-sm font-medium">
+                  {salon.address || "Endereço não informado"}
+                </span>
+              </a>
+              <div className="flex items-center gap-4">
                 {salon.phone && (
                   <a
                     href={`tel:${salon.phone}`}
-                    className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors"
                   >
-                    <Phone className="w-4 h-4 shrink-0" />
-                    <span className="text-sm">{salon.phone}</span>
+                    <Phone className="w-4 h-4" />
+                    <span className="text-sm font-medium">Ligar</span>
                   </a>
                 )}
-
                 {salon.socialLinks?.instagram && (
                   <a
                     href={salon.socialLinks.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-slate-200 mt-1 sm:mt-0 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors"
                   >
-                    <Instagram className="w-4 h-4 shrink-0" />
-                    <span className="text-sm">Instagram</span>
+                    <Instagram className="w-4 h-4" />
+                    <span className="text-sm font-medium">Instagram</span>
                   </a>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 mt-4">
-            <div className="lg:col-span-2 space-y-10">
+          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            {/* Coluna da Esquerda: Serviços */}
+            <div className="lg:col-span-2 space-y-6">
               <section>
-                <div className="flex items-center gap-3 mb-5">
+                <div className="flex items-center gap-3">
                   <CalendarPlus className="w-6 h-6 text-teal-600" />
                   <h2 className="text-2xl font-bold text-slate-900">
                     Nossos Serviços
                   </h2>
                 </div>
-                <div className="space-y-4">
-                  {services.length > 0 ? (
-                    services.map((service) => (
+
+                <div className="relative mt-4">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome do serviço..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                      aria-label="Limpar busca"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-4 mt-6">
+                  {filteredServices.length > 0 ? (
+                    filteredServices.map((service) => (
                       <ServiceCard
                         key={service.id}
                         service={service}
@@ -319,37 +384,47 @@ export default function SalonDetailPage() {
                       />
                     ))
                   ) : (
-                    <p className="text-slate-500 bg-white p-4 rounded-lg">
-                      Nenhum serviço cadastrado.
-                    </p>
+                    <EmptyState
+                      message={
+                        services.length > 0
+                          ? `Nenhum serviço encontrado para "${searchTerm}".`
+                          : "Nenhum serviço cadastrado."
+                      }
+                      icon={services.length > 0 ? Search : CalendarPlus}
+                    />
                   )}
                 </div>
               </section>
             </div>
-            <div className="lg:col-span-1 space-y-10">
-              <section>
-                <div className="flex items-center gap-3 mb-5">
-                  <Users className="w-6 h-6 text-teal-600" />
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    Nossa Equipe
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  {professionals.length > 0 ? (
-                    professionals.map((prof) => (
-                      <ProfessionalCard
-                        key={prof.id}
-                        professional={prof}
-                        allServices={services}
+
+            {/* Coluna da Direita: Equipa (agora "sticky") */}
+            <div className="lg:col-span-1">
+              <div className="lg:sticky lg:top-8 space-y-6">
+                <section>
+                  <div className="flex items-center gap-3">
+                    <Users className="w-6 h-6 text-teal-700" />
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      Nossa Equipe
+                    </h2>
+                  </div>
+                  <div className="space-y-4 mt-6">
+                    {professionals.length > 0 ? (
+                      professionals.map((prof) => (
+                        <ProfessionalCard
+                          key={prof.id}
+                          professional={prof}
+                          allServices={services}
+                        />
+                      ))
+                    ) : (
+                      <EmptyState
+                        message="Nenhum profissional cadastrado."
+                        icon={Users}
                       />
-                    ))
-                  ) : (
-                    <p className="text-slate-500 bg-white p-4 rounded-lg">
-                      Nenhum profissional cadastrado.
-                    </p>
-                  )}
-                </div>
-              </section>
+                    )}
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
         </main>

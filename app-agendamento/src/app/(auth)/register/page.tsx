@@ -48,14 +48,18 @@ export default function RegisterPage() {
   ) => {
     const { name, value, files } = e.target as HTMLInputElement;
 
-    // --- LÓGICA PARA O TELEMÓVEL ---
     if (name === "phone") {
-      // Aplica a formatação automática
-      const formattedPhone = validationUtils.formatPhone(value);
+      // 1. Pega no valor que o utilizador digitou e remove TUDO o que não for número.
+      const numbersOnly = value.replace(/\D/g, "");
+
+      // 2. Limita o número de dígitos a 11 (padrão brasileiro com DDD).
+      const limitedNumbers = numbersOnly.slice(0, 11);
+
+      // 3. Aplica a nossa formatação de máscara a estes números já limpos.
+      const formattedPhone = validationUtils.formatPhone(limitedNumbers);
+
       setFormData((prev) => ({ ...prev, phone: formattedPhone }));
-    }
-    // --- FIM DA LÓGICA PARA O TELEMÓVEL ---
-    else if (name === "image") {
+    } else if (name === "image") {
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -68,7 +72,6 @@ export default function RegisterPage() {
 
     if (error) setError("");
   };
-
   const validateForm = (): string | null => {
     if (!formData.firstName || !formData.lastName)
       return "Nome e sobrenome são obrigatórios.";
