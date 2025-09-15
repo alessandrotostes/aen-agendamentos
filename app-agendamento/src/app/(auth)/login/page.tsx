@@ -1,5 +1,3 @@
-// src/app/(auth)/login/page.tsx (VERSÃO COMPLETA FINAL)
-
 "use client";
 
 import React, { useState } from "react";
@@ -8,7 +6,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import { validationUtils } from "../../../lib/utils";
 import AuthLayout from "../../../components/shared/AuthLayout";
-import { AlertTriangle, LockKeyhole, Phone } from "lucide-react";
+import {
+  AlertTriangle,
+  LockKeyhole,
+  Phone,
+  Building,
+  User,
+  Briefcase,
+} from "lucide-react";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { AuthUser } from "../../../types";
 
@@ -53,11 +58,28 @@ export default function LoginPage() {
 
   const [step, setStep] = useState<"login" | "phone_number">("login");
   const [googleUser, setGoogleUser] = useState<FirebaseUser | null>(null);
+  const [showTestLogins, setShowTestLogins] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (name === "phone") {
-      const formattedPhone = validationUtils.formatPhone(value);
+      const numbers = value.replace(/\D/g, "").slice(0, 11);
+      let formattedPhone = numbers;
+      if (numbers.length > 10) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
+          2,
+          7
+        )}-${numbers.slice(7)}`;
+      } else if (numbers.length > 6) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
+          2,
+          6
+        )}-${numbers.slice(6)}`;
+      } else if (numbers.length > 2) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+      } else if (numbers.length > 0) {
+        formattedPhone = `(${numbers}`;
+      }
       setFormData((prev) => ({ ...prev, [name]: formattedPhone }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -148,6 +170,22 @@ export default function LoginPage() {
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("Não foi possível guardar o telefone.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestLogin = async (email: string, pass: string) => {
+    setError("");
+    setLoading(true);
+    try {
+      const loggedInUserData = await login(email, pass);
+      handleRedirect(loggedInUserData);
+    } catch (err: unknown) {
+      // CORREÇÃO: Adicionar console.error para usar a variável 'err'
+      console.error("Falha no login de teste:", err);
+      setError("Falha no login de teste. Verifique as credenciais.");
+    } finally {
       setLoading(false);
     }
   };
@@ -201,7 +239,11 @@ export default function LoginPage() {
                   </span>
                 </div>
               </div>
-              <form onSubmit={handleSubmitEmail} className="space-y-4">
+              <form
+                onSubmit={handleSubmitEmail}
+                className="space-y-4"
+                suppressHydrationWarning={true}
+              >
                 <div>
                   <label
                     htmlFor="email"
@@ -217,6 +259,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                    suppressHydrationWarning={true}
                   />
                 </div>
                 <div>
@@ -233,6 +276,7 @@ export default function LoginPage() {
                     value={formData.password}
                     onChange={handleChange}
                     required
+                    suppressHydrationWarning={true}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -244,6 +288,66 @@ export default function LoginPage() {
                   {loading ? "Entrando..." : "Entrar"}
                 </button>
               </form>
+            </div>
+
+            <div className="pt-4 text-center">
+              <div className="relative">
+                <div
+                  className="absolute inset-0 flex items-center"
+                  aria-hidden="true"
+                >
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setShowTestLogins(!showTestLogins)}
+                    className="px-2 bg-white text-gray-500 font-medium"
+                  >
+                    Acesso rápido para teste {showTestLogins ? "⏶" : "⏷"}
+                  </button>
+                </div>
+              </div>
+              {showTestLogins && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleTestLogin(
+                        "aenestabelecimento@gmail.com",
+                        "aenteste123"
+                      )
+                    }
+                    disabled={loading}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Building className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                    Estabelecimento
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleTestLogin("aencliente@gmail.com", "aenteste123")
+                    }
+                    disabled={loading}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <User className="w-5 h-5 text-indigo-500" />
+                    Cliente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleTestLogin("aenteste@gmail.com", "aenteste123")
+                    }
+                    disabled={loading}
+                    className="sm:col-span-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Briefcase className="w-5 h-5 text-indigo-500" />
+                    Colaborador
+                  </button>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -278,7 +382,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
-                {loading ? "Salvando..." : "Guardar e Continuar"}
+                {loading ? "Salvando..." : "Salvar e Continuar"}
               </button>
             </form>
           </div>

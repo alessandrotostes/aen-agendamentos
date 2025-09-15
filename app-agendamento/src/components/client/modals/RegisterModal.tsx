@@ -1,5 +1,3 @@
-// src/components/client/modals/RegisterModal.tsx (VERSÃO COMPLETA FINAL)
-
 "use client";
 
 import React, { useState } from "react";
@@ -47,7 +45,6 @@ export default function RegisterModal({
   onSuccess,
 }: RegisterModalProps) {
   const { signInWithGoogle, registerWithEmail, updatePhoneNumber } = useAuth();
-
   const [step, setStep] = useState("register");
   const [formData, setFormData] = useState({
     firstName: "",
@@ -63,7 +60,23 @@ export default function RegisterModal({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (name === "phone") {
-      const formattedPhone = validationUtils.formatPhone(value);
+      const numbers = value.replace(/\D/g, "").slice(0, 11);
+      let formattedPhone = numbers;
+      if (numbers.length > 10) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
+          2,
+          7
+        )}-${numbers.slice(7)}`;
+      } else if (numbers.length > 6) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
+          2,
+          6
+        )}-${numbers.slice(6)}`;
+      } else if (numbers.length > 2) {
+        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+      } else if (numbers.length > 0) {
+        formattedPhone = `(${numbers}`;
+      }
       setFormData((prev) => ({ ...prev, [name]: formattedPhone }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -84,7 +97,9 @@ export default function RegisterModal({
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        if (!err.message.includes("popup-closed-by-user")) {
+          setError(err.message);
+        }
       } else {
         setError("Falha ao entrar com Google.");
       }
