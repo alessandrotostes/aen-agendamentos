@@ -182,7 +182,6 @@ export default function LoginPage() {
       const loggedInUserData = await login(email, pass);
       handleRedirect(loggedInUserData);
     } catch (err: unknown) {
-      // CORREÇÃO: Adicionar console.error para usar a variável 'err'
       console.error("Falha no login de teste:", err);
       setError("Falha no login de teste. Verifique as credenciais.");
     } finally {
@@ -262,13 +261,23 @@ export default function LoginPage() {
                     suppressHydrationWarning={true}
                   />
                 </div>
+
+                {/* ALTERAÇÃO AQUI: Link para redefinir senha adicionado de volta */}
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Senha
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Senha
+                    </label>
+                    <Link
+                      href="/reset-password"
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                    >
+                      Esqueceu a senha?
+                    </Link>
+                  </div>
                   <input
                     id="password"
                     name="password"
@@ -276,10 +285,11 @@ export default function LoginPage() {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    suppressHydrationWarning={true}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                    suppressHydrationWarning={true}
                   />
                 </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -382,7 +392,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
-                {loading ? "Salvando..." : "Salvar e Continuar"}
+                {loading ? "Salvando..." : "Guardar e Continuar"}
               </button>
             </form>
           </div>
