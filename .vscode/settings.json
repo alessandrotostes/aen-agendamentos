@@ -1,0 +1,4 @@
+{
+  // ADICIONE ESTE BLOCO DE CÓDIGO
+  "eslint.workingDirectories": [{ "mode": "auto" }]
+}

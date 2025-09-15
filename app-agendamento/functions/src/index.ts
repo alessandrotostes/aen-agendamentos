@@ -363,15 +363,25 @@ export const createMercadoPagoPreference = onCall(async (request) => {
 
 // FUNÇÃO 4: WEBHOOK DO MERCADO PAGO (VERSÃO FINAL E CORRETA)
 export const mercadoPagoWebhook = onRequest(
-  { secrets: [mercadoPagoAccessToken] },
+  { secrets: ["MERCADOPAGO_ACCESS_TOKEN"] }, // Certifique-se que o segredo está declarado aqui
   async (request, response) => {
     try {
       const topic = request.body?.type || request.query?.topic;
 
       if (topic === "payment") {
         const paymentId = String(request.body?.data?.id || request.query?.id);
+        const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+        if (!accessToken) {
+          logger.error(
+            "Access Token do Mercado Pago não configurado nos segredos."
+          );
+          response.status(500).send("Erro de configuração interna.");
+          return;
+        }
+
         const payment = new Payment(
-          new MercadoPagoConfig({ accessToken: mercadoPagoAccessToken.value() })
+          new MercadoPagoConfig({ accessToken: accessToken })
         );
         const paymentInfo = await payment.get({ id: paymentId });
 
@@ -380,90 +390,74 @@ export const mercadoPagoWebhook = onRequest(
 
         if (!appointmentId || !establishmentId) {
           logger.warn(
-            "Webhook recebido sem appointmentId ou establishmentId.",
+            "Webhook recebido sem appointmentId ou establishmentId no metadata.",
             { paymentInfo }
           );
           response.status(200).send("OK (dados insuficientes)");
           return;
         }
 
-        const establishmentRef = db
+        const appointmentRef = db
           .collection("establishments")
-          .doc(establishmentId);
-        const appointmentRef = establishmentRef
+          .doc(establishmentId)
           .collection("appointments")
           .doc(appointmentId);
 
         const appointmentDoc = await appointmentRef.get();
         if (!appointmentDoc.exists) {
+          logger.warn(
+            `Agendamento ${appointmentId} não encontrado no webhook.`
+          );
           response.status(200).send("OK (agendamento não encontrado)");
           return;
         }
 
         const paymentStatus = paymentInfo.status;
+        const currentAppointmentStatus = appointmentDoc.data()?.status;
+
+        logger.info(
+          `Webhook recebido para o agendamento ${appointmentId}. Status do pagamento: ${paymentStatus}. Status atual do agendamento: ${currentAppointmentStatus}`
+        );
 
         // --- LÓGICA DE PAGAMENTO APROVADO ---
         if (paymentStatus === "approved") {
-          // Confirma o agendamento
-          if (appointmentDoc.data()?.status === "pending_payment") {
+          if (currentAppointmentStatus === "pending_payment") {
             await appointmentRef.update({
               status: "confirmado",
               paymentId: paymentId,
             });
             logger.info(`SUCESSO: Agendamento ${appointmentId} confirmado.`);
           }
-
-          // --- ALTERAÇÃO: LÓGICA PARA PROCESSAR MULTAS PAGAS ---
-          const paidPenaltyIds = paymentInfo.metadata?.paid_penalty_ids as
-            | string[]
-            | undefined;
-
-          if (
-            paidPenaltyIds &&
-            Array.isArray(paidPenaltyIds) &&
-            paidPenaltyIds.length > 0
-          ) {
-            const penaltiesRef = establishmentRef.collection("penalties");
-            const updatePromises = paidPenaltyIds.map((id) =>
-              penaltiesRef.doc(id).update({ status: "paid" })
-            );
-            await Promise.all(updatePromises);
-            logger.info(
-              `SUCESSO: ${paidPenaltyIds.length} multas foram marcadas como pagas para o estabelecimento ${establishmentId}.`
-            );
-
-            // Após pagar as multas, verificar se a conta pode ser reativada
-            const pendingPenaltiesQuery = penaltiesRef
-              .where("status", "==", "pending")
-              .limit(1);
-            const remainingPenalties = await pendingPenaltiesQuery.get();
-
-            if (remainingPenalties.empty) {
-              await establishmentRef.update({ accountStatus: "active" });
-              logger.info(
-                `CONTA REATIVADA: O estabelecimento ${establishmentId} pagou todas as suas multas.`
-              );
-            }
-          }
-          // --- FIM DA ALTERAÇÃO ---
         }
-        // --- LÓGICA DE REEMBOLSO ---
+
+        // --- LÓGICA DE REEMBOLSO (para fluxos automáticos e manuais) ---
         else if (
           paymentStatus === "refunded" ||
           paymentStatus === "partially_refunded"
         ) {
-          if (appointmentDoc.data()?.status === "pending_refund") {
-            await appointmentRef.update({ status: "refunded" });
+          // Atua se o status for 'pending_refund' (cancelamento automático)
+          // OU 'confirmado' (cancelamento manual fora da plataforma).
+          if (
+            currentAppointmentStatus === "pending_refund" ||
+            currentAppointmentStatus === "confirmado"
+          ) {
+            await appointmentRef.update({
+              status: "cancelado",
+              cancelledBy: "owner", // Assumimos que o dono iniciou o reembolso manual neste caso
+              cancellationReason: "Reembolso processado via Mercado Pago.",
+              cancellationTimestamp: Timestamp.now(),
+            });
             logger.info(
-              `SUCESSO: Reembolso do agendamento ${appointmentId} validado.`
+              `SUCESSO: Reembolso do agendamento ${appointmentId} validado e agendamento cancelado.`
             );
           }
         }
+
         // --- LÓGICA DE PAGAMENTO FALHADO ---
         else if (
           ["rejected", "cancelled", "failed"].includes(paymentStatus as string)
         ) {
-          if (appointmentDoc.data()?.status === "pending_payment") {
+          if (currentAppointmentStatus === "pending_payment") {
             await appointmentRef.update({
               status: "cancelado",
               cancellationReason: `Pagamento falhou com status: ${paymentStatus}`,

@@ -53,6 +53,7 @@ export interface Establishment {
     instagram?: string;
     facebook?: string;
   };
+  accountStatus?: "active" | "suspended";
 }
 
 export interface MpCredentials {

@@ -1,0 +1,13 @@
+# Ignorar arquivos de dependências
+node_modules
+
+# Ignorar a pasta de build do Next.js
+.next
+
+# Ignorar a pasta de arquivos estáticos e gerados pela PWA
+public
+
+# Ignorar arquivos de cache e output
+.swc
+coverage
+dist

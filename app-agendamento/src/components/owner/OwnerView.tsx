@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import OwnerHeader from "./OwnerHeader";
 import DashboardTab from "./DashboardTab";
 import ServicesTab from "./ServicesTab";
@@ -9,6 +10,7 @@ import SettingsTab from "./SettingsTab";
 import ModalsManager from "./ModalsManager";
 import LoadingSpinner from "./common/LoadingSpinner";
 import OwnerCancelModal from "../shared/modals/OwnerCancelModal";
+import TermsAndConditionsModal from "../shared/modals/TermsAndConditionsModal";
 import {
   useEstablishment,
   useServices,
@@ -67,9 +69,9 @@ export default function OwnerView() {
     ownerCancel: false,
   });
 
-  // ====================================================================
-  // ===== ALTERAÇÃO 1: NOVO ESTADO PARA CONTROLAR A VISÃO DO MODAL =====
-  // ====================================================================
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+
   const [modalInitialView, setModalInitialView] = useState<
     "details" | "availability"
   >("details");
@@ -87,6 +89,7 @@ export default function OwnerView() {
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
 
+  const { userData, acceptTerms, refreshUserData } = useAuth();
   const {
     establishment,
     loading: estLoading,
@@ -99,6 +102,27 @@ export default function OwnerView() {
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (userData && !userData.termsAccepted) {
+      setIsTermsModalOpen(true);
+    }
+  }, [userData]);
+
+  const handleAcceptTerms = async () => {
+    if (!userData) return;
+    setIsAcceptingTerms(true);
+    try {
+      await acceptTerms(userData.uid);
+      await refreshUserData();
+      setIsTermsModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao aceitar os termos:", error);
+      alert("Ocorreu um erro. Por favor, tente novamente.");
+    } finally {
+      setIsAcceptingTerms(false);
+    }
+  };
+
   const handleConnectMercadoPago = async () => {
     setMpLoading(true);
     setMpError(null);
@@ -108,11 +132,8 @@ export default function OwnerView() {
         functions,
         "generateMercadoPagoOnboardingLink"
       );
-
-      // CORREÇÃO: Tipagem do resultado
       const result =
         (await generateLink()) as HttpsCallableResult<OnboardingLinkData>;
-
       if (result.data.url) {
         window.location.href = result.data.url;
       } else {
@@ -237,7 +258,7 @@ export default function OwnerView() {
   };
   const handleCreateProfessional = () => {
     setSelectedProfessional(null);
-    setModalInitialView("details"); // Padrão para 'detalhes' ao criar
+    setModalInitialView("details");
     openModal("editProfessionalUnified");
   };
   const handleUpdateProfessional = (id: string) => {
@@ -246,16 +267,15 @@ export default function OwnerView() {
     );
     if (professional) {
       setSelectedProfessional(professional);
-      setModalInitialView("details"); // Define a visão inicial para 'detalhes'
+      setModalInitialView("details");
       openModal("editProfessionalUnified");
     }
   };
   const handleManageAvailability = (professional: Professional) => {
     setSelectedProfessional(professional);
-    setModalInitialView("availability"); // Define a visão inicial para 'horários'
+    setModalInitialView("availability");
     openModal("editProfessionalUnified");
   };
-
   const handleDeleteProfessional = (id: string) => {
     const professional = professionalsData.professionals.find(
       (p) => p.id === id
@@ -309,18 +329,14 @@ export default function OwnerView() {
     }
     closeModal("deleteConfirm");
   };
-
   const handleShareLink = () => {
-    // Adicionamos uma verificação para garantir que o slug exista antes de copiar
     if (!establishment?.slug) {
       alert(
         "Não foi possível gerar o link, dados do estabelecimento incompletos ou incorretos. Tente editar e salvar o nome novamente na aba de configurações. Não é permitido caracteres especiais no nome. Ex: @, #, $, %, ã, ç, etc."
       );
       return;
     }
-
     const url = `${window.location.origin}/client/salon/${establishment.slug}`;
-
     navigator.clipboard
       .writeText(url)
       .then(() => {
@@ -346,8 +362,14 @@ export default function OwnerView() {
     { key: "professionals", label: "Profissionais", icon: Users },
     { key: "settings", label: "Configurações", icon: Settings },
   ] as const;
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <TermsAndConditionsModal
+        isOpen={isTermsModalOpen}
+        onConfirm={handleAcceptTerms}
+        isLoading={isAcceptingTerms}
+      />
       <OwnerHeader
         establishment={establishment}
         onPhotoUpdated={(url) => updateEstablishment({ imageURL: url })}
@@ -397,7 +419,7 @@ export default function OwnerView() {
           </InfoTooltip>
         </div>
 
-        {activeTab === "dashboard" && (
+        {activeTab === "dashboard" && establishment && (
           <DashboardTab
             stats={{
               services: servicesData.services.length,
@@ -405,9 +427,6 @@ export default function OwnerView() {
               today: appointmentsData.appointmentsForDate.length,
             }}
             icons={{
-              // ========================================================================
-              // ===== ALTERAÇÃO 2: ATUALIZAR O ÍCONE PASSADO COMO PROP            =====
-              // ========================================================================
               services: LayoutGrid,
               professionals: BriefcaseBusiness,
               today: CalendarDays,
@@ -417,6 +436,8 @@ export default function OwnerView() {
             onDateChange={setSelectedDate}
             loading={appointmentsData.loading}
             onOwnerCancelAppointment={handleOpenOwnerCancelModal}
+            establishmentStatus={establishment.accountStatus}
+            pendingFines={[]} // Você precisaria buscar as multas aqui
           />
         )}
         {activeTab === "services" && (
