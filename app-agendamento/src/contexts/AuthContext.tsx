@@ -54,6 +54,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   // ALTERAÇÃO 1: A função agora promete devolver os dados do utilizador
   refreshUserData: () => Promise<AuthUser | null>;
+  updateUserProfile: (uid: string, data: Partial<AuthUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -272,7 +273,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserData(null);
     return null;
   }
+  async function updateUserProfile(
+    uid: string,
+    data: Partial<AuthUser>
+  ): Promise<void> {
+    const userDocRef = doc(db, "users", uid);
 
+    // Atualiza o email no Firebase Auth SE ele foi alterado.
+    // NOTA: Esta é uma operação sensível e pode exigir reautenticação.
+    if (
+      data.email &&
+      auth.currentUser &&
+      data.email !== auth.currentUser.email
+    ) {
+      // Por agora, vamos focar em atualizar os outros dados.
+      // A atualização de email é mais complexa.
+      // await updateEmail(auth.currentUser, data.email);
+    }
+
+    // Atualiza os dados no Firestore (nome, sobrenome, telefone)
+    await updateDoc(userDocRef, data);
+  }
   // ALTERAÇÃO 5: Expor as novas funções no `value` do Contexto
   const value = {
     currentUser,
@@ -286,6 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerWithEmail,
     signInWithGoogle,
     updatePhoneNumber,
+    updateUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

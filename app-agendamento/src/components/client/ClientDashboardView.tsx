@@ -265,7 +265,7 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   return (
     <>
       <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-4 lg:px-8 py-0">
           <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">
