@@ -36,7 +36,6 @@ interface AuthContextType {
   authLoading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (
-    // Esta é a sua função original, mantida para os "owners"
     email: string,
     password: string,
     firstName: string,
@@ -45,7 +44,6 @@ interface AuthContextType {
     imageFile?: File | null,
     phone?: string
   ) => Promise<AuthUser>;
-  // Novas funções adicionadas para o fluxo do modal
   registerWithEmail: (
     email: string,
     password: string,
@@ -54,7 +52,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ user: FirebaseUser; isNewUser: boolean }>;
   updatePhoneNumber: (uid: string, phone: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUserData: () => Promise<void>;
+  // ALTERAÇÃO 1: A função agora promete devolver os dados do utilizador
+  refreshUserData: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -253,10 +252,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   }
 
-  async function refreshUserData() {
-    if (currentUser) {
-      await currentUser.getIdToken(true);
+  async function refreshUserData(): Promise<AuthUser | null> {
+    const user = auth.currentUser;
+    if (user) {
+      // Força a atualização do token, o que pode re-acionar o onIdTokenChanged
+      await user.getIdToken(true);
+
+      // Mas também buscamos e atualizamos o estado manualmente para garantir
+      const userDocRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (userSnap.exists()) {
+        const freshData = userSnap.data() as AuthUser;
+        setUserData(freshData); // Atualiza o estado do contexto
+        return freshData; // Retorna os dados frescos para quem chamou
+      }
     }
+    // Se não houver utilizador ou documento, limpa o estado e retorna nulo
+    setUserData(null);
+    return null;
   }
 
   // ALTERAÇÃO 5: Expor as novas funções no `value` do Contexto

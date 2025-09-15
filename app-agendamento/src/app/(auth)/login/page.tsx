@@ -159,20 +159,24 @@ export default function LoginPage() {
       return;
     }
     if (!googleUser) return;
+
     setError("");
     setLoading(true);
+
     try {
+      // 1. Atualiza o banco de dados
       await updatePhoneNumber(googleUser.uid, formData.phone);
 
-      // ALTERAÇÃO 2: Forçar a atualização dos dados do utilizador no contexto
-      await refreshUserData();
+      // 2. ESPERA pela atualização do contexto e recebe os dados frescos
+      const freshUserData = await refreshUserData();
 
-      const tempUserData = {
-        uid: googleUser.uid,
-        email: googleUser.email || "",
-        role: "client",
-      } as AuthUser;
-      handleRedirect(tempUserData);
+      // 3. Redireciona APENAS se os dados frescos foram recebidos com sucesso
+      if (freshUserData) {
+        handleRedirect(freshUserData);
+      } else {
+        // Se algo correr mal, manda para o login como segurança
+        router.push("/login");
+      }
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("Não foi possível guardar o telefone.");
