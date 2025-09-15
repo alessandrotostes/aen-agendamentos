@@ -4,29 +4,34 @@ import type { LucideIcon } from "lucide-react";
 interface StatsCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon; // A prop 'icon' agora espera um componente de ícone
-  color?: "blue" | "purple" | "emerald"; // Cores alinhadas com o DashboardTab
+  icon: LucideIcon;
+  // ALTERAÇÃO 1: Adicionar 'red' à lista de cores permitidas
+  color?: "blue" | "purple" | "emerald" | "red";
 }
 
 export default function StatsCard({
   title,
   value,
-  icon: IconComponent, // Renomeamos a prop para usar como componente
+  icon: IconComponent,
   color = "blue",
 }: StatsCardProps) {
+  // ALTERAÇÃO 2: Adicionar os estilos para a nova cor 'red'
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-600",
-    purple: "bg-purple-50 text-purple-600",
-    emerald: "bg-emerald-50 text-emerald-600",
+    blue: { bg: "bg-blue-100", text: "text-blue-600" },
+    purple: { bg: "bg-purple-100", text: "text-purple-600" },
+    emerald: { bg: "bg-emerald-100", text: "text-emerald-600" },
+    red: { bg: "bg-red-100", text: "text-red-600" },
   };
+
+  // Esta linha agora funcionará corretamente com a cor 'red'
+  const currentColors = colorClasses[color];
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border flex items-center gap-5 transition-transform transform hover:scale-105">
       <div
-        className={`w-14 h-14 rounded-lg flex items-center justify-center ${colorClasses[color]}`}
+        className={`w-14 h-14 rounded-lg flex items-center justify-center ${currentColors.bg}`}
       >
-        {/* Renderizamos o ícone com o tamanho correto */}
-        <IconComponent className="w-7 h-7" />
+        <IconComponent className={`w-7 h-7 ${currentColors.text}`} />
       </div>
       <div>
         <p className="text-sm font-medium text-slate-500">{title}</p>

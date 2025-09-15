@@ -8,8 +8,10 @@ export interface AuthUser {
   lastName: string;
   email: string;
   role: "owner" | "client" | "professional";
-  createdAt: Date | null;
+  createdAt: Timestamp;
   phone?: string;
+  termsAccepted?: boolean;
+  termsAcceptedAt?: Timestamp;
 }
 
 // ESTABLISHMENT & RELATED
@@ -98,13 +100,34 @@ export interface Appointment {
   dateTime: Timestamp;
   duration: number;
   price: number;
-  status: "confirmado" | "cancelado" | "pending_payment";
+
+  // ALTERAÇÃO: Lista completa de todos os status que a aplicação pode ter.
+  status:
+    | "pending_payment"
+    | "confirmado"
+    | "cancelado"
+    | "pending_refund"
+    | "refunded"
+    | "refund_overdue";
+
   cancelledBy?: "owner" | "client";
   serviceName: string;
   professionalfirstName: string;
+
+  // Seus campos existentes foram mantidos para não quebrar outras partes do código
   cancellationRequest?: CancellationRequest;
   cancellationReason?: string;
   reminderSent?: boolean;
+
+  // Novos campos opcionais que adicionámos para o fluxo de pagamento e reembolso
+  paymentId?: string;
+  preferenceId?: string;
+  cancellationTimestamp?: Timestamp;
+  refundRequestedAt?: Timestamp;
+  refundError?: string;
+
+  // É uma boa prática ter um campo 'createdAt'
+  createdAt: Timestamp;
 }
 
 export interface CancellationRequest {
@@ -223,4 +246,12 @@ export interface Salon {
     facebook?: string;
   };
   mainService?: string;
+}
+export interface Penalty {
+  id: string;
+  amount: number;
+  reason: string;
+  status: "pending" | "paid";
+  createdAt: Timestamp;
+  appointmentId: string;
 }

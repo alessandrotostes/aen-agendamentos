@@ -3,13 +3,20 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 // Importações de gatilhos de documento do Firestore v2
 import {
   onDocumentWritten,
   onDocumentCreated,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
-import { MercadoPagoConfig, OAuth, Preference, Payment } from "mercadopago";
+import {
+  MercadoPagoConfig,
+  OAuth,
+  Preference,
+  Payment,
+  PaymentRefund,
+} from "mercadopago";
 import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
@@ -154,13 +161,7 @@ export const exchangeCodeForCredentials = onCall(
 // ===== FUNÇÃO 3: CRIAR PREFERÊNCIA DE PAGAMENTO (CHECKOUT PRO)
 // ============================================================================
 export const createMercadoPagoPreference = onCall(async (request) => {
-  // LOG 1: Início da execução e verificação de autenticação
-  logger.info("Iniciando createMercadoPagoPreference...", {
-    auth: request.auth,
-  });
-
   if (!request.auth) {
-    logger.error("Falha na autenticação: request.auth está vazio.");
     throw new HttpsError(
       "unauthenticated",
       "Você precisa estar logado para pagar."
@@ -170,97 +171,33 @@ export const createMercadoPagoPreference = onCall(async (request) => {
 
   const { transaction_amount, appointmentDetails } = request.data;
   if (!transaction_amount || !appointmentDetails) {
-    logger.error("Argumentos inválidos.", { data: request.data });
     throw new HttpsError(
       "invalid-argument",
       "Detalhes do agendamento e valor são obrigatórios."
     );
   }
+  const { establishmentId, professionalId, bookingTimestamp } =
+    appointmentDetails;
 
-  let clientData;
-  try {
-    const clientDocRef = db.collection("users").doc(clientId);
-    const clientDoc = await clientDocRef.get();
-
-    if (!clientDoc.exists) {
-      logger.error(
-        `Documento do cliente não encontrado no Firestore para o UID: ${clientId}`
-      );
-      throw new HttpsError(
-        "not-found",
-        "Os dados do cliente não foram encontrados."
-      );
-    }
-    clientData = clientDoc.data();
-
-    // LOG 2: DADOS DO CLIENTE LIDOS DO FIRESTORE
-    // Este é o log mais importante. Ele mostra o que o servidor REALMENTE leu do banco de dados.
-    logger.info(`Dados do cliente lidos do Firestore para o UID: ${clientId}`, {
-      clientData,
-    });
-
-    if (!clientData?.firstName || !clientData?.lastName || !clientData?.email) {
-      logger.error("Dados do perfil do cliente estão incompletos.", {
-        clientData,
-      });
-      throw new HttpsError(
-        "failed-precondition",
-        "Os dados do perfil do cliente estão incompletos."
-      );
-    }
-  } catch (error) {
-    logger.error(
-      "Erro CRÍTICO ao buscar dados do cliente no Firestore:",
-      error
-    );
-    if (error instanceof HttpsError) throw error;
+  // --- BUSCAR DADOS DO CLIENTE E DO ESTABELECIMENTO ---
+  const clientDoc = await db.collection("users").doc(clientId).get();
+  if (!clientDoc.exists) {
     throw new HttpsError(
-      "internal",
-      "Não foi possível carregar os dados do cliente."
+      "not-found",
+      "Os dados do cliente não foram encontrados."
     );
   }
-
-  // Lógica de verificação de disponibilidade do horário
-  try {
-    const { establishmentId, professionalId, bookingTimestamp } =
-      appointmentDetails;
-    const requestedStartTime = new Date(bookingTimestamp);
-
-    if (requestedStartTime < new Date()) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Não é possível agendar em um horário que já passou."
-      );
-    }
-
-    const appointmentsRef = db
-      .collection("establishments")
-      .doc(establishmentId)
-      .collection("appointments");
-    const snapshot = await appointmentsRef
-      .where("professionalId", "==", professionalId)
-      .where("status", "==", "confirmado")
-      .where("dateTime", "==", Timestamp.fromDate(requestedStartTime))
-      .get();
-
-    if (!snapshot.empty) {
-      throw new HttpsError(
-        "already-exists",
-        "Desculpe, este horário acabou de ser reservado. Por favor, escolha outro."
-      );
-    }
-  } catch (error: any) {
-    if (error instanceof HttpsError) throw error;
-    console.error("Erro ao verificar disponibilidade:", error);
+  const clientData = clientDoc.data();
+  if (!clientData?.firstName || !clientData?.lastName || !clientData?.email) {
     throw new HttpsError(
-      "internal",
-      "Erro ao verificar a disponibilidade do horário."
+      "failed-precondition",
+      "Os dados do perfil do cliente estão incompletos."
     );
   }
 
   const establishmentDoc = await db
     .collection("establishments")
-    .doc(appointmentDetails.establishmentId)
+    .doc(establishmentId)
     .get();
   if (!establishmentDoc.exists) {
     throw new HttpsError("not-found", "Estabelecimento não encontrado.");
@@ -274,23 +211,86 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
-  const preference = new Preference(client);
-  const application_fee = Math.floor(transaction_amount * 0.0499 * 100) / 100;
-
+  // --- VERIFICAR DISPONIBILIDADE DO HORÁRIO ---
   try {
+    const requestedStartTime = new Date(bookingTimestamp);
+    if (requestedStartTime < new Date()) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Não é possível agendar em um horário que já passou."
+      );
+    }
     const appointmentsRef = db
       .collection("establishments")
-      .doc(appointmentDetails.establishmentId)
+      .doc(establishmentId)
       .collection("appointments");
-    const newAppointmentRef = appointmentsRef.doc();
+    const snapshot = await appointmentsRef
+      .where("professionalId", "==", professionalId)
+      .where("status", "==", "confirmado")
+      .where("dateTime", "==", Timestamp.fromDate(requestedStartTime))
+      .get();
+    if (!snapshot.empty) {
+      throw new HttpsError(
+        "already-exists",
+        "Desculpe, este horário acabou de ser reservado. Por favor, escolha outro."
+      );
+    }
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Erro ao verificar disponibilidade:", error);
+    throw new HttpsError(
+      "internal",
+      "Erro ao verificar a disponibilidade do horário."
+    );
+  }
+
+  // ==========================================================
+  // ===== ALTERAÇÃO: LÓGICA DE COBRANÇA DE MULTAS ===========
+  // ==========================================================
+  const penaltiesRef = db.collection(
+    `establishments/${establishmentId}/penalties`
+  );
+  const pendingPenaltiesQuery = penaltiesRef.where("status", "==", "pending");
+  const penaltiesSnapshot = await pendingPenaltiesQuery.get();
+
+  let totalFineAmount = 0;
+  const penaltyIdsToPay: string[] = [];
+  if (!penaltiesSnapshot.empty) {
+    penaltiesSnapshot.forEach((doc) => {
+      totalFineAmount += doc.data().amount;
+      penaltyIdsToPay.push(doc.id);
+    });
+    logger.info(
+      `Adicionando ${totalFineAmount} em multas pendentes para o estabelecimento ${establishmentId}.`
+    );
+  }
+
+  const normalApplicationFee = transaction_amount * 0.0499; // Sua taxa de 4.99%
+  const finalApplicationFee = normalApplicationFee + totalFineAmount;
+
+  // Garantir que a taxa não exceda o valor da transação e arredondar para 2 casas decimais
+  const cappedFee =
+    Math.round(Math.min(transaction_amount, finalApplicationFee) * 100) / 100;
+  // ==========================================================
+  // =================== FIM DA ALTERAÇÃO =====================
+  // ==========================================================
+
+  const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
+  const preference = new Preference(client);
+
+  try {
+    const newAppointmentRef = db
+      .collection("establishments")
+      .doc(establishmentId)
+      .collection("appointments")
+      .doc();
     const appointmentId = newAppointmentRef.id;
 
     const professionalDoc = await db
       .collection("establishments")
-      .doc(appointmentDetails.establishmentId)
+      .doc(establishmentId)
       .collection("professionals")
-      .doc(appointmentDetails.professionalId)
+      .doc(professionalId)
       .get();
     const professionalAuthUid = professionalDoc.data()?.authUid || null;
 
@@ -308,10 +308,8 @@ export const createMercadoPagoPreference = onCall(async (request) => {
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
-          category_id: "services",
         },
       ],
-      // 4. USAR OS DADOS SEGUROS QUE BUSCAMOS DO FIRESTORE
       payer: {
         first_name: clientData.firstName,
         last_name: clientData.lastName,
@@ -323,11 +321,12 @@ export const createMercadoPagoPreference = onCall(async (request) => {
         pending: `${aplicationBaseUrl}/client/`,
       },
       auto_return: "approved",
-      marketplace_fee: application_fee,
+      marketplace_fee: cappedFee, // <-- Usar a taxa final calculada
       statement_descriptor: statementDescriptor,
       metadata: {
         appointmentId: appointmentId,
-        establishmentId: appointmentDetails.establishmentId,
+        establishmentId: establishmentId,
+        paid_penalty_ids: penaltyIdsToPay, // <-- Enviar os IDs das multas para o webhook
       },
       external_reference: appointmentId,
       notification_url:
@@ -337,29 +336,25 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     const preferenceResponse = await preference.create({
       body: preferenceBody,
     });
-    logger.info("Objeto de preferência a ser enviado para o Mercado Pago:", {
-      payer: preferenceBody.payer,
-    });
-    // 5. SALVAR O AGENDAMENTO COM OS DADOS CORRETOS E SEGUROS
-    const finalBookingDate = new Date(appointmentDetails.bookingTimestamp);
+
+    const finalBookingDate = new Date(bookingTimestamp);
     await newAppointmentRef.set({
       ...appointmentDetails,
       dateTime: Timestamp.fromDate(finalBookingDate),
-      clientId: clientId, // O UID do usuário autenticado
-      clientFirstName: clientData.firstName, // O nome vindo do banco de dados
-      clientLastName: clientData.lastName, // O sobrenome vindo do banco de dados
-      clientPhone: clientData.phone || "", // O telemóvel vindo do banco de dados
+      clientId: clientId,
+      clientFirstName: clientData.firstName,
+      clientLastName: clientData.lastName,
+      clientPhone: clientData.phone || "",
       professionalAuthUid,
       status: "pending_payment",
       preferenceId: preferenceResponse.id,
       createdAt: Timestamp.now(),
     });
 
-    const initPoint = preferenceResponse.init_point;
-    return { success: true, init_point: initPoint };
+    return { success: true, init_point: preferenceResponse.init_point };
   } catch (error: any) {
-    console.error(
-      "ERRO DETALHADO AO CRIAR PREFERÊNCIA:",
+    logger.error(
+      "ERRO DETALhado AO CRIAR PREFERÊNCIA:",
       JSON.stringify(error, null, 2)
     );
     throw new HttpsError("internal", "Erro ao iniciar o pagamento.");
@@ -384,13 +379,18 @@ export const mercadoPagoWebhook = onRequest(
         const establishmentId = paymentInfo.metadata?.establishment_id;
 
         if (!appointmentId || !establishmentId) {
+          logger.warn(
+            "Webhook recebido sem appointmentId ou establishmentId.",
+            { paymentInfo }
+          );
           response.status(200).send("OK (dados insuficientes)");
           return;
         }
 
-        const appointmentRef = db
+        const establishmentRef = db
           .collection("establishments")
-          .doc(establishmentId)
+          .doc(establishmentId);
+        const appointmentRef = establishmentRef
           .collection("appointments")
           .doc(appointmentId);
 
@@ -400,41 +400,84 @@ export const mercadoPagoWebhook = onRequest(
           return;
         }
 
-        const appointmentData = appointmentDoc.data();
-        if (appointmentData?.status !== "pending_payment") {
-          response.status(200).send("OK (já processado)");
-          return;
-        }
-
         const paymentStatus = paymentInfo.status;
 
+        // --- LÓGICA DE PAGAMENTO APROVADO ---
         if (paymentStatus === "approved") {
-          // LÓGICA SIMPLIFICADA: A data já existe, só precisamos de atualizar o status.
-          await appointmentRef.update({
-            status: "confirmado",
-            paymentId: paymentId,
-          });
-          console.log(`SUCESSO: Agendamento ${appointmentId} confirmado.`);
-        } else if (
+          // Confirma o agendamento
+          if (appointmentDoc.data()?.status === "pending_payment") {
+            await appointmentRef.update({
+              status: "confirmado",
+              paymentId: paymentId,
+            });
+            logger.info(`SUCESSO: Agendamento ${appointmentId} confirmado.`);
+          }
+
+          // --- ALTERAÇÃO: LÓGICA PARA PROCESSAR MULTAS PAGAS ---
+          const paidPenaltyIds = paymentInfo.metadata?.paid_penalty_ids as
+            | string[]
+            | undefined;
+
+          if (
+            paidPenaltyIds &&
+            Array.isArray(paidPenaltyIds) &&
+            paidPenaltyIds.length > 0
+          ) {
+            const penaltiesRef = establishmentRef.collection("penalties");
+            const updatePromises = paidPenaltyIds.map((id) =>
+              penaltiesRef.doc(id).update({ status: "paid" })
+            );
+            await Promise.all(updatePromises);
+            logger.info(
+              `SUCESSO: ${paidPenaltyIds.length} multas foram marcadas como pagas para o estabelecimento ${establishmentId}.`
+            );
+
+            // Após pagar as multas, verificar se a conta pode ser reativada
+            const pendingPenaltiesQuery = penaltiesRef
+              .where("status", "==", "pending")
+              .limit(1);
+            const remainingPenalties = await pendingPenaltiesQuery.get();
+
+            if (remainingPenalties.empty) {
+              await establishmentRef.update({ accountStatus: "active" });
+              logger.info(
+                `CONTA REATIVADA: O estabelecimento ${establishmentId} pagou todas as suas multas.`
+              );
+            }
+          }
+          // --- FIM DA ALTERAÇÃO ---
+        }
+        // --- LÓGICA DE REEMBOLSO ---
+        else if (
+          paymentStatus === "refunded" ||
+          paymentStatus === "partially_refunded"
+        ) {
+          if (appointmentDoc.data()?.status === "pending_refund") {
+            await appointmentRef.update({ status: "refunded" });
+            logger.info(
+              `SUCESSO: Reembolso do agendamento ${appointmentId} validado.`
+            );
+          }
+        }
+        // --- LÓGICA DE PAGAMENTO FALHADO ---
+        else if (
           ["rejected", "cancelled", "failed"].includes(paymentStatus as string)
         ) {
-          await appointmentRef.update({
-            status: "cancelado",
-            cancellationReason: `Pagamento falhou com status: ${paymentStatus}`,
-          });
-          console.log(
-            `Agendamento ${appointmentId} cancelado (status: ${paymentStatus}).`
-          );
-        } else {
-          console.log(
-            `Status intermediário '${paymentStatus}' recebido. Aguardando notificação final.`
-          );
+          if (appointmentDoc.data()?.status === "pending_payment") {
+            await appointmentRef.update({
+              status: "cancelado",
+              cancellationReason: `Pagamento falhou com status: ${paymentStatus}`,
+            });
+            logger.info(
+              `Agendamento ${appointmentId} cancelado (status: ${paymentStatus}).`
+            );
+          }
         }
       }
 
       response.status(200).send("OK");
     } catch (error) {
-      console.error("Erro fatal no processamento do webhook:", error);
+      logger.error("Erro fatal no processamento do webhook:", error);
       response.status(500).send("Erro interno ao processar webhook.");
     }
   }
@@ -444,69 +487,115 @@ export const mercadoPagoWebhook = onRequest(
 // ===== FUNÇÃO 5A: CLIENTE CANCELA AGENDAMENTO (COM REGRA DE 3 HORAS)
 // ====================================================================================
 export const clientCancelAppointment = onCall(async (request) => {
-  try {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Você precisa estar logado.");
-    }
-    const { appointmentId, establishmentId } = request.data;
-    if (!appointmentId || !establishmentId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "IDs do agendamento e do estabelecimento são obrigatórios."
-      );
-    }
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Você precisa estar logado.");
+  }
+  const { appointmentId, establishmentId } = request.data;
+  if (!appointmentId || !establishmentId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "IDs do agendamento e do estabelecimento são obrigatórios."
+    );
+  }
 
-    const appointmentRef = db
-      .collection("establishments")
-      .doc(establishmentId)
-      .collection("appointments")
-      .doc(appointmentId);
-    const appointmentDoc = await appointmentRef.get();
+  const appointmentRef = db
+    .collection("establishments")
+    .doc(establishmentId)
+    .collection("appointments")
+    .doc(appointmentId);
+  const appointmentDoc = await appointmentRef.get();
 
-    if (!appointmentDoc.exists) {
-      throw new HttpsError("not-found", "Agendamento não encontrado.");
-    }
-    if (appointmentDoc.data()?.clientId !== request.auth.uid) {
-      throw new HttpsError(
-        "permission-denied",
-        "Você não pode alterar este agendamento."
-      );
-    }
+  if (!appointmentDoc.exists) {
+    throw new HttpsError("not-found", "Agendamento não encontrado.");
+  }
+  const appointmentData = appointmentDoc.data()!;
 
-    // --- LÓGICA DA REGRA DE 3 HORAS ADICIONADA AQUI ---
-    const appointmentTime = (
-      appointmentDoc.data()?.dateTime as Timestamp
-    ).toDate();
-    const now = new Date();
-    const hoursDifference =
-      (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+  if (appointmentData.clientId !== request.auth.uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Você não pode alterar este agendamento."
+    );
+  }
 
-    if (hoursDifference < 3) {
-      throw new HttpsError(
-        "failed-precondition",
-        "O cancelamento só é permitido com um mínimo de 3 horas de antecedência."
-      );
-    }
-    // --- FIM DA LÓGICA DA REGRA ---
+  const appointmentTime = (appointmentData.dateTime as Timestamp).toDate();
+  const now = new Date();
+  const hoursDifference =
+    (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
+  if (hoursDifference < 3) {
+    throw new HttpsError(
+      "failed-precondition",
+      "O cancelamento só é permitido com um mínimo de 3 horas de antecedência."
+    );
+  }
+
+  const paymentId = appointmentData.paymentId;
+  if (!paymentId) {
     await appointmentRef.update({
       status: "cancelado",
+      cancelledBy: "client",
+      cancellationTimestamp: Timestamp.now(),
+    });
+    return {
+      success: true,
+      message: "Agendamento cancelado com sucesso (sem pagamento).",
+    };
+  }
+
+  try {
+    const establishmentDoc = await db
+      .collection("establishments")
+      .doc(establishmentId)
+      .get();
+    const ownerAccessToken =
+      establishmentDoc.data()?.mpCredentials?.mp_access_token;
+
+    if (!ownerAccessToken) {
+      throw new HttpsError(
+        "failed-precondition",
+        "O estabelecimento não está configurado para processar reembolsos automáticos."
+      );
+    }
+
+    const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
+
+    // ALTERAÇÃO 2: Instanciar a classe correta 'PaymentRefund'
+    const refund = new PaymentRefund(client);
+    await refund.create({
+      payment_id: paymentId,
+    });
+
+    logger.info(
+      `Reembolso automático iniciado com sucesso para o pagamento ${paymentId}`
+    );
+
+    await appointmentRef.update({
+      status: "refunded",
       cancelledBy: "client",
       cancellationTimestamp: Timestamp.now(),
     });
 
     return {
       success: true,
-      message: "O seu agendamento foi cancelado com sucesso.",
+      message: "Agendamento cancelado e reembolso processado com sucesso!",
     };
-  } catch (error) {
-    console.error("Erro em clientCancelAppointment:", error);
-    if (error instanceof HttpsError) {
-      throw error;
-    }
+  } catch (error: any) {
+    logger.error(
+      `Falha no reembolso automático para o pagamento ${paymentId}:`,
+      error
+    );
+
+    await appointmentRef.update({
+      status: "pending_refund",
+      cancelledBy: "client",
+      cancellationTimestamp: Timestamp.now(),
+      refundRequestedAt: Timestamp.now(),
+      refundError: error.message || "Erro desconhecido na API de reembolso.",
+    });
+
     throw new HttpsError(
       "internal",
-      "Ocorreu um erro ao cancelar o agendamento."
+      "Ocorreu um erro ao processar o reembolso automático. O estabelecimento foi notificado para processar manualmente."
     );
   }
 });
@@ -515,7 +604,6 @@ export const clientCancelAppointment = onCall(async (request) => {
 // ===== FUNÇÃO 5B: OWNER CANCELA AGENDAMENTO
 // =================================================================================
 export const ownerCancelAppointment = onCall(async (request) => {
-  // CORREÇÃO: Adicionado try...catch para segurança
   try {
     if (request.auth?.token.role !== "owner") {
       throw new HttpsError(
@@ -543,24 +631,90 @@ export const ownerCancelAppointment = onCall(async (request) => {
       .doc(establishmentId)
       .collection("appointments")
       .doc(appointmentId);
-
     const appointmentDoc = await appointmentRef.get();
+
     if (!appointmentDoc.exists) {
       throw new HttpsError("not-found", "Agendamento não encontrado.");
     }
+    const appointmentData = appointmentDoc.data()!;
 
-    await appointmentRef.update({
-      status: "cancelado",
-      cancelledBy: "owner",
-      cancellationTimestamp: Timestamp.now(),
-    });
+    // --- LÓGICA DE REEMBOLSO AUTOMÁTICO COMEÇA AQUI ---
+    const paymentId = appointmentData.paymentId;
+    if (!paymentId) {
+      // Se não houver ID de pagamento (ex: agendamento gratuito), apenas cancela no sistema
+      await appointmentRef.update({
+        status: "cancelado",
+        cancelledBy: "owner",
+        cancellationTimestamp: Timestamp.now(),
+      });
+      return {
+        success: true,
+        message: "Agendamento cancelado com sucesso (sem pagamento associado).",
+      };
+    }
 
-    return {
-      success: true,
-      message: "Agendamento cancelado e horário liberado com sucesso.",
-    };
+    try {
+      const establishmentDoc = await db
+        .collection("establishments")
+        .doc(establishmentId)
+        .get();
+      const ownerAccessToken =
+        establishmentDoc.data()?.mpCredentials?.mp_access_token;
+
+      if (!ownerAccessToken) {
+        throw new HttpsError(
+          "failed-precondition",
+          "O estabelecimento não está configurado para processar reembolsos automáticos."
+        );
+      }
+
+      const client = new MercadoPagoConfig({ accessToken: ownerAccessToken });
+      const refund = new PaymentRefund(client);
+
+      await refund.create({
+        payment_id: paymentId,
+      });
+
+      logger.info(
+        `Reembolso automático iniciado pelo proprietário para o pagamento ${paymentId}`
+      );
+
+      // Atualiza o status final no Firestore
+      await appointmentRef.update({
+        status: "refunded", // O status já é o final, pois o reembolso foi processado
+        cancelledBy: "owner",
+        cancellationTimestamp: Timestamp.now(),
+      });
+
+      return {
+        success: true,
+        message: "Agendamento cancelado e reembolso processado com sucesso!",
+      };
+    } catch (error: any) {
+      logger.error(
+        `Falha no reembolso automático iniciado pelo proprietário para o pagamento ${paymentId}:`,
+        error
+      );
+
+      // PLANO B: Se o reembolso automático falhar, aciona o fluxo manual
+      await appointmentRef.update({
+        status: "pending_refund", // Volta ao status de reembolso pendente
+        cancelledBy: "owner",
+        cancellationTimestamp: Timestamp.now(),
+        refundRequestedAt: Timestamp.now(), // Inicia o contador de 5 dias
+        refundError: `(OWNER) ${
+          error.message || "Erro desconhecido na API de reembolso."
+        }`,
+      });
+
+      throw new HttpsError(
+        "internal",
+        "Ocorreu um erro ao processar o reembolso automático. Notificámos o cliente e o reembolso deve ser feito manualmente."
+      );
+    }
+    // --- FIM DA LÓGICA DE REEMBOLSO AUTOMÁTICO ---
   } catch (error) {
-    console.error("Erro em ownerCancelAppointment:", error);
+    logger.error("Erro em ownerCancelAppointment:", error);
     if (error instanceof HttpsError) {
       throw error;
     }
@@ -924,5 +1078,126 @@ export const onEstablishmentWritten = onDocumentWritten(
     console.log(`Slug gerado para '${establishmentName}': ${finalSlug}`);
     // Salva o slug único de volta no documento do estabelecimento.
     return event.data?.after.ref.set({ slug: finalSlug }, { merge: true });
+  }
+);
+// ====================================================================
+// ===== ALTERAÇÃO 2: NOVA FUNÇÃO PARA MONITORAR REEMBOLSOS
+// ====================================================================
+/**
+ * Corre a cada 24 horas para verificar agendamentos com reembolsos pendentes
+ * há mais de 5 dias e aplica as penalidades necessárias.
+ */
+export const monitorarReembolsos = onSchedule(
+  "every 24 hours",
+  async (event) => {
+    logger.info("A iniciar a verificação de reembolsos atrasados...");
+
+    const now = new Date();
+    const fiveDaysAgo = new Date(now.setDate(now.getDate() - 5));
+    const fiveDaysAgoTimestamp = Timestamp.fromDate(fiveDaysAgo);
+
+    const overdueRefundsQuery = db
+      .collectionGroup("appointments")
+      .where("status", "==", "pending_refund")
+      .where("refundRequestedAt", "<=", fiveDaysAgoTimestamp);
+
+    try {
+      const snapshot = await overdueRefundsQuery.get();
+      if (snapshot.empty) {
+        logger.info("Nenhum reembolso atrasado encontrado.");
+        // CORREÇÃO: A linha 'return null;' foi removida daqui.
+        return;
+      }
+
+      logger.info(
+        `Encontrados ${snapshot.size} reembolsos atrasados. A processar...`
+      );
+
+      const promises = snapshot.docs.map(async (doc) => {
+        const appointment = doc.data();
+        const { establishmentId, clientId, price } = appointment;
+
+        const establishmentRef = db
+          .collection("establishments")
+          .doc(establishmentId);
+
+        await establishmentRef.update({ accountStatus: "suspended" });
+
+        const fineValue = price * 0.1;
+        await establishmentRef.collection("penalties").add({
+          reason: `Atraso no reembolso do agendamento ${doc.id}`,
+          amount: fineValue,
+          createdAt: Timestamp.now(),
+          appointmentId: doc.id,
+          status: "pending",
+        });
+
+        const clientRef = db.collection("users").doc(clientId);
+        await clientRef.collection("notifications").add({
+          title: "Atraso no seu Reembolso",
+          message: `O estabelecimento não processou o seu reembolso a tempo. A A&N está a mediar a situação. A conta do estabelecimento foi suspensa.`,
+          createdAt: Timestamp.now(),
+          isRead: false,
+        });
+
+        await doc.ref.update({
+          status: "refund_overdue",
+        });
+
+        logger.info(
+          `Penalidades aplicadas ao estabelecimento ${establishmentId} para o agendamento ${doc.id}`
+        );
+      });
+
+      await Promise.all(promises);
+      logger.info("Processamento de reembolsos atrasados concluído.");
+    } catch (error) {
+      logger.error("Ocorreu um erro ao monitorizar reembolsos:", error);
+    }
+    // CORREÇÃO: A linha 'return null;' foi removida do final da função.
+  }
+);
+export const cleanupPendingPayments = onSchedule(
+  "every 24 hours",
+  async (event) => {
+    logger.info(
+      "Iniciando a limpeza de agendamentos com pagamentos pendentes expirados..."
+    );
+
+    // 1. Calcular a data limite (24 horas atrás)
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
+
+    // 2. Criar a consulta para encontrar os agendamentos expirados
+    const expiredAppointmentsQuery = db
+      .collectionGroup("appointments") // Busca em todos os estabelecimentos
+      .where("status", "==", "pending_payment")
+      .where("createdAt", "<=", twentyFourHoursAgoTimestamp);
+
+    try {
+      const snapshot = await expiredAppointmentsQuery.get();
+      if (snapshot.empty) {
+        logger.info("Nenhum agendamento pendente expirado encontrado.");
+        return;
+      }
+
+      logger.info(
+        `Encontrados ${snapshot.size} agendamentos expirados. Iniciando a remoção...`
+      );
+
+      // 3. Apagar os documentos em lote (batch) para eficiência
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      logger.info(
+        `SUCESSO: ${snapshot.size} agendamentos expirados foram removidos.`
+      );
+    } catch (error) {
+      logger.error("Ocorreu um erro ao limpar os pagamentos pendentes:", error);
+    }
   }
 );

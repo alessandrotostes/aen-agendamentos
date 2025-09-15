@@ -1,11 +1,3 @@
-// src/components/client/AppointmentCard.tsx
-
-// src/components/client/AppointmentCard.tsx
-
-"use client";
-
-// src/components/client/AppointmentCard.tsx
-
 "use client";
 
 import React from "react";
@@ -24,11 +16,9 @@ import {
   CalendarPlus,
   Building,
   User,
+  AlertTriangle,
 } from "lucide-react";
 
-// =================================================================
-// ===== ALTERAÇÃO 1: FUNÇÃO PARA GERAR O LINK DO GOOGLE CALENDAR ====
-// =================================================================
 const generateGoogleCalendarLink = (
   appointment: Appointment,
   establishment?: Establishment
@@ -36,9 +26,8 @@ const generateGoogleCalendarLink = (
   if (!appointment.dateTime) return "#";
 
   const startTime = appointment.dateTime.toDate();
-  const endTime = new Date(startTime.getTime() + appointment.duration * 60000); // Adiciona a duração em milissegundos
+  const endTime = new Date(startTime.getTime() + appointment.duration * 60000);
 
-  // Formata as datas para o formato UTC que o Google Calendar espera (YYYYMMDDTHHMMSSZ)
   const formatGoogleDate = (date: Date) => {
     return date.toISOString().replace(/-|:|\.\d{3}/g, "");
   };
@@ -63,6 +52,8 @@ interface AppointmentCardProps {
   onShowCancellationInfo: (title: string, message: string) => void;
   onDismiss: (appointmentId: string) => void;
 }
+
+type DisplayStatus = Appointment["status"] | "concluido";
 
 export default function AppointmentCard({
   appointment,
@@ -95,8 +86,7 @@ export default function AppointmentCard({
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
 
-  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
-    appointment.status;
+  let virtualStatus: DisplayStatus = appointment.status;
   if (appointment.status === "confirmado" && appointmentDate < now) {
     virtualStatus = "concluido";
   }
@@ -123,12 +113,27 @@ export default function AppointmentCard({
       opacity: "opacity-70",
     },
     cancelado: {
-      borderColor: "border-gray-300",
+      borderColor: "border-red-300",
       bgColor: "bg-slate-50",
       opacity: "opacity-70",
     },
+    pending_refund: {
+      borderColor: "border-amber-400",
+      bgColor: "bg-white",
+      opacity: "opacity-100",
+    },
+    refunded: {
+      borderColor: "border-red-300",
+      bgColor: "bg-slate-50",
+      opacity: "opacity-70",
+    },
+    refund_overdue: {
+      borderColor: "border-red-500",
+      bgColor: "bg-white",
+      opacity: "opacity-100",
+    },
   };
-  const currentStyle = statusConfig[virtualStatus];
+  const currentStyle = statusConfig[virtualStatus] || statusConfig.confirmado;
 
   let statusBadge = null;
   if (virtualStatus === "cancelado") {
@@ -149,13 +154,36 @@ export default function AppointmentCard({
         CONCLUÍDO
       </span>
     );
+  } else if (virtualStatus === "pending_refund") {
+    statusBadge = (
+      <span className="text-[10px] font-bold text-white bg-amber-500 px-2 py-1 rounded-full flex items-center gap-1">
+        <Hourglass className="w-3 h-3" />
+        REEMBOLSO PENDENTE
+      </span>
+    );
+  } else if (virtualStatus === "refunded") {
+    statusBadge = (
+      <span className="text-[10px] font-bold text-slate-100 bg-slate-500 px-2 py-1 rounded-full flex items-center gap-1">
+        <CheckCircle className="w-3 h-3" />
+        REEMBOLSADO
+      </span>
+    );
+  } else if (virtualStatus === "refund_overdue") {
+    statusBadge = (
+      <span className="text-[10px] font-bold text-white bg-red-600 px-2 py-1 rounded-full flex items-center gap-1">
+        <AlertTriangle className="w-3 h-3" />
+        REEMBOLSO ATRASADO
+      </span>
+    );
   }
 
   return (
     <div
       className={`relative ${currentStyle.bgColor} rounded-xl shadow-md p-4 border-l-4 ${currentStyle.borderColor} ${currentStyle.opacity} transition-all`}
     >
-      {(virtualStatus === "concluido" || virtualStatus === "cancelado") && (
+      {(virtualStatus === "concluido" ||
+        virtualStatus === "cancelado" ||
+        virtualStatus === "refunded") && (
         <button
           onClick={() => onDismiss(appointment.id)}
           className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full z-10"
@@ -166,7 +194,7 @@ export default function AppointmentCard({
       )}
 
       <div className="flex flex-col sm:flex-row gap-4">
-        {establishment?.imageURL && (
+        {establishment?.imageURL ? (
           <div className="relative w-full h-24 sm:w-28 sm:h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100">
             <Image
               src={establishment.imageURL}
@@ -175,6 +203,10 @@ export default function AppointmentCard({
               className="object-contain"
               sizes="112px"
             />
+          </div>
+        ) : (
+          <div className="relative w-full h-24 sm:w-28 sm:h-28 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center">
+            <Building className="w-10 h-10 text-slate-300" />
           </div>
         )}
 

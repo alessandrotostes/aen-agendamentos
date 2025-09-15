@@ -22,6 +22,8 @@ import CancellationInfoModal from "../shared/modals/CancellationInfoModal";
 import RefundConfirmationModal from "../shared/modals/RefundConfirmationModal";
 import AlertModal from "../shared/modals/AlertModal";
 import SuccessModal from "../shared/modals/SuccessModal";
+// ALTERAÇÃO: Importar o novo modal de termos
+import TermsAndConditionsModal from "../../components/shared/modals/TermsAndConditionsModal";
 
 const AppointmentCardSkeleton = () => (
   <div className="bg-white rounded-xl shadow-sm p-4 h-40 animate-pulse">
@@ -49,12 +51,19 @@ const SalonCardSkeleton = () => (
   </div>
 );
 
+// ALTERAÇÃO: Definir tipo para a resposta da Cloud Function
+interface CloudFunctionResult {
+  success: boolean;
+  message: string;
+}
+
 interface Props {
   onNavigateToSearch: () => void;
 }
 
 export default function ClientDashboardView({ onNavigateToSearch }: Props) {
-  const { userData } = useAuth();
+  // ALTERAÇÃO: Obter as novas funções do useAuth
+  const { userData, acceptTerms, refreshUserData } = useAuth();
   const [activeTab, setActiveTab] = useState<
     "upcoming" | "history" | "favorites"
   >("upcoming");
@@ -85,6 +94,18 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     message: "",
   });
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+
+  // ALTERAÇÃO: Novos estados para o modal de termos
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+
+  // ALTERAÇÃO: useEffect para verificar se os termos foram aceites
+  useEffect(() => {
+    // Usar !userData.termsAccepted apanha tanto 'false' como 'undefined' (para utilizadores antigos)
+    if (userData && !userData.termsAccepted) {
+      setIsTermsModalOpen(true);
+    }
+  }, [userData]);
 
   useEffect(() => {
     const storedIds = localStorage.getItem("dismissedAppointments");
@@ -186,6 +207,27 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     };
   }, [userData]);
 
+  // ALTERAÇÃO: Nova função para lidar com a confirmação dos termos
+  const handleAcceptTerms = async () => {
+    if (!userData) return;
+    setIsAcceptingTerms(true);
+    try {
+      await acceptTerms(userData.uid);
+      await refreshUserData(); // Força a atualização do estado no contexto
+      setIsTermsModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao aceitar os termos:", error);
+      setAlertModalContent({
+        title: "Erro",
+        message:
+          "Ocorreu um erro ao guardar a sua preferência. Por favor, tente novamente.",
+      });
+      setAlertModalOpen(true);
+    } finally {
+      setIsAcceptingTerms(false);
+    }
+  };
+
   const handleOpenCancellationFlow = (appointment: Appointment) => {
     setAppointmentToCancel(appointment);
     setInfoModalOpen(true);
@@ -197,14 +239,19 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
     setConfirmModalOpen(false);
     try {
       const cancelFn = httpsCallable(functions, "clientCancelAppointment");
-      await cancelFn({
+      const result = await cancelFn({
         appointmentId: appointmentToCancel.id,
         establishmentId: appointmentToCancel.establishmentId,
       });
+
+      // ALTERAÇÃO: Usar o tipo que definimos, em vez de 'any'
+      const resultData = result.data as CloudFunctionResult;
+
       setSuccessModalContent({
-        title: "Cancelamento Solicitado",
+        title: "Sucesso",
         message:
-          "O seu agendamento foi cancelado com sucesso e o estabelecimento notificado.",
+          resultData.message ||
+          "Seu agendamento foi cancelado e o reembolso processado.",
       });
       setSuccessModalOpen(true);
       refreshAppointments();
@@ -226,7 +273,11 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
 
   const handleUnfavorite = async (salonId: string) => {
     if (!userData?.uid) {
-      alert("Você precisa estar logado para desfavoritar.");
+      setAlertModalContent({
+        title: "Ação necessária",
+        message: "Você precisa estar logado para desfavoritar.",
+      });
+      setAlertModalOpen(true);
       return;
     }
     try {
@@ -234,7 +285,11 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
       await deleteDoc(favoriteRef);
     } catch (error) {
       console.error("Erro ao desfavoritar:", error);
-      alert("Ocorreu um erro ao tentar desfavoritar o estabelecimento.");
+      setAlertModalContent({
+        title: "Erro",
+        message: "Ocorreu um erro ao tentar desfavoritar o estabelecimento.",
+      });
+      setAlertModalOpen(true);
     }
   };
 
@@ -264,156 +319,159 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
 
   return (
     <>
-      <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-4 lg:px-8 py-0">
-          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">
-                Olá, {userData?.firstName || "Cliente"}!
-              </h1>
-              <p className="text-slate-500 mt-1">
-                Bem-vindo ao seu painel. Aqui estão os seus compromissos.
-              </p>
-            </div>
+      {/* ALTERAÇÃO: Renderizar o modal de termos */}
+      <TermsAndConditionsModal
+        isOpen={isTermsModalOpen}
+        onConfirm={handleAcceptTerms}
+        isLoading={isAcceptingTerms}
+      />
+
+      {/* O div abaixo foi removido do seu código original, mas é importante para o layout */}
+      <div className="space-y-8">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Olá, {userData?.firstName || "Cliente"}!
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Bem-vindo ao seu painel. Aqui estão os seus compromissos.
+            </p>
+          </div>
+          <button
+            onClick={onNavigateToSearch}
+            className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Novo Agendamento</span>
+          </button>
+        </header>
+
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
             <button
-              onClick={onNavigateToSearch}
-              className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+              onClick={() => setActiveTab("upcoming")}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === "upcoming"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
             >
-              <Plus className="w-5 h-5" />
-              <span>Novo Agendamento</span>
+              <Calendar /> Próximos
             </button>
-          </header>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === "history"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <History /> Histórico
+            </button>
+            <button
+              onClick={() => setActiveTab("favorites")}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === "favorites"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <Heart /> Favoritos
+            </button>
+          </nav>
+        </div>
 
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab("upcoming")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "upcoming"
-                    ? "border-indigo-500 text-indigo-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <Calendar /> Próximos
-              </button>
-              <button
-                onClick={() => setActiveTab("history")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "history"
-                    ? "border-indigo-500 text-indigo-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <History /> Histórico
-              </button>
-              <button
-                onClick={() => setActiveTab("favorites")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "favorites"
-                    ? "border-indigo-500 text-indigo-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <Heart /> Favoritos
-              </button>
-            </nav>
-          </div>
+        <div className="mt-8">
+          {activeTab === "upcoming" && (
+            <section>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <AppointmentCardSkeleton />
+                  <AppointmentCardSkeleton />
+                </div>
+              ) : upcomingAppointments.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingAppointments.map((app) => (
+                    <AppointmentCard
+                      key={app.id}
+                      appointment={app}
+                      establishment={establishments.get(app.establishmentId)}
+                      onCancel={handleOpenCancellationFlow}
+                      onShowCancellationInfo={handleShowAlert}
+                      onDismiss={handleDismiss}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  message="Você não tem agendamentos futuros."
+                  icon={Calendar}
+                  actionText="Encontrar um Horário"
+                  onAction={onNavigateToSearch}
+                />
+              )}
+            </section>
+          )}
 
-          <div className="mt-8">
-            {activeTab === "upcoming" && (
-              <section>
-                {isLoading ? (
-                  <div className="space-y-4">
-                    <AppointmentCardSkeleton />
-                    <AppointmentCardSkeleton />
-                  </div>
-                ) : upcomingAppointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {upcomingAppointments.map((app) => (
-                      <AppointmentCard
-                        key={app.id}
-                        appointment={app}
-                        establishment={establishments.get(app.establishmentId)}
-                        onCancel={handleOpenCancellationFlow}
-                        onShowCancellationInfo={handleShowAlert}
-                        onDismiss={handleDismiss}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  // ALTERAÇÃO: Substituir emoji por ícone
-                  <EmptyState
-                    message="Você não tem agendamentos futuros."
-                    icon={Calendar}
-                    actionText="Encontrar um Horário"
-                    onAction={onNavigateToSearch}
-                  />
-                )}
-              </section>
-            )}
+          {activeTab === "history" && (
+            <section>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <AppointmentCardSkeleton />
+                  <AppointmentCardSkeleton />
+                </div>
+              ) : pastAppointments.length > 0 ? (
+                <div className="space-y-4">
+                  {pastAppointments.map((app) => (
+                    <AppointmentCard
+                      key={app.id}
+                      appointment={app}
+                      establishment={establishments.get(app.establishmentId)}
+                      onCancel={() => {}}
+                      onShowCancellationInfo={handleShowAlert}
+                      onDismiss={handleDismiss}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  message="Seu histórico de agendamentos está vazio."
+                  icon={History}
+                />
+              )}
+            </section>
+          )}
 
-            {activeTab === "history" && (
-              <section>
-                {isLoading ? (
-                  <div className="space-y-4">
-                    <AppointmentCardSkeleton />
-                    <AppointmentCardSkeleton />
-                  </div>
-                ) : pastAppointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {pastAppointments.map((app) => (
-                      <AppointmentCard
-                        key={app.id}
-                        appointment={app}
-                        establishment={establishments.get(app.establishmentId)}
-                        onCancel={() => {}}
-                        onShowCancellationInfo={handleShowAlert}
-                        onDismiss={handleDismiss}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  // ALTERAÇÃO: Substituir emoji por ícone
-                  <EmptyState
-                    message="Seu histórico de agendamentos está vazio."
-                    icon={History}
-                  />
-                )}
-              </section>
-            )}
-
-            {activeTab === "favorites" && (
-              <section>
-                {favoritesLoading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <SalonCardSkeleton />
-                    <SalonCardSkeleton />
-                    <SalonCardSkeleton />
-                    <SalonCardSkeleton />
-                  </div>
-                ) : favoriteSalons.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {favoriteSalons.map((salon) => (
-                      <SalonCard
-                        key={salon.id}
-                        salon={salon}
-                        isFavorite={true}
-                        onToggleFavorite={handleUnfavorite}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  // ALTERAÇÃO: Substituir emoji por ícone
-                  <EmptyState
-                    message="Você ainda não favoritou nenhum estabelecimento."
-                    icon={Heart}
-                    actionText="Encontrar Estabelecimentos"
-                    onAction={onNavigateToSearch}
-                  />
-                )}
-              </section>
-            )}
-          </div>
+          {activeTab === "favorites" && (
+            <section>
+              {favoritesLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <SalonCardSkeleton />
+                  <SalonCardSkeleton />
+                  <SalonCardSkeleton />
+                  <SalonCardSkeleton />
+                </div>
+              ) : favoriteSalons.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {favoriteSalons.map((salon) => (
+                    <SalonCard
+                      key={salon.id}
+                      salon={salon}
+                      isFavorite={true}
+                      onToggleFavorite={handleUnfavorite}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  message="Você ainda não favoritou nenhum estabelecimento."
+                  icon={Heart}
+                  actionText="Encontrar Estabelecimentos"
+                  onAction={onNavigateToSearch}
+                />
+              )}
+            </section>
+          )}
         </div>
       </div>
 

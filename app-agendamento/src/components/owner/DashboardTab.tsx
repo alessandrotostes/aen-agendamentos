@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo } from "react";
 import StatsCard from "./common/StatsCard";
 import EmptyState from "./common/EmptyState";
@@ -7,38 +9,41 @@ import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
 import { format, isToday, isTomorrow } from "date-fns";
 import LoadingSpinner from "./common/LoadingSpinner";
-import { Appointment } from "@/types";
-// =================================================================
-// ===== ALTERAÇÃO 1: REMOVER IMPORTAÇÕES NÃO UTILIZADAS =========
-// =================================================================
+import { Appointment, Penalty } from "@/types";
 import {
   Hourglass,
   Clock,
   CheckCircle,
   XCircle,
-  Calendar, // Ícone para o título e estado vazio
-  LucideIcon, // Tipo para as props
+  Calendar,
+  LucideIcon,
+  AlertTriangle,
 } from "lucide-react";
 
-interface Props {
-  stats: { services: number; professionals: number; today: number };
-  icons: {
-    services: LucideIcon;
-    professionals: LucideIcon;
-    today: LucideIcon;
-  };
-  appointmentsForDate?: Appointment[];
-  selectedDate: Date;
-  onDateChange: (date: Date) => void;
-  loading: boolean;
-  onOwnerCancelAppointment: (appointment: Appointment) => void;
-}
+const AccountStatusAlert = ({ status }: { status?: string }) => {
+  if (status !== "suspended") {
+    return null;
+  }
 
-const formatDateTitle = (date: Date): string => {
-  if (isToday(date)) return "Hoje";
-  if (isTomorrow(date)) return "Amanhã";
-  return format(date, "dd 'de' MMMM, yyyy", { locale: ptBR });
+  return (
+    <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg mb-8">
+      <div className="flex items-center gap-3">
+        <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
+        <div>
+          <h3 className="font-bold text-red-800">Sua Conta está Suspensa</h3>
+          <p className="text-sm text-red-700 mt-1">
+            Detectámos reembolsos que não foram processados no prazo. Para
+            reativar a sua conta, as multas aplicadas serão deduzidas
+            automaticamente dos seus próximos pagamentos.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
+
+// CORREÇÃO: Tipo 'DisplayStatus' criado para incluir o status virtual 'concluido'
+type DisplayStatus = Appointment["status"] | "concluido";
 
 const AppointmentRow = ({
   appointment,
@@ -47,7 +52,6 @@ const AppointmentRow = ({
   appointment: Appointment;
   onCancel: (app: Appointment) => void;
 }) => {
-  // ... (Nenhuma alteração no componente AppointmentRow)
   if (appointment.status === "pending_payment") {
     return (
       <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200">
@@ -73,29 +77,42 @@ const AppointmentRow = ({
 
   const now = new Date();
   const isPast = appointment.dateTime.toDate() < now;
-  const virtualStatus =
-    appointment.status === "cancelado"
-      ? "cancelado"
-      : isPast
-      ? "concluido"
-      : "confirmado";
 
-  const statusInfo = {
-    confirmado: { icon: Clock, color: "text-blue-600" },
-    concluido: { icon: CheckCircle, color: "text-emerald-600" },
-    cancelado: { icon: XCircle, color: "text-red-600" },
-  };
-
-  let cancelText = "Cancelado";
-  if (virtualStatus === "cancelado") {
-    if (appointment.cancellationReason?.includes("Pagamento"))
-      cancelText = "Pagamento Recusado";
-    else if (appointment.cancelledBy === "owner")
-      cancelText = "Cancelado por Você";
-    else cancelText = "Cancelado pelo Cliente";
+  // CORREÇÃO: Lógica de status simplificada para evitar erros de comparação
+  let virtualStatus: DisplayStatus = appointment.status;
+  if (appointment.status === "confirmado" && isPast) {
+    virtualStatus = "concluido";
   }
 
-  const Icon = statusInfo[virtualStatus].icon;
+  const statusInfo: {
+    [key: string]: { icon: LucideIcon; color: string; label: string };
+  } = {
+    confirmado: { icon: Clock, color: "text-blue-600", label: "Confirmado" },
+    concluido: {
+      icon: CheckCircle,
+      color: "text-emerald-600",
+      label: "Concluído",
+    },
+    cancelado: { icon: XCircle, color: "text-red-600", label: "Cancelado" },
+    pending_refund: {
+      icon: Hourglass,
+      color: "text-amber-600",
+      label: "Reembolso Pendente",
+    },
+    refunded: {
+      icon: XCircle,
+      color: "text-gray-500",
+      label: "Reembolsado",
+    },
+    refund_overdue: {
+      icon: AlertTriangle,
+      color: "text-red-700",
+      label: "REEMBOLSO ATRASADO",
+    },
+  };
+
+  const currentStatusInfo = statusInfo[virtualStatus] || statusInfo.confirmado;
+  const Icon = currentStatusInfo.icon;
 
   return (
     <div
@@ -105,7 +122,7 @@ const AppointmentRow = ({
     >
       <div className="flex items-center gap-4">
         <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${statusInfo[virtualStatus].color} bg-white border`}
+          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${currentStatusInfo.color} bg-white border`}
         >
           <Icon className="w-5 h-5" />
         </div>
@@ -156,8 +173,10 @@ const AppointmentRow = ({
           </span>
         </div>
 
-        {virtualStatus === "cancelado" && (
-          <p className="text-sm font-semibold text-red-600">{cancelText}</p>
+        {virtualStatus !== "confirmado" && (
+          <p className={`text-sm font-semibold ${currentStatusInfo.color}`}>
+            {currentStatusInfo.label}
+          </p>
         )}
         {virtualStatus === "confirmado" && (
           <button
@@ -172,6 +191,24 @@ const AppointmentRow = ({
   );
 };
 
+interface Props {
+  stats: { services: number; professionals: number; today: number };
+  icons: { services: LucideIcon; professionals: LucideIcon; today: LucideIcon };
+  appointmentsForDate: Appointment[];
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+  loading: boolean;
+  onOwnerCancelAppointment: (appointment: Appointment) => void;
+  establishmentStatus?: "active" | "suspended";
+  pendingFines?: Penalty[];
+}
+
+const formatDateTitle = (date: Date): string => {
+  if (isToday(date)) return "Hoje";
+  if (isTomorrow(date)) return "Amanhã";
+  return format(date, "dd 'de' MMMM, yyyy", { locale: ptBR });
+};
+
 export default function DashboardTab({
   stats,
   icons,
@@ -180,19 +217,26 @@ export default function DashboardTab({
   onDateChange,
   loading,
   onOwnerCancelAppointment,
+  establishmentStatus = "active",
+  pendingFines = [],
 }: Props) {
   const handleDaySelect: SelectSingleEventHandler = (date) => {
     if (date) onDateChange(date);
   };
 
+  const totalFineAmount = useMemo(() => {
+    return pendingFines.reduce((sum, fine) => sum + fine.amount, 0);
+  }, [pendingFines]);
+
   const sortedAppointments = useMemo(() => {
     const now = Date.now();
     const getStatusRank = (app: Appointment) => {
-      if (app.status === "pending_payment") return 5; // Aguardando pagamento
-      if (app.status === "cancelado") return 4; // Cancelados
-      if (!app.dateTime || app.dateTime.toMillis() < now) return 3; // Concluídos
-      return 2; // Confirmados (próximos)
+      if (app.status === "pending_payment") return 5;
+      if (app.status === "cancelado") return 4;
+      if (!app.dateTime || app.dateTime.toMillis() < now) return 3;
+      return 2;
     };
+    if (!appointmentsForDate) return [];
     return [...appointmentsForDate].sort((a, b) => {
       const rankA = getStatusRank(a);
       const rankB = getStatusRank(b);
@@ -204,6 +248,7 @@ export default function DashboardTab({
 
   return (
     <div className="space-y-8">
+      <AccountStatusAlert status={establishmentStatus} />
       <div>
         <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
         <p className="mt-0 text-slate-500">
@@ -214,10 +259,11 @@ export default function DashboardTab({
       <div className="flex flex-col gap-8">
         <div className="order-2 lg:order-1">
           <p className="text-teal-600 mb-4">Visão geral do seu negócio</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* ================================================================= */}
-            {/* ===== ALTERAÇÃO 2: CORRIGIR O VALOR DA PROP 'color' =========== */}
-            {/* ================================================================= */}
+          <div
+            className={`grid grid-cols-1 md:grid-cols-${
+              totalFineAmount > 0 ? "4" : "3"
+            } gap-6`}
+          >
             <StatsCard
               title="Serviços Oferecidos"
               value={stats.services.toString()}
@@ -236,6 +282,17 @@ export default function DashboardTab({
               icon={icons.today}
               color="emerald"
             />
+            {totalFineAmount > 0 && (
+              <StatsCard
+                title="Multas Pendentes"
+                value={totalFineAmount.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+                icon={AlertTriangle}
+                color="red"
+              />
+            )}
           </div>
         </div>
 

@@ -42,12 +42,14 @@ export default function OwnerCancelModal({
           <p className="text-xs text-gray-500">{appointment.serviceName}</p>
         </div>
 
+        {/* ALTERAÇÃO: A mensagem agora informa sobre o reembolso automático */}
         <p className="mt-4 text-sm text-red-700">
-          Ao confirmar, o horário ficará novamente disponível. Lembre-se que
-          você é responsável por processar o estorno do pagamento manualmente no
-          seu painel do Mercado Pago.
+          Ao confirmar, um <strong>reembolso automático</strong> será processado
+          para o cliente através da sua conta Mercado Pago conectada. O horário
+          ficará novamente disponível.
         </p>
 
+        {/* ALTERAÇÃO: A confirmação agora é genérica */}
         <div className="mt-4">
           <label className="flex items-center gap-3 p-3 bg-red-50 rounded-md cursor-pointer">
             <input
@@ -57,7 +59,8 @@ export default function OwnerCancelModal({
               className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <span className="text-sm font-semibold text-red-800">
-              Confirmo que sou responsável pelo reembolso manual.
+              Entendo que esta ação é irreversível e irá reembolsar o cliente.
+              Me compremeto a informar o cliente sobre o cancelamento.
             </span>
           </label>
         </div>
@@ -75,7 +78,7 @@ export default function OwnerCancelModal({
             disabled={!accepted || isLoading}
             className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-semibold disabled:bg-red-300 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Cancelando..." : "Cancelar Agendamento"}
+            {isLoading ? "Cancelando..." : "Cancelar e Reembolsar"}
           </button>
         </div>
       </div>
