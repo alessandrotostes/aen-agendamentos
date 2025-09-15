@@ -21,15 +21,13 @@ export default function CancellationInfoModal({
         <h3 className="text-lg font-bold text-gray-800">
           Atenção ao Cancelamento
         </h3>
+        <p className="mt-2 text-sm text-gray-600">O cancelamento será</p>
         <p className="mt-2 text-sm text-gray-600">
-          O cancelamento e o estorno do pagamento são realizados diretamente
-          pelo estabelecimento. Contate o estabelecimento para finalizar o
-          cancelamento.
-        </p>
-        <p className="mt-2 text-sm text-gray-600">
-          Ao prosseguir, você notificará o estabelecimento sobre o seu desejo de
-          cancelar. Por favor, entre em contato com eles para finalizar o
-          processo.
+          Política de cancelamento: Mais de 24h: reembolso 100% <br />
+          3h a 24h: reembolso 80%
+          <br />
+          Menos de 3h: sem reembolso, salvo casos excepcionais (nesse caso
+          contate o estabelecimento a efetuação do cancelamento)
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <button

@@ -25,10 +25,9 @@ export default function RefundConfirmationModal({
           Confirmação de Reembolso
         </h3>
         <p className="mt-2 text-sm text-gray-600">
-          As políticas de reembolso podem variar conforme o serviço. Serão
-          aplicadas taxas administrativas e de serviço, resultando em reembolso
-          parcial. Recomendamos que leia atentamente as condições antes de
-          continuar.
+          As politicas de reembolso serão aplicadas conforme o horário do
+          cancelamento. Ao confirmar, um reembolso automático será processado
+          diretamente na conta em que foi realizado o pagamento.
         </p>
         <div className="mt-4">
           <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-md cursor-pointer">
@@ -39,10 +38,13 @@ export default function RefundConfirmationModal({
               className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
             />
             <span className="text-sm text-gray-700">
-              Declaro que li e estou ciente de que o reembolso será realizado
-              com o decréscimo das taxas aplicadas pela plataforma de pagamentos
-              (Mercado Pago) e pela A&N Agendamentos, estando ciente e de acordo
-              com o recebimento do valor de forma parcial.
+              Política de cancelamento: Mais de 24h: reembolso 100% <br />
+              3h a 24h: reembolso 80%
+              <br />
+              Menos de 3h: sem reembolso, salvo casos excepcionais (nesse caso
+              contate o estabelecimento para efetuação do cancelamento)
+              <br /> Declaro que li e estou ciente das políticas e condições de
+              reembolso.
             </span>
           </label>
         </div>

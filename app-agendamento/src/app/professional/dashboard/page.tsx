@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ProfessionalRoute } from "../../../components/auth/ProtectedRoute";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useAppointmentsForProfessional } from "../../../hooks/useAppointments";
@@ -10,13 +10,20 @@ import "react-day-picker/dist/style.css";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import LoadingSpinner from "../../../components/owner/common/LoadingSpinner";
-import { LogOut, Clock, User } from "lucide-react";
+import {
+  LogOut,
+  Clock,
+  User,
+  CheckCircle,
+  XCircle,
+  Hourglass,
+  LucideIcon,
+} from "lucide-react";
+import TermsAndConditionsModal from "../../../components/shared/modals/TermsAndConditionsModal";
 
-// =================================================================
-// ===== COMPONENTE AppointmentCard (Refatorado e Modernizado) =====
-// =================================================================
+type DisplayStatus = Appointment["status"] | "concluido";
+
 const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
-  // Card especial para agendamentos pendentes ou sem data
   if (appointment.status === "pending_payment" || !appointment.dateTime) {
     return (
       <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-gray-50 border border-gray-200 opacity-80">
@@ -37,55 +44,100 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
 
   const now = new Date();
   const appointmentDate = appointment.dateTime.toDate();
-  let virtualStatus: "confirmado" | "concluido" | "cancelado" =
-    appointment.status;
+
+  let virtualStatus: DisplayStatus = appointment.status;
   if (appointment.status === "confirmado" && appointmentDate < now) {
     virtualStatus = "concluido";
   }
 
-  let cancellationText = "Cancelado";
+  let statusText = "";
   if (virtualStatus === "cancelado") {
-    if (appointment.cancellationReason?.includes("Pagamento")) {
-      cancellationText = "Pagamento Recusado";
-    } else if (appointment.cancelledBy === "owner") {
-      cancellationText = "Pelo Estabelecimento";
-    } else if (appointment.cancelledBy === "client") {
-      cancellationText = "Pelo Cliente";
-    }
+    if (appointment.cancellationReason?.includes("Pagamento"))
+      statusText = "Pagamento Recusado";
+    else if (appointment.cancelledBy === "owner")
+      statusText = "Pelo Estabelecimento";
+    else if (appointment.cancelledBy === "client") statusText = "Pelo Cliente";
+    else statusText = "Cancelado";
+  } else if (virtualStatus === "pending_refund") {
+    statusText = "Reembolso Pendente";
+  } else if (virtualStatus === "refunded") {
+    statusText = "Reembolsado";
   }
 
-  const statusStyles = {
+  // ALTERAÇÃO 1: Adicionar a propriedade 'icon' a cada estilo
+  const statusStyles: {
+    [key: string]: {
+      bg: string;
+      border: string;
+      indicator: string;
+      textColor: string;
+      lineThrough: string;
+      icon: LucideIcon;
+    };
+  } = {
     confirmado: {
       bg: "bg-yellow-50",
       border: "border-yellow-200",
-      indicator: "bg-yellow-500",
+      indicator: "text-yellow-500",
       textColor: "text-gray-900",
       lineThrough: "",
+      icon: Clock,
     },
     concluido: {
       bg: "bg-emerald-50",
       border: "border-emerald-200",
-      indicator: "bg-emerald-500",
+      indicator: "text-emerald-500",
       textColor: "text-gray-500",
       lineThrough: "line-through",
+      icon: CheckCircle,
     },
     cancelado: {
       bg: "bg-red-50",
       border: "border-red-200",
-      indicator: "bg-red-500",
+      indicator: "text-red-500",
       textColor: "text-gray-500",
       lineThrough: "line-through",
+      icon: XCircle,
     },
+    pending_refund: {
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      indicator: "text-amber-500",
+      textColor: "text-gray-900",
+      lineThrough: "",
+      icon: Hourglass,
+    },
+    refunded: {
+      bg: "bg-gray-100",
+      border: "border-gray-200",
+      indicator: "text-gray-500",
+      textColor: "text-gray-500",
+      lineThrough: "line-through",
+      icon: XCircle,
+    },
+    refund_overdue: {
+      bg: "bg-red-100",
+      border: "border-red-300",
+      indicator: "text-red-600",
+      textColor: "text-gray-900",
+      lineThrough: "",
+      icon: Clock,
+    }, // Ícone de relógio para 'atrasado'
   };
-  const currentStyle = statusStyles[virtualStatus] || statusStyles.cancelado;
+  const currentStyle =
+    statusStyles[virtualStatus as keyof typeof statusStyles] ||
+    statusStyles.confirmado;
+  const Icon = currentStyle.icon;
 
   return (
     <div
       className={`flex flex-col sm:flex-row items-start py-4 px-5 rounded-lg transition-all duration-200 hover:shadow-md ${currentStyle.bg} border ${currentStyle.border}`}
     >
-      <div
-        className={`w-3 h-3 mt-1.5 rounded-full flex-shrink-0 ${currentStyle.indicator}`}
+      {/* ALTERAÇÃO 2: Substituir o círculo colorido pelo ícone real */}
+      <Icon
+        className={`w-6 h-6 mt-1 flex-shrink-0 ${currentStyle.indicator}`}
       />
+
       <div className="flex-1 sm:ml-4 mt-2 sm:mt-0">
         <div className="flex justify-between items-start">
           <div>
@@ -100,9 +152,11 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
               </span>
             </div>
           </div>
-          {virtualStatus === "cancelado" && (
-            <span className="ml-2 mt-1 inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">
-              {cancellationText}
+          {statusText && (
+            <span
+              className={`ml-2 mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${currentStyle.indicator} bg-opacity-10`}
+            >
+              {statusText}
             </span>
           )}
         </div>
@@ -120,23 +174,48 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   );
 };
 
-// =================================================================
-// ===== COMPONENTE PRINCIPAL DA VIEW (Refatorado) =================
-// =================================================================
 function ProfessionalDashboardView() {
-  const { userData, logout } = useAuth();
+  const { userData, logout, acceptTerms, refreshUserData } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
-
   const { appointments, loading } =
     useAppointmentsForProfessional(selectedDate);
+
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+
+  useEffect(() => {
+    if (userData && !userData.termsAccepted) {
+      setIsTermsModalOpen(true);
+    }
+  }, [userData]);
+
+  const handleAcceptTerms = async () => {
+    if (!userData) return;
+    setIsAcceptingTerms(true);
+    try {
+      await acceptTerms(userData.uid);
+      await refreshUserData();
+      setIsTermsModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao aceitar os termos:", error);
+      alert("Ocorreu um erro. Por favor, tente novamente.");
+    } finally {
+      setIsAcceptingTerms(false);
+    }
+  };
 
   const sortedAppointments = useMemo(() => {
     const now = Date.now();
     const getStatusRank = (app: Appointment) => {
       if (!app.dateTime) return 4;
-      if (app.status === "cancelado") return 3;
+      if (
+        app.status === "cancelado" ||
+        app.status === "refunded" ||
+        app.status === "refund_overdue"
+      )
+        return 3;
       if (app.dateTime.toMillis() < now) return 2;
-      return 1;
+      return 1; // 'confirmado' e 'pending_refund'
     };
     return [...appointments].sort((a, b) => {
       const rankA = getStatusRank(a);
@@ -152,71 +231,79 @@ function ProfessionalDashboardView() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <header className="bg-white shadow-sm p-4 border-b flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">
-            Painel do Profissional
-          </h1>
-          <p className="text-sm text-gray-500">
-            {userData?.firstName || "Carregando..."}
-          </p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
-        </div>
-      </header>
+    <>
+      <TermsAndConditionsModal
+        isOpen={isTermsModalOpen}
+        onConfirm={handleAcceptTerms}
+        isLoading={isAcceptingTerms}
+      />
 
-      <main className="p-4 sm:p-6 lg:p-8">
-        <h2 className="text-3xl font-bold text-gray-900">
-          Bem-vindo, {userData?.firstName || "..."}!
-        </h2>
-        <p className="mt-2 text-gray-600">
-          Sua agenda para{" "}
-          <span className="font-semibold text-teal-600">
-            {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-          </span>
-          .
-        </p>
-
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2 space-y-4">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <LoadingSpinner />
-              </div>
-            ) : sortedAppointments.length > 0 ? (
-              sortedAppointments.map((app) => (
-                <AppointmentCard key={app.id} appointment={app} />
-              ))
-            ) : (
-              <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
-                <p className="text-gray-500">
-                  Nenhum agendamento para este dia.
-                </p>
-              </div>
-            )}
+      <div className="bg-gray-50 min-h-screen">
+        <header className="bg-white shadow-sm p-4 border-b flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">
+              Painel do Profissional
+            </h1>
+            <p className="text-sm text-gray-500">
+              {userData?.firstName || "Carregando..."}
+            </p>
           </div>
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border p-2">
-              <DayPicker
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                locale={ptBR}
-                className="flex justify-center"
-              />
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
+        </header>
+
+        <main className="p-4 sm:p-6 lg:p-8">
+          <h2 className="text-3xl font-bold text-gray-900">
+            Bem-vindo, {userData?.firstName || "..."}!
+          </h2>
+          <p className="mt-2 text-gray-600">
+            Sua agenda para{" "}
+            <span className="font-semibold text-teal-600">
+              {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+            </span>
+            .
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-2 space-y-4">
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <LoadingSpinner />
+                </div>
+              ) : sortedAppointments.length > 0 ? (
+                sortedAppointments.map((app) => (
+                  <AppointmentCard key={app.id} appointment={app} />
+                ))
+              ) : (
+                <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
+                  <p className="text-gray-500">
+                    Nenhum agendamento para este dia.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm border p-2">
+                <DayPicker
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={ptBR}
+                  className="flex justify-center"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
 

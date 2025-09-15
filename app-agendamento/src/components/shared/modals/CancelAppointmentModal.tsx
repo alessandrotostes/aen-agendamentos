@@ -61,8 +61,9 @@ export default function CancelAppointmentModal({
                     Você tem certeza que deseja cancelar este agendamento?
                   </p>
                   <p className="mt-2 text-sm text-slate-500">
-                    Lembre-se que, devido às taxas de processamento, o valor
-                    reembolsado pode não ser integral.
+                    O valor do reembolso será processado automaticamente a conta
+                    de pagamento na conta em que foi realizado o pagamento. O
+                    horário ficará novamente disponível para outros clientes.
                   </p>
                 </div>
 
