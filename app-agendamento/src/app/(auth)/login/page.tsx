@@ -54,7 +54,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const { login, signInWithGoogle, updatePhoneNumber } = useAuth();
+  // ALTERAÇÃO 1: Importar a função 'refreshUserData'
+  const { login, signInWithGoogle, updatePhoneNumber, refreshUserData } =
+    useAuth();
 
   const [step, setStep] = useState<"login" | "phone_number">("login");
   const [googleUser, setGoogleUser] = useState<FirebaseUser | null>(null);
@@ -161,6 +163,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await updatePhoneNumber(googleUser.uid, formData.phone);
+
+      // ALTERAÇÃO 2: Forçar a atualização dos dados do utilizador no contexto
+      await refreshUserData();
+
       const tempUserData = {
         uid: googleUser.uid,
         email: googleUser.email || "",
@@ -207,7 +213,7 @@ export default function LoginPage() {
                   href="/register"
                   className="font-medium text-indigo-600 hover:text-indigo-500"
                 >
-                  crie uma nova conta
+                  crie uma nova conta como estabelecimento aqui
                 </Link>
               </p>
             </div>
@@ -262,7 +268,6 @@ export default function LoginPage() {
                   />
                 </div>
 
-                {/* ALTERAÇÃO AQUI: Link para redefinir senha adicionado de volta */}
                 <div>
                   <div className="flex items-center justify-between">
                     <label
@@ -392,7 +397,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
-                {loading ? "Salvando..." : "Guardar e Continuar"}
+                {loading ? "Salvando..." : "Salvar e Continuar"}
               </button>
             </form>
           </div>
