@@ -17,6 +17,8 @@ import {
   signInWithPopup,
   type User as FirebaseUser,
 } from "firebase/auth";
+import { getApp } from "firebase/app"; // Importação que faltava
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, storage } from "../lib/firebaseConfig";
 import {
   doc,
@@ -24,7 +26,7 @@ import {
   getDoc,
   serverTimestamp,
   updateDoc,
-  Timestamp, // CORREÇÃO 1: Timestamp foi importado
+  Timestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
@@ -68,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       if (user) {
+        // Força a atualização do token para obter os custom claims mais recentes
+        await user.getIdToken(true);
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
@@ -103,9 +107,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password
     );
-    const uid = userCredential.user.uid;
-    const createdAt = serverTimestamp();
+    const user = userCredential.user;
+    const uid = user.uid;
 
+    const functions = getFunctions(getApp(), "southamerica-east1");
+    const setClaimsFn = httpsCallable(functions, "setInitialUserClaims");
+    await setClaimsFn({ role: role });
+
+    await user.getIdToken(true);
+
+    const createdAt = serverTimestamp();
     const newUser: Omit<AuthUser, "createdAt"> = {
       uid,
       firstName,
@@ -141,8 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    await userCredential.user.getIdToken(true);
-    // CORREÇÃO 2: Usar Timestamp.now() em vez de new Date()
+    await refreshUserData();
     return { ...newUser, createdAt: Timestamp.now() };
   }
 
@@ -155,12 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = userCredential.user;
     const userDocRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userDocRef);
-
     if (!userSnap.exists()) {
       await signOut(auth);
       throw new Error("Dados do usuário não encontrados.");
     }
-
     const data = userSnap.data() as AuthUser;
     return data;
   }
@@ -176,7 +184,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     );
     const user = userCredential.user;
-
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       email: user.email,
@@ -184,10 +191,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: additionalData.firstName,
       lastName: additionalData.lastName,
       phone: additionalData.phone,
-      termsAccepted: false, // Adicionado
+      termsAccepted: false,
       createdAt: serverTimestamp(),
     });
-
     return user;
   }
 
@@ -198,10 +204,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
-
     const userDocRef = doc(db, "users", user.uid);
     const userDoc = await getDoc(userDocRef);
-
     if (!userDoc.exists()) {
       const [firstName, ...lastNameParts] = (user.displayName || "").split(" ");
       await setDoc(userDocRef, {
@@ -211,20 +215,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstName: firstName || "",
         lastName: lastNameParts.join(" ") || "",
         phone: "",
-        termsAccepted: false, // Adicionado
+        termsAccepted: false,
         createdAt: serverTimestamp(),
       });
       return { user, isNewUser: true };
     }
-
     return { user, isNewUser: false };
   }
 
   async function updatePhoneNumber(uid: string, phone: string): Promise<void> {
     const userDocRef = doc(db, "users", uid);
-    await updateDoc(userDocRef, {
-      phone: phone,
-    });
+    await updateDoc(userDocRef, { phone: phone });
   }
 
   async function updateUserProfile(
@@ -239,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userDocRef = doc(db, "users", uid);
     await updateDoc(userDocRef, {
       termsAccepted: true,
-      termsAcceptedAt: serverTimestamp(), // Opcional: guarda quando foi aceite
+      termsAcceptedAt: serverTimestamp(),
     });
   }
 

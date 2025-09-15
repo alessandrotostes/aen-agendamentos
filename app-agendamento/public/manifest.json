@@ -1,7 +1,7 @@
 {
   "name": "A&N Agendamentos",
   "short_name": "A&N",
-  "description": "Sua plataforma de agendamentos para estabelecimentos em geral.",
+  "description": "Sua plataforma de Agendamentos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

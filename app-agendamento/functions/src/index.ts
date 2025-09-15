@@ -1195,3 +1195,35 @@ export const cleanupPendingPayments = onSchedule(
     }
   }
 );
+// ===============================================================
+// ===== FUNÇÃO PARA DEFINIR CUSTOM CLAIMS INICIAIS
+// ===============================================================
+export const setInitialUserClaims = onCall(async (request) => {
+  // Apenas utilizadores autenticados podem chamar esta função
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Você precisa estar logado.");
+  }
+
+  const uid = request.auth.uid;
+  const { role } = request.data;
+
+  // Validar a role recebida
+  if (!["owner", "client", "professional"].includes(role)) {
+    throw new HttpsError("invalid-argument", "A role fornecida é inválida.");
+  }
+
+  try {
+    // Define o custom claim para o utilizador que fez a chamada
+    await admin.auth().setCustomUserClaims(uid, { role: role });
+    return {
+      success: true,
+      message: `Claim '${role}' definida com sucesso para o utilizador ${uid}.`,
+    };
+  } catch (error) {
+    console.error("Erro ao definir custom claim:", error);
+    throw new HttpsError(
+      "internal",
+      "Não foi possível definir as permissões do utilizador."
+    );
+  }
+});

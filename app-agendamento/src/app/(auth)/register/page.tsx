@@ -8,7 +8,6 @@ import { validationUtils } from "../../../lib/utils";
 import PasswordStrengthIndicator from "../../../components/shared/PasswordStrengthIndicator";
 import { AlertTriangle, UserPlus } from "lucide-react";
 
-// Estado inicial para o nosso indicador de força
 const initialPasswordValidation = {
   minLength: false,
   lowercase: false,
@@ -16,6 +15,30 @@ const initialPasswordValidation = {
   number: false,
   specialChar: false,
 };
+
+// ALTERAÇÃO 1: Definir o componente SpinnerIcon aqui
+const SpinnerIcon = () => (
+  <svg
+    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    ></circle>
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    ></path>
+  </svg>
+);
 
 export default function RegisterPage() {
   const [isClient, setIsClient] = useState(false);
@@ -49,15 +72,9 @@ export default function RegisterPage() {
     const { name, value, files } = e.target as HTMLInputElement;
 
     if (name === "phone") {
-      // 1. Pega no valor que o utilizador digitou e remove TUDO o que não for número.
       const numbersOnly = value.replace(/\D/g, "");
-
-      // 2. Limita o número de dígitos a 11 (padrão brasileiro com DDD).
       const limitedNumbers = numbersOnly.slice(0, 11);
-
-      // 3. Aplica a nossa formatação de máscara a estes números já limpos.
       const formattedPhone = validationUtils.formatPhone(limitedNumbers);
-
       setFormData((prev) => ({ ...prev, phone: formattedPhone }));
     } else if (name === "image") {
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
@@ -72,13 +89,13 @@ export default function RegisterPage() {
 
     if (error) setError("");
   };
+
   const validateForm = (): string | null => {
     if (!formData.firstName || !formData.lastName)
       return "Nome e sobrenome são obrigatórios.";
     if (!formData.email) return "Email é obrigatório.";
     if (!validationUtils.isValidEmail(formData.email)) return "Email inválido.";
 
-    // Usar a nossa nova função de validação de senha
     const passwordCheck = validationUtils.validatePasswordStrength(
       formData.password
     );
@@ -301,11 +318,13 @@ export default function RegisterPage() {
             </div>
           )}
 
+          {/* ALTERAÇÃO 2: A chamada ao SpinnerIcon agora funciona */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
+            className="w-full flex justify-center items-center py-3 px-4 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
           >
+            {loading && <SpinnerIcon />}
             {loading ? "Criando conta..." : "Criar Conta"}
           </button>
         </form>

@@ -12,38 +12,34 @@ import { MailQuestion, AlertTriangle, CheckCircle } from "lucide-react";
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(""); // Alterado de boolean para string
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Email é obrigatório.");
-      return;
-    }
+    setError("");
+    setSuccessMessage(""); // Limpar a mensagem de sucesso
+
     if (!validationUtils.isValidEmail(email)) {
-      setError("Email inválido.");
+      setError("Por favor, insira um endereço de e-mail válido.");
       return;
     }
 
+    setLoading(true);
     try {
-      setError("");
-      setLoading(true);
+      // A função do Firebase é chamada aqui
       await sendPasswordResetEmail(auth, email);
-      setSuccess(true);
+
+      // ALTERAÇÃO: Definir uma mensagem de sucesso mais informativa e segura
+      setSuccessMessage(
+        "Se uma conta com este e-mail existir, um link de redefinição foi enviado. Por favor, verifique a sua caixa de entrada e a pasta de spam."
+      );
     } catch (error: unknown) {
       console.error("Erro ao enviar email de reset:", error);
-
-      if (error instanceof Error && "code" in error) {
-        const firebaseError = error as { code: string };
-        if (firebaseError.code === "auth/user-not-found") {
-          setError("Não existe uma conta com este email.");
-        } else {
-          setError("Erro ao enviar email de recuperação. Tente novamente.");
-        }
-      } else {
-        setError("Erro inesperado. Tente novamente.");
-      }
+      // Mostra um erro genérico para não expor detalhes do sistema
+      setError(
+        "Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente."
+      );
     } finally {
       setLoading(false);
     }
@@ -53,35 +49,24 @@ export default function ResetPasswordPage() {
     <PublicRoute>
       <AuthLayout>
         <div className="w-full max-w-sm mx-auto">
-          {success ? (
-            // --- TELA DE SUCESSO ---
+          {/* ALTERAÇÃO: A lógica agora verifica se 'successMessage' tem conteúdo */}
+          {successMessage ? (
             <div className="text-center">
               <div className="inline-block p-3 bg-emerald-50 rounded-full mb-4">
                 <CheckCircle className="w-10 h-10 text-emerald-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900">
-                Email enviado!
+                Verifique o seu e-mail
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Verifique a sua caixa de entrada e caixa de{" "}
-                <strong>(SPAM)</strong> para redefinir a sua senha.
-              </p>
-              <div className="mt-6 space-y-3">
+              {/* Exibe a mensagem de sucesso */}
+              <p className="mt-2 text-sm text-gray-600">{successMessage}</p>
+              <div className="mt-6">
                 <Link
                   href="/login"
                   className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
                 >
                   Voltar ao login
                 </Link>
-                <button
-                  onClick={() => {
-                    setSuccess(false);
-                    setEmail("");
-                  }}
-                  className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition"
-                >
-                  Enviar para outro email
-                </button>
               </div>
             </div>
           ) : (
@@ -125,7 +110,7 @@ export default function ResetPasswordPage() {
                       if (error) setError("");
                     }}
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 transition"
                     placeholder="seu@email.com"
                   />
                 </div>
@@ -133,7 +118,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
+                  className="w-full flex justify-center py-3 px-4 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-70 transition-all duration-300"
                 >
                   {loading ? "Enviando..." : "Enviar link de recuperação"}
                 </button>
