@@ -98,7 +98,9 @@ export default function SettingsTab({
           </div>
           <div>
             {mpData.loading ? (
-              <p className="text-slate-500">A processar...</p>
+              <p className="text-slate-500">
+                Abrindo Mercado Pago para conexão...
+              </p>
             ) : mpData.hasMpAccount ? (
               <div className="text-center p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 space-y-2">
                 <div className="font-semibold flex items-center justify-center gap-2">
