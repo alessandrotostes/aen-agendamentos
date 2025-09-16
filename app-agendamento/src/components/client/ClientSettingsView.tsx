@@ -102,7 +102,7 @@ export default function ClientSettingsView() {
       // Sucesso! Fecha o modal de senha e abre o de confirmação final.
       setIsReauthModalOpen(false);
       setIsDeleteModalOpen(true);
-    } catch (error) {
+    } catch {
       setReauthError("Senha incorreta. Por favor, tente novamente.");
     } finally {
       setIsDeleting(false);
@@ -287,7 +287,7 @@ export default function ClientSettingsView() {
           <InfoTooltip>
             Você pode cancelar a inscrição a qualquer momento. Marque ou
             desmarque esta opção para atualizar sua preferência, e depois clique
-            em "Salvar Alterações" acima.
+            em &quot;Salvar Alterações&quot; acima.
           </InfoTooltip>
         </h2>
         <div className="space-y-6">

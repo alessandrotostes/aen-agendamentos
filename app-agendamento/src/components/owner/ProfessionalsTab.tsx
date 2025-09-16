@@ -206,7 +206,7 @@ export default function ProfessionalsTab({
       sessionStorage.setItem(REAUTH_TIMESTAMP_KEY, Date.now().toString());
       setIsReauthModalOpen(false);
       setIsDeleteModalOpen(true);
-    } catch (error) {
+    } catch {
       setReauthError("Senha incorreta. Tente novamente.");
     } finally {
       setIsDeleting(false);
