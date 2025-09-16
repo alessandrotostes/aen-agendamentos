@@ -277,21 +277,6 @@ export default function OwnerView() {
     openModal("editProfessionalUnified");
   };
 
-  // Esta função não é mais passada para o ProfessionalsTab
-  const handleDeleteProfessional = (id: string) => {
-    const professional = professionalsData.professionals.find(
-      (p) => p.id === id
-    );
-    if (professional) {
-      setDeleteTarget({
-        type: "professional",
-        id,
-        name: professional.firstName,
-      });
-      openModal("deleteConfirm");
-    }
-  };
-
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);

@@ -1,10 +1,6 @@
 // src/components/shared/LegalPageView.tsx
 import React from "react";
-import type {
-  LegalContent,
-  ContentSection,
-  ContentItem,
-} from "@/lib/legalContent";
+import type { LegalContent, ContentItem } from "@/lib/legalContent";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Save, FileText, Settings } from "lucide-react";
-import Link from "next/link";
 import ConfirmationModal from "@/components/shared/modals/ConfirmationModal";
 import ReauthModal from "@/components/shared/modals/ReauthModal";
 import { getFunctions, httpsCallable } from "firebase/functions";

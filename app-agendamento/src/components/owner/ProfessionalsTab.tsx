@@ -229,8 +229,13 @@ export default function ProfessionalsTab({
         `Profissional ${professionalToDelete.firstName} excluído com sucesso.`
       );
       refreshProfessionals();
-    } catch (error: any) {
-      alert(error.message || "Não foi possível excluir o profissional.");
+    } catch (error: unknown) {
+      let errorMessage =
+        "Não foi possível excluir o profissional. Verifique se ele não possui agendamentos futuros.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      alert(errorMessage);
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
