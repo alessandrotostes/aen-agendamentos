@@ -17,11 +17,16 @@ import {
   Users,
   UserX,
 } from "lucide-react";
-// Importar o modal de confirmação
-import ConfirmationModal from "../../components/shared/modals/ConfirmationModal";
-// Imports para chamar a Cloud Function
+// Alteração 1: Importar tudo o que precisamos para o novo fluxo
+import ConfirmationModal from "@/components/shared/modals/ConfirmationModal";
+import ReauthModal from "@/components/shared/modals/ReauthModal";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
+import {
+  getAuth,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 
 const ProfessionalCard = ({
   professional,
@@ -141,6 +146,10 @@ interface Props {
   refreshProfessionals: () => void;
 }
 
+// Alteração 2: Definir constantes para a lógica de reautenticação
+const REAUTH_TIMESTAMP_KEY = "ownerLastReauthTimestamp";
+const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+
 export default function ProfessionalsTab({
   professionals,
   establishmentId,
@@ -152,28 +161,60 @@ export default function ProfessionalsTab({
   refreshProfessionals,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Alteração 3: Adicionar estados para o novo fluxo de modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReauthModalOpen, setIsReauthModalOpen] = useState(false);
   const [professionalToDelete, setProfessionalToDelete] =
     useState<Professional | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reauthError, setReauthError] = useState<string | null>(null);
 
   const filteredProfessionals = useMemo(() => {
-    if (!searchTerm) {
-      return professionals;
-    }
+    if (!searchTerm) return professionals;
     return professionals.filter((p) =>
       p.firstName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [professionals, searchTerm]);
 
-  const openDeleteModal = (professional: Professional) => {
+  // Alteração 4: Nova função para iniciar o processo de exclusão (com verificação de tempo)
+  const initiateDeleteProcess = (professional: Professional) => {
     setProfessionalToDelete(professional);
-    setIsDeleteModalOpen(true);
+    const lastReauthTimestamp = sessionStorage.getItem(REAUTH_TIMESTAMP_KEY);
+    const timeSinceLastReauth = Date.now() - Number(lastReauthTimestamp);
+
+    if (lastReauthTimestamp && timeSinceLastReauth < FIVE_MINUTES_IN_MS) {
+      setIsDeleteModalOpen(true);
+    } else {
+      setIsReauthModalOpen(true);
+    }
+  };
+
+  // Alteração 5: Nova função para lidar com a reautenticação
+  const handleReauthenticate = async (password: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      setReauthError("Não foi possível encontrar os dados do proprietário.");
+      return;
+    }
+    setIsDeleting(true);
+    setReauthError(null);
+    const credential = EmailAuthProvider.credential(user.email, password);
+    try {
+      await reauthenticateWithCredential(user, credential);
+      sessionStorage.setItem(REAUTH_TIMESTAMP_KEY, Date.now().toString());
+      setIsReauthModalOpen(false);
+      setIsDeleteModalOpen(true);
+    } catch (error) {
+      setReauthError("Senha incorreta. Tente novamente.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
     if (!professionalToDelete) return;
-
     setIsDeleting(true);
     try {
       const functions = getFunctions(getApp(), "southamerica-east1");
@@ -188,11 +229,8 @@ export default function ProfessionalsTab({
         `Profissional ${professionalToDelete.firstName} excluído com sucesso.`
       );
       refreshProfessionals();
-    } catch (error) {
-      console.error("Erro ao excluir profissional:", error);
-      alert(
-        "Não foi possível excluir o profissional. Verifique se ele não possui agendamentos futuros."
-      );
+    } catch (error: any) {
+      alert(error.message || "Não foi possível excluir o profissional.");
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
@@ -250,7 +288,8 @@ export default function ProfessionalsTab({
               key={p.id}
               professional={p}
               onUpdate={() => updateProfessional(p.id)}
-              onDelete={() => openDeleteModal(p)}
+              // Alteração 6: O botão de deletar agora chama a nossa nova função
+              onDelete={() => initiateDeleteProcess(p)}
               onManageAvailability={() => onManageAvailability(p)}
               onInvite={() => onInviteProfessional(p.id)}
               onResendInvite={() => onResendInvite(p.id)}
@@ -275,13 +314,21 @@ export default function ProfessionalsTab({
         </div>
       )}
 
+      {/* Alteração 7: Adicionar os dois modais para o fluxo completo */}
+      <ReauthModal
+        isOpen={isReauthModalOpen}
+        onClose={() => setIsReauthModalOpen(false)}
+        onConfirm={handleReauthenticate}
+        isLoading={isDeleting}
+        error={reauthError}
+      />
       {professionalToDelete && (
         <ConfirmationModal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
           onConfirm={handleConfirmDelete}
           title={`Excluir ${professionalToDelete.firstName}?`}
-          message="Esta ação é permanente. Todos os dados do profissional serão removidos. Agendamentos futuros serão cancelados."
+          message="Esta ação é permanente e não pode ser revertida. Se este profissional tiver uma conta de login, ela também será excluída."
           confirmText="Sim, excluir profissional"
           type="danger"
           loading={isDeleting}

@@ -1242,6 +1242,7 @@ export const setInitialUserClaims = onCall(async (request) => {
 // ===============================================================
 export const deleteClientAccount = onCall(async (request) => {
   if (!request.auth) {
+    logger.warn("Tentativa de exclusão de cliente não autenticada.");
     throw new HttpsError(
       "unauthenticated",
       "Você precisa estar autenticado para excluir a conta."
@@ -1249,16 +1250,19 @@ export const deleteClientAccount = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const db = admin.firestore(); // Certifique-se de que 'db' está inicializado
+  const db = admin.firestore();
+  logger.log(`[${uid}] Função 'deleteClientAccount' iniciada.`);
 
   try {
+    // --- PASSO 1: ANONIMIZAR AGENDAMENTOS (sem alterações) ---
     const appointmentsQuery = db
       .collectionGroup("appointments")
       .where("clientId", "==", uid);
-
     const appointmentsSnapshot = await appointmentsQuery.get();
-
     if (!appointmentsSnapshot.empty) {
+      logger.log(
+        `[${uid}] Encontrados ${appointmentsSnapshot.size} agendamentos para anonimizar.`
+      );
       const batch = db.batch();
       appointmentsSnapshot.forEach((doc) => {
         batch.update(doc.ref, {
@@ -1268,15 +1272,46 @@ export const deleteClientAccount = onCall(async (request) => {
         });
       });
       await batch.commit();
+      logger.log(`[${uid}] Agendamentos anonimizados com sucesso.`);
+    } else {
+      logger.log(`[${uid}] Nenhum agendamento encontrado para anonimizar.`);
     }
 
+    // --- PASSO 2 (NOVO): EXCLUIR A SUBCOLEÇÃO DE FAVORITOS ---
+    const favoritesRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("favorites");
+    const favoritesSnapshot = await favoritesRef.get();
+    if (!favoritesSnapshot.empty) {
+      logger.log(
+        `[${uid}] Encontrados ${favoritesSnapshot.size} favoritos para excluir.`
+      );
+      const batch = db.batch();
+      favoritesSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      logger.log(`[${uid}] Subcoleção 'favorites' excluída com sucesso.`);
+    } else {
+      logger.log(`[${uid}] Nenhuma subcoleção 'favorites' encontrada.`);
+    }
+    // --- FIM DO PASSO NOVO ---
+
+    // --- PASSO 3: EXCLUIR O DOCUMENTO DO USUÁRIO ---
+    logger.log(`[${uid}] Excluindo documento do Firestore...`);
     await db.collection("users").doc(uid).delete();
+    logger.log(`[${uid}] Documento do Firestore excluído.`);
 
+    // --- PASSO 4: EXCLUIR A CONTA DE AUTENTICAÇÃO ---
+    logger.log(`[${uid}] Excluindo conta de autenticação...`);
     await admin.auth().deleteUser(uid);
+    logger.log(`[${uid}] Conta de autenticação excluída.`);
 
+    logger.info(`[${uid}] Conta de cliente excluída com sucesso.`);
     return { success: true };
   } catch (error) {
-    console.error(`Falha ao excluir a conta do usuário ${uid}:`, error);
+    logger.error(`[${uid}] Falha ao excluir a conta do usuário:`, error);
     throw new HttpsError(
       "internal",
       "Ocorreu um erro ao processar a exclusão da sua conta.",
@@ -1399,69 +1434,137 @@ export const deleteProfessional = onCall(async (request) => {
 // ============================================================================
 // ===== FUNÇÃO: EXCLUIR CONTA DO ESTABELECIMENTO (DONO)
 // ============================================================================
-export const deleteOwnerAccount = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Ação não autorizada.");
-  }
+export const deleteOwnerAccount = onCall(
+  {
+    timeoutSeconds: 300, // Aumentamos para 5 minutos para garantir
+    memory: "512MiB",
+  },
+  async (request) => {
+    logger.log(`[${request.auth?.uid}] Função 'deleteOwnerAccount' iniciada.`);
 
-  const ownerUid = request.auth.uid;
-  const { establishmentId } = request.data;
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Ação não autorizada.");
+    }
 
-  if (ownerUid !== establishmentId) {
-    throw new HttpsError(
-      "permission-denied",
-      "Você não tem permissão para excluir este estabelecimento."
+    const ownerUid = request.auth.uid;
+    const { establishmentId } = request.data;
+    logger.log(
+      `[${ownerUid}] Recebido pedido para excluir establishmentId: ${establishmentId}`
     );
-  }
 
-  const db = admin.firestore();
-  const establishmentRef = db.collection("establishments").doc(establishmentId);
-
-  try {
-    // 1. REGRA DE NEGÓCIO REFINADA: Verificar se existem agendamentos FUTUROS e ATIVOS.
-    // ALTERAÇÃO: A mesma consulta refinada é usada aqui como verificação final.
-    const activeFutureAppointmentsQuery = establishmentRef
-      .collection("appointments")
-      .where("dateTime", ">", admin.firestore.Timestamp.now())
-      .where("status", "in", [
-        "confirmado",
-        "pending_payment",
-        "pending_refund",
-        "refund_overdue",
-      ]);
-
-    const futureAppointments = await activeFutureAppointmentsQuery.get();
-    if (!futureAppointments.empty) {
+    if (ownerUid !== establishmentId) {
       throw new HttpsError(
-        "failed-precondition",
-        `Sua conta não pode ser excluída pois existem ${futureAppointments.size} agendamento(s) ativo(s) no futuro. Por favor, conclua ou cancele todos os agendamentos antes de prosseguir.`
+        "permission-denied",
+        "Você não tem permissão para excluir este estabelecimento."
       );
     }
 
-    // A partir daqui, o processo de exclusão em cascata continua o mesmo...
-    console.log(`Iniciando exclusão do estabelecimento ${establishmentId}`);
+    const db = admin.firestore();
+    const establishmentRef = db
+      .collection("establishments")
+      .doc(establishmentId);
 
-    // 2. Excluir todos os profissionais associados...
-    // 3. Excluir todos os serviços...
-    // 4. Excluir o documento principal do estabelecimento...
-    // 5. Excluir o documento de usuário do dono...
-    // 6. Excluir a conta de autenticação do dono...
+    try {
+      logger.log(
+        `[${ownerUid}] Iniciando verificação de agendamentos futuros.`
+      );
+      // 1. REGRA DE NEGÓCIO: Verificar se existem agendamentos FUTUROS e ATIVOS.
+      const activeFutureAppointmentsQuery = establishmentRef
+        .collection("appointments")
+        .where("dateTime", ">", admin.firestore.Timestamp.now())
+        .where("status", "in", [
+          "confirmado",
+          "pending_payment",
+          "pending_refund",
+          "refund_overdue",
+        ]);
 
-    // (O restante da lógica de exclusão permanece o mesmo)
-  } catch (error: any) {
-    if (error instanceof HttpsError) {
-      throw error;
+      const futureAppointments = await activeFutureAppointmentsQuery.get();
+      if (!futureAppointments.empty) {
+        logger.warn(
+          `[${ownerUid}] Exclusão bloqueada. ${futureAppointments.size} agendamentos futuros encontrados.`
+        );
+        throw new HttpsError(
+          "failed-precondition",
+          `Sua conta não pode ser excluída pois existem ${futureAppointments.size} agendamento(s) ativo(s) no futuro. Por favor, conclua ou cancele todos os agendamentos antes de prosseguir.`
+        );
+      }
+      logger.log(
+        `[${ownerUid}] Verificação de agendamentos OK. Iniciando exclusão em cascata.`
+      );
+
+      // --- LÓGICA DE EXCLUSÃO PREENCHIDA ---
+
+      // 2. Excluir todos os profissionais associados (e suas contas de Auth)
+      const professionalsSnapshot = await establishmentRef
+        .collection("professionals")
+        .get();
+      if (!professionalsSnapshot.empty) {
+        logger.log(
+          `[${ownerUid}] Encontrados ${professionalsSnapshot.size} profissionais para excluir.`
+        );
+        for (const doc of professionalsSnapshot.docs) {
+          const professional = doc.data();
+          if (professional.authUid) {
+            try {
+              await admin.auth().deleteUser(professional.authUid);
+              logger.log(
+                `[${ownerUid}] Conta de Auth do profissional ${doc.id} excluída.`
+              );
+            } catch (error: any) {
+              if (error.code !== "auth/user-not-found") {
+                logger.error(
+                  `[${ownerUid}] Falha ao excluir Auth UID ${professional.authUid} do profissional ${doc.id}`,
+                  error
+                );
+              }
+            }
+          }
+          await doc.ref.delete(); // Deleta o documento do profissional
+        }
+      }
+
+      // 3. Excluir todos os serviços
+      const servicesSnapshot = await establishmentRef
+        .collection("services")
+        .get();
+      if (!servicesSnapshot.empty) {
+        logger.log(
+          `[${ownerUid}] Encontrados ${servicesSnapshot.size} serviços para excluir.`
+        );
+        const batch = db.batch();
+        servicesSnapshot.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+
+      // 4. Excluir o documento principal do estabelecimento
+      await establishmentRef.delete();
+      logger.log(`[${ownerUid}] Documento do estabelecimento excluído.`);
+
+      // 5. Excluir o documento de usuário do dono
+      await db.collection("users").doc(ownerUid).delete();
+      logger.log(`[${ownerUid}] Documento do usuário (dono) excluído.`);
+
+      // 6. Excluir a conta de autenticação do dono (passo final)
+      await admin.auth().deleteUser(ownerUid);
+      logger.log(`[${ownerUid}] Conta de autenticação do dono excluída.`);
+
+      logger.info(
+        `[${ownerUid}] Exclusão do estabelecimento concluída com sucesso.`
+      );
+      return { success: true };
+    } catch (error: any) {
+      logger.error(`[${ownerUid}] Falha crítica durante a exclusão:`, error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError(
+        "internal",
+        "Ocorreu um erro interno ao excluir o estabelecimento."
+      );
     }
-    console.error(
-      `Falha ao excluir o estabelecimento ${establishmentId}:`,
-      error
-    );
-    throw new HttpsError(
-      "internal",
-      "Ocorreu um erro interno ao excluir o estabelecimento."
-    );
   }
-});
+);
 // ============================================================================
 // ===== FUNÇÃO: VERIFICAR AGENDAMENTOS FUTUROS DE UM ESTABELECIMENTO
 // ============================================================================

@@ -2,12 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Save, FileText, Settings } from "lucide-react";
 import Link from "next/link";
-import ConfirmationModal from "../../components/shared/modals/ConfirmationModal";
+import ConfirmationModal from "@/components/shared/modals/ConfirmationModal";
+import ReauthModal from "@/components/shared/modals/ReauthModal";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
-import { useRouter } from "next/navigation";
+import {
+  getAuth,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 
 export default function ClientSettingsView() {
   const { userData, logout, updateUserProfile, refreshUserData } = useAuth();
@@ -27,8 +33,12 @@ export default function ClientSettingsView() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Estados para o fluxo de exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReauthModalOpen, setIsReauthModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reauthError, setReauthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (userData) {
@@ -75,7 +85,31 @@ export default function ClientSettingsView() {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  const handleReauthenticate = async (password: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      setReauthError("Não foi possível encontrar os dados do usuário atual.");
+      return;
+    }
+
+    setIsDeleting(true);
+    setReauthError(null);
+
+    const credential = EmailAuthProvider.credential(user.email, password);
+    try {
+      await reauthenticateWithCredential(user, credential);
+      // Sucesso! Fecha o modal de senha e abre o de confirmação final.
+      setIsReauthModalOpen(false);
+      setIsDeleteModalOpen(true);
+    } catch (error) {
+      setReauthError("Senha incorreta. Por favor, tente novamente.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmFinalDelete = async () => {
     setIsDeleting(true);
     try {
       const functions = getFunctions(getApp(), "southamerica-east1");
@@ -89,13 +123,14 @@ export default function ClientSettingsView() {
 
       await logout();
       router.push("/");
-    } catch (error) {
-      console.error("Erro ao excluir a conta:", error);
-      alert(
-        "Ocorreu um erro ao tentar excluir sua conta. Por favor, tente novamente."
-      );
+    } catch (error: unknown) {
+      let errorMessage = "Ocorreu um erro ao tentar excluir sua conta.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      alert(errorMessage);
+    } finally {
       setIsDeleting(false);
-      setIsDeleteModalOpen(false);
     }
   };
 
@@ -110,7 +145,6 @@ export default function ClientSettingsView() {
         </p>
       </div>
 
-      {/* Card de Informações Pessoais */}
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 mb-6">
           <User /> Informações Pessoais
@@ -247,7 +281,6 @@ export default function ClientSettingsView() {
         </form>
       </div>
 
-      {/* Card para Preferências de Comunicação e Privacidade */}
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 mb-6">
           <Settings /> Privacidade e Comunicações
@@ -292,7 +325,7 @@ export default function ClientSettingsView() {
                 </p>
               </div>
               <button
-                onClick={() => setIsDeleteModalOpen(true)}
+                onClick={() => setIsReauthModalOpen(true)}
                 className="rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-100"
               >
                 Excluir conta
@@ -302,19 +335,20 @@ export default function ClientSettingsView() {
         </div>
       </div>
 
-      <div className="mt-8 text-center">
-        <Link
-          href="/terms-of-use"
-          className="text-sm text-gray-500 hover:text-gray-700 underline"
-        >
-          Termos de Utilização e Política de Privacidade
-        </Link>
-      </div>
+      <div className="mt-8 text-center"></div>
+
+      <ReauthModal
+        isOpen={isReauthModalOpen}
+        onClose={() => setIsReauthModalOpen(false)}
+        onConfirm={handleReauthenticate}
+        isLoading={isDeleting}
+        error={reauthError}
+      />
 
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteAccount}
+        onConfirm={handleConfirmFinalDelete}
         title="Confirmar Exclusão de Conta"
         message="Você tem certeza que deseja excluir sua conta? Esta ação é irreversível. Seus dados pessoais serão removidos e seu histórico de agendamentos será anonimizado."
         confirmText="Sim, excluir conta"

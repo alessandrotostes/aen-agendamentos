@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import ConfirmationModal from "../../components/shared/modals/ConfirmationModal";
+import ConfirmationModal from "@/components/shared/modals/ConfirmationModal";
+import ReauthModal from "@/components/shared/modals/ReauthModal";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
 import {
@@ -14,8 +15,12 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  getAuth,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 
-// Criamos um tipo para o resultado da nossa função, evitando o 'any'
 type CheckAppointmentsResult = {
   futureAppointmentsCount: number;
 };
@@ -25,7 +30,9 @@ export default function OwnerSettingsView() {
   const router = useRouter();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReauthModalOpen, setIsReauthModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reauthError, setReauthError] = useState<string | null>(null);
   const [futureAppointmentsCount, setFutureAppointmentsCount] = useState<
     number | null
   >(null);
@@ -44,12 +51,11 @@ export default function OwnerSettingsView() {
           const result = await checkFutureAppointmentsFn({
             establishmentId: userData.uid,
           });
-          // Usamos nosso novo tipo aqui para garantir a segurança
           const data = result.data as CheckAppointmentsResult;
           setFutureAppointmentsCount(data.futureAppointmentsCount);
         } catch (error) {
           console.error("Erro ao verificar agendamentos:", error);
-          setFutureAppointmentsCount(null); // Trata o caso de erro
+          setFutureAppointmentsCount(null);
         } finally {
           setIsLoadingCount(false);
         }
@@ -58,6 +64,29 @@ export default function OwnerSettingsView() {
     }
   }, [userData?.uid]);
 
+  const handleReauthenticate = async (password: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      setReauthError("Não foi possível encontrar os dados do usuário atual.");
+      return;
+    }
+
+    setIsDeleting(true);
+    setReauthError(null);
+
+    const credential = EmailAuthProvider.credential(user.email, password);
+    try {
+      await reauthenticateWithCredential(user, credential);
+      setIsReauthModalOpen(false);
+      setIsDeleteModalOpen(true);
+    } catch (error) {
+      setReauthError("Senha incorreta. Por favor, tente novamente.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (!userData) return;
 
@@ -65,16 +94,14 @@ export default function OwnerSettingsView() {
     try {
       const functions = getFunctions(getApp(), "southamerica-east1");
       const deleteOwnerAccount = httpsCallable(functions, "deleteOwnerAccount");
-
       await deleteOwnerAccount({ establishmentId: userData.uid });
 
       alert("Sua conta e estabelecimento foram excluídos com sucesso.");
+
       await logout();
+
       router.push("/");
     } catch (error: unknown) {
-      // Tratamos o erro como 'unknown'
-      console.error("Erro ao excluir a conta do estabelecimento:", error);
-      // E então verificamos se é uma instância de Error para acessar 'message'
       let errorMessage = "Ocorreu um erro ao tentar excluir sua conta.";
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -90,7 +117,7 @@ export default function OwnerSettingsView() {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="mb-6">
         <Link
-          href="/owner/"
+          href="/owner"
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -107,7 +134,6 @@ export default function OwnerSettingsView() {
         </p>
       </div>
 
-      {/* Card da Zona de Perigo */}
       <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-red-200">
         <h2 className="text-xl font-bold text-red-700 flex items-center gap-3 mb-4">
           <AlertTriangle /> Zona de Perigo
@@ -155,7 +181,7 @@ export default function OwnerSettingsView() {
 
           <div className="text-right">
             <button
-              onClick={() => setIsDeleteModalOpen(true)}
+              onClick={() => setIsReauthModalOpen(true)}
               disabled={!canDelete || isLoadingCount}
               className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
             >
@@ -164,6 +190,14 @@ export default function OwnerSettingsView() {
           </div>
         </div>
       </div>
+
+      <ReauthModal
+        isOpen={isReauthModalOpen}
+        onClose={() => setIsReauthModalOpen(false)}
+        onConfirm={handleReauthenticate}
+        isLoading={isDeleting}
+        error={reauthError}
+      />
 
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
