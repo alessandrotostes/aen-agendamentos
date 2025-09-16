@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx
+// src/contexts/AuthContext.tsx (VERSÃO CORRIGIDA)
 "use client";
 
 import React, {
@@ -17,7 +17,7 @@ import {
   signInWithPopup,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { getApp } from "firebase/app"; // Importação que faltava
+import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, storage } from "../lib/firebaseConfig";
 import {
@@ -70,7 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       if (user) {
-        // Força a atualização do token para obter os custom claims mais recentes
         await user.getIdToken(true);
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
@@ -102,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     imageFile?: File | null,
     phone?: string
   ): Promise<AuthUser> {
+    setAuthLoading(true); // <-- CORREÇÃO APLICADA
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -157,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(email: string, password: string): Promise<AuthUser> {
+    setAuthLoading(true); // <-- CORREÇÃO APLICADA
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
@@ -178,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     additionalData: { firstName: string; lastName: string; phone: string }
   ): Promise<FirebaseUser> {
+    setAuthLoading(true); // <-- CORREÇÃO APLICADA
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -201,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: FirebaseUser;
     isNewUser: boolean;
   }> {
+    setAuthLoading(true); // <-- CORREÇÃO APLICADA
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
@@ -245,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    setAuthLoading(true); // <-- CORREÇÃO APLICADA
     await signOut(auth);
     router.push("/login");
   }

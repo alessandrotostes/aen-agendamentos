@@ -74,7 +74,6 @@ export default function SchedulingModal({
   establishmentId,
 }: SchedulingModalProps) {
   const router = useRouter();
-  // ===== ALTERAÇÃO 1: Obter o estado 'authLoading' do contexto =====
   const { currentUser, userData, authLoading } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -142,7 +141,7 @@ export default function SchedulingModal({
     const dayKeyMap: { [key: string]: string } = {
       domingo: "domingo",
       "segunda-feira": "segunda",
-      "terça-feira": "terca",
+      "terça-feira": "terça", // <-- CORREÇÃO APLICADA AQUI
       "quarta-feira": "quarta",
       "quinta-feira": "quinta",
       "sexta-feira": "sexta",
@@ -286,7 +285,6 @@ export default function SchedulingModal({
                   Agendar: <span className="text-teal-600">{service.name}</span>
                 </Dialog.Title>
 
-                {/* ===== ALTERAÇÃO 2: Mostrar um estado de carregamento para todo o modal ===== */}
                 {authLoading ? (
                   <div className="min-h-[350px] flex items-center justify-center">
                     <p className="text-gray-600">
@@ -456,7 +454,6 @@ export default function SchedulingModal({
                             type="button"
                             onClick={handleGoToCheckout}
                             className="ml-4 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg shadow-sm hover:bg-teal-700 disabled:bg-gray-300"
-                            // ===== ALTERAÇÃO 3: Desabilitar o botão final se os dados do usuário estiverem carregando =====
                             disabled={authLoading || !selectedTime}
                           >
                             {authLoading ? "Aguarde..." : "Ir para Pagamento"}

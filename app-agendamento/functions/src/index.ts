@@ -737,10 +737,19 @@ export const getProfessionalAvailability = onCall(async (request) => {
     );
   }
   try {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // --- CORREÇÃO DE FUSO HORÁRIO ---
+    // A data vem do cliente como uma string ISO (ex: "2024-09-17T12:00:00.000Z").
+    // Para evitar problemas de fuso, criamos a data baseada em UTC.
+    const requestedDate = new Date(date);
+    const year = requestedDate.getUTCFullYear();
+    const month = requestedDate.getUTCMonth();
+    const day = requestedDate.getUTCDate();
+
+    // Cria o início e o fim do dia em UTC para garantir que a consulta
+    // ao Firestore seja consistente, não importa onde o servidor esteja.
+    const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
     const q = db
       .collection("establishments")
       .doc(establishmentId)
@@ -749,6 +758,7 @@ export const getProfessionalAvailability = onCall(async (request) => {
       .where("status", "==", "confirmado")
       .where("dateTime", ">=", Timestamp.fromDate(startOfDay))
       .where("dateTime", "<=", Timestamp.fromDate(endOfDay));
+
     const snapshot = await q.get();
     if (snapshot.empty) {
       return [];
