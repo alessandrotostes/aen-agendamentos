@@ -136,7 +136,7 @@ export const validationUtils = {
     return phoneRegex.test(phone);
   },
 
-  // Formatar telefone
+  // Formatar telefone (mantive a sua versão que é ótima)
   formatPhone: (phone: string): string => {
     const numbers = phone.replace(/\D/g, "");
     if (numbers.length === 11) {
@@ -149,8 +149,59 @@ export const validationUtils = {
         6
       )}`;
     }
-    return phone;
+    // Retornar o valor como está para permitir que o usuário continue digitando
+    return phone.replace(/[^\d()-\s]/g, "").slice(0, 15);
   },
+
+  // --- NOVAS FUNÇÕES ADICIONADAS ---
+
+  formatCPF: (cpf: string): string => {
+    const numbersOnly = cpf.replace(/\D/g, "").slice(0, 11);
+    if (numbersOnly.length > 9) {
+      return numbersOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    }
+    if (numbersOnly.length > 6) {
+      return numbersOnly.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    }
+    if (numbersOnly.length > 3) {
+      return numbersOnly.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+    }
+    return numbersOnly;
+  },
+
+  formatCNPJ: (cnpj: string): string => {
+    const numbersOnly = cnpj.replace(/\D/g, "").slice(0, 14);
+    if (numbersOnly.length > 12) {
+      return numbersOnly.replace(
+        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+        "$1.$2.$3/$4-$5"
+      );
+    }
+    if (numbersOnly.length > 8) {
+      return numbersOnly.replace(
+        /(\d{2})(\d{3})(\d{3})(\d{1,4})/,
+        "$1.$2.$3/$4"
+      );
+    }
+    if (numbersOnly.length > 5) {
+      return numbersOnly.replace(/(\d{2})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    }
+    if (numbersOnly.length > 2) {
+      return numbersOnly.replace(/(\d{2})(\d{1,3})/, "$1.$2");
+    }
+    return numbersOnly;
+  },
+
+  isValidCPF: (cpf: string): boolean => {
+    const numbersOnly = cpf.replace(/\D/g, "");
+    return numbersOnly.length === 11;
+  },
+
+  isValidCNPJ: (cnpj: string): boolean => {
+    const numbersOnly = cnpj.replace(/\D/g, "");
+    return numbersOnly.length === 14;
+  },
+  // ------------------------------------
 
   // Validar preço
   isValidPrice: (price: number): boolean => {

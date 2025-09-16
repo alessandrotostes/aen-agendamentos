@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx (VERSÃO CORRIGIDA)
 "use client";
 
 import React, {
@@ -32,20 +31,25 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
+// Interface para os dados do formulário de registro
+export interface RegisterFormData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: "owner" | "client";
+  phone: string;
+  cpf?: string;
+  cnpj?: string;
+  imageFile?: File | null;
+}
+
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
   authLoading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    role: "owner" | "client",
-    imageFile?: File | null,
-    phone?: string
-  ) => Promise<AuthUser>;
+  register: (data: RegisterFormData) => Promise<AuthUser>;
   registerWithEmail: (
     email: string,
     password: string,
@@ -92,72 +96,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  async function register(
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    role: "owner" | "client",
-    imageFile?: File | null,
-    phone?: string
-  ): Promise<AuthUser> {
-    setAuthLoading(true); // <-- CORREÇÃO APLICADA
+  async function register(data: RegisterFormData): Promise<AuthUser> {
+    setAuthLoading(true);
     const userCredential = await createUserWithEmailAndPassword(
       auth,
-      email,
-      password
+      data.email,
+      data.password
     );
     const user = userCredential.user;
     const uid = user.uid;
 
     const functions = getFunctions(getApp(), "southamerica-east1");
     const setClaimsFn = httpsCallable(functions, "setInitialUserClaims");
-    await setClaimsFn({ role: role });
+    await setClaimsFn({ role: data.role });
 
     await user.getIdToken(true);
 
     const createdAt = serverTimestamp();
-    const newUser: Omit<AuthUser, "createdAt"> = {
-      uid,
-      firstName,
-      lastName,
-      email,
-      role,
-      phone: phone || "",
-      termsAccepted: false,
+    // Construir o documento do usuário
+    const newUser: Omit<AuthUser, "createdAt" | "uid"> & {
+      [key: string]: any;
+    } = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      role: data.role,
+      phone: data.phone || "",
+      termsAccepted: false, // Idealmente, isso viria do formulário
     };
 
-    await setDoc(doc(db, "users", uid), { ...newUser, createdAt });
+    // Adicionar CPF se for cliente
+    if (data.role === "client" && data.cpf) {
+      newUser.cpf = data.cpf;
+    }
 
-    if (role === "owner") {
+    await setDoc(doc(db, "users", uid), { ...newUser, uid, createdAt });
+
+    // Construir o documento do estabelecimento se for owner
+    if (data.role === "owner") {
       let imageURL = "";
-      if (imageFile) {
+      if (data.imageFile) {
         const imageRef = ref(
           storage,
-          `establishments/${uid}/${imageFile.name}`
+          `establishments/${uid}/${data.imageFile.name}`
         );
-        await uploadBytes(imageRef, imageFile);
+        await uploadBytes(imageRef, data.imageFile);
         imageURL = await getDownloadURL(imageRef);
       }
-      const establishmentName = `${firstName} ${lastName}`.trim();
-      await setDoc(doc(db, "establishments", uid), {
+      const establishmentName = `${data.firstName} ${data.lastName}`.trim();
+
+      const establishmentData = {
         ownerId: uid,
         name: establishmentName,
-        email,
-        phone: phone || "",
+        email: data.email,
+        phone: data.phone || "",
         address: "",
         imageURL,
         rating: 0,
         createdAt,
-      });
+        cnpj: data.cnpj || "",
+      };
+
+      await setDoc(doc(db, "establishments", uid), establishmentData);
     }
 
     await refreshUserData();
-    return { ...newUser, createdAt: Timestamp.now() };
+    const finalUserData = {
+      ...newUser,
+      uid,
+      createdAt: Timestamp.now(),
+    } as AuthUser;
+    return finalUserData;
   }
 
   async function login(email: string, password: string): Promise<AuthUser> {
-    setAuthLoading(true); // <-- CORREÇÃO APLICADA
+    setAuthLoading(true);
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
@@ -179,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     additionalData: { firstName: string; lastName: string; phone: string }
   ): Promise<FirebaseUser> {
-    setAuthLoading(true); // <-- CORREÇÃO APLICADA
+    setAuthLoading(true);
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -203,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: FirebaseUser;
     isNewUser: boolean;
   }> {
-    setAuthLoading(true); // <-- CORREÇÃO APLICADA
+    setAuthLoading(true);
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
@@ -248,7 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    setAuthLoading(true); // <-- CORREÇÃO APLICADA
+    setAuthLoading(true);
     await signOut(auth);
     router.push("/login");
   }

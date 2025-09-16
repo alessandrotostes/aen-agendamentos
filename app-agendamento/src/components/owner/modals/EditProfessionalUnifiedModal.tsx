@@ -12,7 +12,9 @@ import {
   TimeSlot,
 } from "../../../types";
 import InfoTooltip from "@/components/shared/InfoTooltip";
-import { User, Clock } from "lucide-react";
+// Alteração 1: Importar ícone para CPF e as utils de validação
+import { User, Clock, FileText } from "lucide-react";
+import { validationUtils } from "@/lib/utils";
 
 type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
@@ -24,7 +26,7 @@ interface EditProfessionalUnifiedModalProps {
   onSave: (data: UnifiedProfessionalData) => Promise<void>;
   professional?: Professional | null;
   allServices: Service[];
-  initialView: "details" | "availability"; // Nova prop para definir a aba inicial
+  initialView: "details" | "availability";
 }
 
 const daysOfWeek: Omit<WeeklyDay, "isOpen" | "timeSlots">[] = [
@@ -44,12 +46,14 @@ export default function EditProfessionalUnifiedModal({
   onSave,
   professional,
   allServices,
-  initialView = "details", // Valor padrão
+  initialView = "details",
 }: EditProfessionalUnifiedModalProps) {
   const isEdit = !!professional;
+  // Alteração 2: Adicionar 'cpf' ao estado inicial
   const [formData, setFormData] = useState<CreateProfessionalData>({
     name: "",
     firstName: "",
+    cpf: "",
     email: "",
     phone: "",
     photoURL: "",
@@ -63,11 +67,13 @@ export default function EditProfessionalUnifiedModal({
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialView); // Define a aba inicial ao abrir
+      setActiveTab(initialView);
 
+      // Alteração 3: Popular o 'cpf' a partir do profissional existente
       setFormData({
-        name: professional?.firstName || "", // Mantém o campo 'name' para compatibilidade
+        name: professional?.firstName || "",
         firstName: professional?.firstName || "",
+        cpf: professional?.cpf || "",
         email: professional?.email || "",
         phone: professional?.phone || "",
         photoURL: professional?.photoURL || "",
@@ -104,7 +110,14 @@ export default function EditProfessionalUnifiedModal({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    let formattedValue = value;
+
+    if (name === "cpf") {
+      formattedValue = validationUtils.formatCPF(value);
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
   };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -270,6 +283,34 @@ export default function EditProfessionalUnifiedModal({
                           disabled={loading}
                           className="w-full px-3 py-2 border rounded-lg shadow-sm border-gray-300"
                         />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="cpf"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          CPF *
+                          <InfoTooltip>
+                            O CPF é fundamental para a identificação única do
+                            profissional.
+                          </InfoTooltip>
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FileText className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            id="cpf"
+                            name="cpf"
+                            value={formData.cpf || ""}
+                            onChange={handleChange}
+                            required
+                            disabled={loading}
+                            className="w-full pl-10 px-3 py-2 border rounded-lg shadow-sm border-gray-300"
+                            placeholder="000.000.000-00"
+                          />
+                        </div>
                       </div>
                       <div>
                         <label

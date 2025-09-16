@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth, RegisterFormData } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
 import PasswordStrengthIndicator from "../../../components/shared/PasswordStrengthIndicator";
@@ -16,7 +16,6 @@ const initialPasswordValidation = {
   specialChar: false,
 };
 
-// ALTERAÇÃO 1: Definir o componente SpinnerIcon aqui
 const SpinnerIcon = () => (
   <svg
     className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -42,15 +41,19 @@ const SpinnerIcon = () => (
 
 export default function RegisterPage() {
   const [isClient, setIsClient] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<
+    Omit<RegisterFormData, "password" | "email"> & { email: string }
+  >({
     firstName: "",
     lastName: "",
     email: "",
-    password: "",
     phone: "",
-    role: "client" as "client" | "owner",
-    imageFile: null as File | null,
+    role: "client",
+    imageFile: null,
+    cpf: "",
+    cnpj: "",
   });
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordValidation, setPasswordValidation] = useState(
@@ -65,47 +68,60 @@ export default function RegisterPage() {
   }, []);
 
   const handleChange = (
-    e:
-      | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value, files } = e.target as HTMLInputElement;
+    const { name, value } = e.target;
+    let formattedValue = value;
 
     if (name === "phone") {
-      const numbersOnly = value.replace(/\D/g, "");
-      const limitedNumbers = numbersOnly.slice(0, 11);
-      const formattedPhone = validationUtils.formatPhone(limitedNumbers);
-      setFormData((prev) => ({ ...prev, phone: formattedPhone }));
+      formattedValue = validationUtils.formatPhone(value);
+    } else if (name === "cpf") {
+      formattedValue = validationUtils.formatCPF(value);
+    } else if (name === "cnpj") {
+      formattedValue = validationUtils.formatCNPJ(value);
     } else if (name === "image") {
+      const files = (e.target as HTMLInputElement).files;
       setFormData((prev) => ({ ...prev, imageFile: files?.[0] || null }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
     }
 
-    if (name === "password") {
-      const validation = validationUtils.validatePasswordStrength(value);
-      setPasswordValidation(validation);
-    }
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+    if (error) setError("");
+  };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    const validation = validationUtils.validatePasswordStrength(newPassword);
+    setPasswordValidation(validation);
     if (error) setError("");
   };
 
   const validateForm = (): string | null => {
     if (!formData.firstName || !formData.lastName)
       return "Nome e sobrenome são obrigatórios.";
-    if (!formData.email) return "Email é obrigatório.";
     if (!validationUtils.isValidEmail(formData.email)) return "Email inválido.";
 
-    const passwordCheck = validationUtils.validatePasswordStrength(
-      formData.password
-    );
+    // --- CORREÇÃO APLICADA AQUI ---
+    const passwordCheck = validationUtils.validatePasswordStrength(password);
     if (!passwordCheck.isValid) {
       return "A senha não cumpre todos os requisitos de segurança.";
     }
+    // -----------------------------
 
     if (!formData.phone) return "O número de telefone é obrigatório.";
-    if (formData.role === "owner" && !formData.imageFile)
-      return "A foto do estabelecimento é obrigatória.";
+
+    if (formData.role === "client") {
+      if (!formData.cpf) return "O CPF é obrigatório.";
+      if (!validationUtils.isValidCPF(formData.cpf)) return "CPF inválido.";
+    }
+
+    if (formData.role === "owner") {
+      if (!formData.cnpj) return "O CNPJ é obrigatório.";
+      if (!validationUtils.isValidCNPJ(formData.cnpj)) return "CNPJ inválido.";
+      if (!formData.imageFile)
+        return "A foto do estabelecimento é obrigatória.";
+    }
 
     return null;
   };
@@ -121,15 +137,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const newUser = await register(
-        formData.email,
-        formData.password,
-        formData.firstName,
-        formData.lastName,
-        formData.role,
-        formData.imageFile,
-        formData.phone
-      );
+      const newUser = await register({ ...formData, password });
 
       const redirectUrl = sessionStorage.getItem("redirectAfterLogin");
       if (redirectUrl) {
@@ -272,8 +280,8 @@ export default function RegisterPage() {
               id="password"
               name="password"
               type="password"
-              value={formData.password}
-              onChange={handleChange}
+              value={password}
+              onChange={handlePasswordChange}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
             />
@@ -299,26 +307,66 @@ export default function RegisterPage() {
             </select>
           </div>
 
-          {formData.role === "owner" && (
+          {formData.role === "client" && (
             <div>
               <label
-                htmlFor="image"
+                htmlFor="cpf"
                 className="block text-sm font-medium text-gray-700"
               >
-                Foto do Estabelecimento
+                CPF
               </label>
               <input
-                id="image"
-                name="image"
-                type="file"
-                accept="image/*"
+                id="cpf"
+                name="cpf"
+                type="text"
+                value={formData.cpf}
                 onChange={handleChange}
-                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                placeholder="000.000.000-00"
               />
             </div>
           )}
 
-          {/* ALTERAÇÃO 2: A chamada ao SpinnerIcon agora funciona */}
+          {formData.role === "owner" && (
+            <>
+              <div>
+                <label
+                  htmlFor="cnpj"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  CNPJ
+                </label>
+                <input
+                  id="cnpj"
+                  name="cnpj"
+                  type="text"
+                  value={formData.cnpj}
+                  onChange={handleChange}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                  placeholder="00.000.000/0001-00"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="image"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Foto do Estabelecimento
+                </label>
+                <input
+                  id="image"
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleChange}
+                  className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+              </div>
+            </>
+          )}
+
           <button
             type="submit"
             disabled={loading}

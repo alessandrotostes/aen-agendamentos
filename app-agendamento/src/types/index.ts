@@ -12,6 +12,8 @@ export interface AuthUser {
   phone?: string;
   termsAccepted?: boolean;
   termsAcceptedAt?: Timestamp;
+  marketingConsent?: boolean;
+  cpf?: string;
 }
 
 // ESTABLISHMENT & RELATED
@@ -25,7 +27,7 @@ type TimeSlotType = {
 // --- TIPO CORRIGIDO ---
 // Define a estrutura para o objeto completo de horários de funcionamento
 export type OperatingHours = {
-  [key: string]: TimeSlotType | null | undefined; // <-- Adicionamos '| undefined' aqui para alinhar com as props opcionais
+  [key: string]: TimeSlotType | null | undefined;
   segunda?: TimeSlotType | null;
   terca?: TimeSlotType | null;
   quarta?: TimeSlotType | null;
@@ -40,6 +42,7 @@ export interface Establishment {
   slug: string;
   ownerId: string;
   name: string;
+  cnpj?: string;
   description?: string;
   address: string;
   phone?: string;
@@ -70,7 +73,7 @@ export interface Service {
   name: string;
   description?: string;
   price: number;
-  duration: number; // em minutos
+  duration: number;
   category?: string;
 }
 
@@ -78,6 +81,7 @@ export interface Professional {
   id: string;
   establishmentId: string;
   firstName: string;
+  cpf?: string;
   email?: string;
   authUid?: string;
   phone?: string;
@@ -101,8 +105,6 @@ export interface Appointment {
   dateTime: Timestamp;
   duration: number;
   price: number;
-
-  // ALTERAÇÃO: Lista completa de todos os status que a aplicação pode ter.
   status:
     | "pending_payment"
     | "confirmado"
@@ -110,24 +112,17 @@ export interface Appointment {
     | "pending_refund"
     | "refunded"
     | "refund_overdue";
-
   cancelledBy?: "owner" | "client";
   serviceName: string;
   professionalfirstName: string;
-
-  // Seus campos existentes foram mantidos para não quebrar outras partes do código
   cancellationRequest?: CancellationRequest;
   cancellationReason?: string;
   reminderSent?: boolean;
-
-  // Novos campos opcionais que adicionámos para o fluxo de pagamento e reembolso
   paymentId?: string;
   preferenceId?: string;
   cancellationTimestamp?: Timestamp;
   refundRequestedAt?: Timestamp;
   refundError?: string;
-
-  // É uma boa prática ter um campo 'createdAt'
   createdAt: Timestamp;
 }
 
@@ -149,6 +144,7 @@ export interface CreateServiceData {
 export interface CreateProfessionalData {
   name: string;
   firstName: string;
+  cpf?: string;
   email: string;
   phone: string;
   serviceIds: string[];
@@ -163,6 +159,7 @@ export interface UpdateEstablishmentData {
   description: string;
   address: string;
   phone: string;
+  cnpj?: string; // <-- ADICIONADO: Para permitir a edição do CNPJ.
   imageURL: string;
   mainService: string;
   imageFile?: File | null;

@@ -7,6 +7,9 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
 import type { Establishment } from "../../types";
+// Alteração 1: Importar o componente Link e o ícone de Configurações
+import Link from "next/link";
+import { Settings } from "lucide-react";
 
 interface OwnerHeaderProps {
   establishment: Establishment | null;
@@ -78,13 +81,23 @@ export default function OwnerHeader({
             </label>
           </div>
         </div>
-        {/* Botão logout */}
-        <button
-          onClick={logout}
-          className="text-sm text-teal-600 hover:text-teal-400 font-medium"
-        >
-          Sair
-        </button>
+
+        {/* Alteração 2: Agrupar os botões de ação */}
+        <div className="flex items-center space-x-6">
+          <Link
+            href="/owner/settings"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 font-medium transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            <span>Privacidade</span>
+          </Link>
+          <button
+            onClick={logout}
+            className="text-sm text-red-600 hover:text-red-800 font-medium"
+          >
+            Sair
+          </button>
+        </div>
       </div>
     </header>
   );

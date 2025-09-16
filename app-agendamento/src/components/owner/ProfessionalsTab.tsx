@@ -4,7 +4,6 @@ import React, { useState, useMemo } from "react";
 import EmptyState from "./common/EmptyState";
 import Image from "next/image";
 import type { Professional } from "../../types";
-// ALTERAÇÃO: Importar os ícones necessários
 import {
   Plus,
   Pencil,
@@ -15,9 +14,14 @@ import {
   CheckCircle,
   Mail,
   X,
-  Users, // Ícone para o título e estado vazio
-  UserX, // Ícone para busca sem resultados
+  Users,
+  UserX,
 } from "lucide-react";
+// Importar o modal de confirmação
+import ConfirmationModal from "../../components/shared/modals/ConfirmationModal";
+// Imports para chamar a Cloud Function
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getApp } from "firebase/app";
 
 const ProfessionalCard = ({
   professional,
@@ -128,24 +132,30 @@ const ProfessionalCard = ({
 
 interface Props {
   professionals: Professional[];
+  establishmentId: string;
   createProfessional: () => void;
   updateProfessional: (id: string) => void;
-  deleteProfessional: (id: string) => void;
   onManageAvailability: (professional: Professional) => void;
   onInviteProfessional: (id: string) => void;
   onResendInvite: (id: string) => void;
+  refreshProfessionals: () => void;
 }
 
 export default function ProfessionalsTab({
   professionals,
+  establishmentId,
   createProfessional,
   updateProfessional,
-  deleteProfessional,
   onManageAvailability,
   onInviteProfessional,
   onResendInvite,
+  refreshProfessionals,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [professionalToDelete, setProfessionalToDelete] =
+    useState<Professional | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredProfessionals = useMemo(() => {
     if (!searchTerm) {
@@ -156,11 +166,44 @@ export default function ProfessionalsTab({
     );
   }, [professionals, searchTerm]);
 
+  const openDeleteModal = (professional: Professional) => {
+    setProfessionalToDelete(professional);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!professionalToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const functions = getFunctions(getApp(), "southamerica-east1");
+      const deleteProfessional = httpsCallable(functions, "deleteProfessional");
+
+      await deleteProfessional({
+        establishmentId: establishmentId,
+        professionalId: professionalToDelete.id,
+      });
+
+      alert(
+        `Profissional ${professionalToDelete.firstName} excluído com sucesso.`
+      );
+      refreshProfessionals();
+    } catch (error) {
+      console.error("Erro ao excluir profissional:", error);
+      alert(
+        "Não foi possível excluir o profissional. Verifique se ele não possui agendamentos futuros."
+      );
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setProfessionalToDelete(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          {/* ALTERAÇÃO: Substituir emoji por ícone */}
           <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="w-8 h-8 text-indigo-600" />
             Profissionais
@@ -207,7 +250,7 @@ export default function ProfessionalsTab({
               key={p.id}
               professional={p}
               onUpdate={() => updateProfessional(p.id)}
-              onDelete={() => deleteProfessional(p.id)}
+              onDelete={() => openDeleteModal(p)}
               onManageAvailability={() => onManageAvailability(p)}
               onInvite={() => onInviteProfessional(p.id)}
               onResendInvite={() => onResendInvite(p.id)}
@@ -216,7 +259,6 @@ export default function ProfessionalsTab({
         </div>
       ) : (
         <div className="bg-white rounded-xl border-2 border-dashed border-slate-200 p-12">
-          {/* ALTERAÇÃO: Substituir emojis por ícones no EmptyState */}
           {searchTerm && professionals.length > 0 ? (
             <EmptyState
               message={`Nenhum profissional encontrado para "${searchTerm}".`}
@@ -231,6 +273,19 @@ export default function ProfessionalsTab({
             />
           )}
         </div>
+      )}
+
+      {professionalToDelete && (
+        <ConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleConfirmDelete}
+          title={`Excluir ${professionalToDelete.firstName}?`}
+          message="Esta ação é permanente. Todos os dados do profissional serão removidos. Agendamentos futuros serão cancelados."
+          confirmText="Sim, excluir profissional"
+          type="danger"
+          loading={isDeleting}
+        />
       )}
     </div>
   );

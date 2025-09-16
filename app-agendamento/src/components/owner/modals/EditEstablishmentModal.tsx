@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { Establishment, UpdateEstablishmentData } from "../../../types";
 import InfoTooltip from "@/components/shared/InfoTooltip";
+// Alteração 1: Importar um ícone para o campo CNPJ
+import { Building } from "lucide-react";
 
 interface EditEstablishmentModalProps {
   isOpen: boolean;
@@ -30,6 +32,8 @@ export default function EditEstablishmentModal({
 }: EditEstablishmentModalProps) {
   const [formData, setFormData] = useState<UpdateEstablishmentData>({
     name: "",
+    // Alteração 2: Adicionar o CNPJ ao estado inicial do formulário
+    cnpj: "",
     description: "",
     address: "",
     phone: "",
@@ -48,6 +52,8 @@ export default function EditEstablishmentModal({
     if (isOpen && establishment) {
       setFormData({
         name: establishment.name || "",
+        // Alteração 3: Popular o CNPJ a partir dos dados do estabelecimento
+        cnpj: establishment.cnpj || "",
         description: establishment.description || "",
         address: establishment.address || "",
         phone: establishment.phone || "",
@@ -94,6 +100,7 @@ export default function EditEstablishmentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // A função onSave já recebe o formData completo, não precisa de alterações aqui.
     await onSave(formData);
     setLoading(false);
   };
@@ -156,6 +163,35 @@ export default function EditEstablishmentModal({
               <p className="mt-1 text-xs text-red-600">{errors.name}</p>
             )}
           </div>
+
+          {/* Alteração 4: Adicionar o campo CNPJ não editável */}
+          <div>
+            <label
+              htmlFor="cnpj"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              CNPJ
+              <InfoTooltip>
+                Caso seja necessário alterar o CNPJ contate o suporte através do
+                nÚmero: (16) 99764-3604
+              </InfoTooltip>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                id="cnpj"
+                name="cnpj"
+                value={formData.cnpj || ""}
+                disabled // Campo desabilitado para edição
+                className="w-full pl-3 pr-10 py-2 border rounded-lg shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300"
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <Building className="h-5 w-5 text-gray-400" />
+              </div>
+            </div>
+          </div>
+          {/* Fim da Alteração 4 */}
+
           <div>
             <label
               htmlFor="description"
