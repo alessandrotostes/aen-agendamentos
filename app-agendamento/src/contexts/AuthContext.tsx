@@ -31,7 +31,6 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "../types";
 
-// Interface para os dados do formulário de registro
 export interface RegisterFormData {
   email: string;
   password: string;
@@ -44,7 +43,6 @@ export interface RegisterFormData {
   imageFile?: File | null;
 }
 
-// Alteração 1: Atualizar a assinatura da função 'registerWithEmail' na interface
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
@@ -58,7 +56,7 @@ interface AuthContextType {
       firstName: string;
       lastName: string;
       phone: string;
-      cpf: string; // Adicionado
+      cpf: string;
     }
   ) => Promise<FirebaseUser>;
   signInWithGoogle: () => Promise<{ user: FirebaseUser; isNewUser: boolean }>;
@@ -126,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: data.role,
       phone: data.phone || "",
       termsAccepted: false,
+      profileStatus: "complete",
     };
 
     const newUser = { ...newUserBase };
@@ -189,7 +188,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
-  // Alteração 2: Atualizar a função para aceitar e salvar o CPF
   async function registerWithEmail(
     email: string,
     password: string,
@@ -197,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: string;
       lastName: string;
       phone: string;
-      cpf: string; // Adicionado
+      cpf: string;
     }
   ): Promise<FirebaseUser> {
     setAuthLoading(true);
@@ -214,8 +212,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: additionalData.firstName,
       lastName: additionalData.lastName,
       phone: additionalData.phone,
-      cpf: additionalData.cpf, // Adicionado
+      cpf: additionalData.cpf,
       termsAccepted: false,
+      profileStatus: "complete", // Cadastro via e-mail já é completo
       createdAt: serverTimestamp(),
     });
     return user;
@@ -239,9 +238,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: "client",
         firstName: firstName || "",
         lastName: lastNameParts.join(" ") || "",
-        phone: "", // Deixamos em branco para ser preenchido no próximo passo
-        cpf: "", // Deixamos em branco para ser preenchido no próximo passo
+        phone: "",
+        cpf: "",
         termsAccepted: false,
+        profileStatus: "incomplete", // Cadastro via Google é incompleto inicialmente
         createdAt: serverTimestamp(),
       });
       return { user, isNewUser: true };
@@ -249,15 +249,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user, isNewUser: false };
   }
 
-  // A função `updatePhoneNumber` não é mais necessária, pois `updateUserProfile` é mais versátil.
-  // Pode ser removida se não for usada em mais nenhum lugar.
   async function updatePhoneNumber(uid: string, phone: string): Promise<void> {
     const userDocRef = doc(db, "users", uid);
     await updateDoc(userDocRef, { phone: phone });
   }
 
-  // A função updateUserProfile já está perfeita para o que precisamos.
-  // Ela pode receber tanto o 'phone' quanto o 'cpf' para completar o cadastro via Google.
   async function updateUserProfile(
     uid: string,
     data: Partial<AuthUser>

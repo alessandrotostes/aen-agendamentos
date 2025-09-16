@@ -1,4 +1,3 @@
-// src/app/client/salon/[slug]/page.tsx
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -30,8 +29,10 @@ import {
   Search,
   X,
 } from "lucide-react";
+import CompleteProfileView from "@/components/auth/CompleteProfileView";
+import LoadingSpinner from "@/components/owner/common/LoadingSpinner";
 
-// --- COMPONENTES INTERNOS (Cards e Skeleton) ---
+// --- COMPONENTES INTERNOS ---
 
 const ProfessionalCard = ({
   professional,
@@ -240,6 +241,17 @@ export default function SalonDetailPage() {
     };
   }, [salonSlug]);
 
+  useEffect(() => {
+    if (
+      selectedService &&
+      userData &&
+      userData.profileStatus === "complete" &&
+      !isSchedulingModalOpen
+    ) {
+      setIsSchedulingModalOpen(true);
+    }
+  }, [userData, selectedService, isSchedulingModalOpen]);
+
   const filteredServices = useMemo(() => {
     if (!searchTerm) {
       return services;
@@ -251,7 +263,7 @@ export default function SalonDetailPage() {
 
   const handleServiceClick = (service: Service) => {
     setSelectedService(service);
-    if (userData) {
+    if (userData && userData.profileStatus === "complete") {
       setIsSchedulingModalOpen(true);
     } else {
       setIsRegisterModalOpen(true);
@@ -260,19 +272,14 @@ export default function SalonDetailPage() {
 
   const onRegisterSuccess = () => {
     setIsRegisterModalOpen(false);
-    setTimeout(() => {
-      setIsSchedulingModalOpen(true);
-    }, 100);
   };
 
-  const pageIsLoading = loading || authLoading;
+  if (authLoading || loading) {
+    return <SalonPageSkeleton />;
+  }
 
-  if (pageIsLoading) {
-    return (
-      <div className="bg-slate-50 min-h-screen">
-        <SalonPageSkeleton />
-      </div>
-    );
+  if (userData && userData.profileStatus === "incomplete") {
+    return <CompleteProfileView />;
   }
 
   if (!salon) {
@@ -296,7 +303,7 @@ export default function SalonDetailPage() {
             src={imageSrc}
             alt={`Imagem de ${salon.name}`}
             fill
-            className="object-contain bg-slate-800"
+            className="object-cover bg-slate-800"
             sizes="100vw"
             priority
           />
@@ -363,7 +370,6 @@ export default function SalonDetailPage() {
                   Nossos Serviços
                 </h2>
               </div>
-
               <div className="relative mt-4">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                   <Search className="h-5 w-5 text-gray-400" />
@@ -385,7 +391,6 @@ export default function SalonDetailPage() {
                   </button>
                 )}
               </div>
-
               <div className="space-y-4 mt-6">
                 {filteredServices.length > 0 ? (
                   filteredServices.map((service) => (

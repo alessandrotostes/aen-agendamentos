@@ -14,6 +14,7 @@ export interface AuthUser {
   termsAcceptedAt?: Timestamp;
   marketingConsent?: boolean;
   cpf?: string;
+  profileStatus?: "complete" | "incomplete";
 }
 
 // ESTABLISHMENT & RELATED
