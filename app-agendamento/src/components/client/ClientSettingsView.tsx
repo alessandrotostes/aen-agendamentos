@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Save, FileText, Settings } from "lucide-react";
 import ConfirmationModal from "@/components/shared/modals/ConfirmationModal";
 import ReauthModal from "@/components/shared/modals/ReauthModal";
+import InfoTooltip from "@/components/shared/InfoTooltip";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
 import {
@@ -282,7 +283,12 @@ export default function ClientSettingsView() {
 
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 mb-6">
-          <Settings /> Privacidade e Comunicações
+          <Settings /> Privacidade e Comunicações{" "}
+          <InfoTooltip>
+            Você pode cancelar a inscrição a qualquer momento. Marque ou
+            desmarque esta opção para atualizar sua preferência, e depois clique
+            em "Salvar Alterações" acima.
+          </InfoTooltip>
         </h2>
         <div className="space-y-6">
           <div className="flex items-start">

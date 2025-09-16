@@ -38,13 +38,17 @@ export default function RefundConfirmationModal({
               className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
             />
             <span className="text-sm text-gray-700">
-              Política de cancelamento: Mais de 24h: reembolso 100% <br />
+              <strong>Política de cancelamento:</strong>
+              <br /> Mais de 24h: reembolso 100% <br />
               3h a 24h: reembolso 80%
               <br />
               Menos de 3h: sem reembolso, salvo casos excepcionais (nesse caso
               contate o estabelecimento para efetuação do cancelamento)
-              <br /> Declaro que li e estou ciente das políticas e condições de
-              reembolso.
+              <br />{" "}
+              <strong>
+                Declaro que li e estou ciente das políticas e condições de
+                reembolso.
+              </strong>
             </span>
           </label>
         </div>
