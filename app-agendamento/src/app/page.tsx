@@ -21,7 +21,6 @@ export default function HomePage() {
         <ProfessionalBenefits />
         <CTASection />
       </main>
-      <Footer />
     </div>
   );
 }
