@@ -114,20 +114,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const createdAt = serverTimestamp();
     // Construir o documento do usuário
-    const newUser: Omit<AuthUser, "createdAt" | "uid"> & {
-      [key: string]: any;
-    } = {
+    const newUserBase: Omit<AuthUser, "createdAt" | "uid"> = {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       role: data.role,
       phone: data.phone || "",
-      termsAccepted: false, // Idealmente, isso viria do formulário
+      termsAccepted: false,
     };
 
-    // Adicionar CPF se for cliente
+    // E então adicionamos as propriedades opcionais de forma segura
+    const newUser = { ...newUserBase };
     if (data.role === "client" && data.cpf) {
-      newUser.cpf = data.cpf;
+      (newUser as AuthUser).cpf = data.cpf;
     }
 
     await setDoc(doc(db, "users", uid), { ...newUser, uid, createdAt });

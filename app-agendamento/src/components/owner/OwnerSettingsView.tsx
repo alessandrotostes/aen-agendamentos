@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Criamos um tipo para o resultado da nossa função, evitando o 'any'
+type CheckAppointmentsResult = {
+  futureAppointmentsCount: number;
+};
+
 export default function OwnerSettingsView() {
   const { userData, logout } = useAuth();
   const router = useRouter();
@@ -39,9 +44,9 @@ export default function OwnerSettingsView() {
           const result = await checkFutureAppointmentsFn({
             establishmentId: userData.uid,
           });
-          setFutureAppointmentsCount(
-            (result.data as any).futureAppointmentsCount
-          );
+          // Usamos nosso novo tipo aqui para garantir a segurança
+          const data = result.data as CheckAppointmentsResult;
+          setFutureAppointmentsCount(data.futureAppointmentsCount);
         } catch (error) {
           console.error("Erro ao verificar agendamentos:", error);
           setFutureAppointmentsCount(null); // Trata o caso de erro
@@ -66,12 +71,16 @@ export default function OwnerSettingsView() {
       alert("Sua conta e estabelecimento foram excluídos com sucesso.");
       await logout();
       router.push("/");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      // Tratamos o erro como 'unknown'
       console.error("Erro ao excluir a conta do estabelecimento:", error);
-      alert(error.message || "Ocorreu um erro ao tentar excluir sua conta.");
+      // E então verificamos se é uma instância de Error para acessar 'message'
+      let errorMessage = "Ocorreu um erro ao tentar excluir sua conta.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      alert(errorMessage);
       setIsDeleting(false);
-      // Mantém o modal aberto para o usuário ver o erro, opcionalmente pode fechar:
-      // setIsDeleteModalOpen(false);
     }
   };
 
@@ -135,7 +144,7 @@ export default function OwnerSettingsView() {
                 <span>
                   <strong>Atenção:</strong> Sua conta possui{" "}
                   <strong>
-                    {futureAppointmentsCount} agendamento(s) futuro(s)
+                    {futureAppointmentsCount} agendamento(s) ativo(s) no futuro
                   </strong>{" "}
                   e não poderá ser apagada até que todos sejam concluídos ou
                   cancelados.
