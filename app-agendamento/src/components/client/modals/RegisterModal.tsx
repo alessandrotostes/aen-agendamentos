@@ -3,7 +3,14 @@
 import React, { useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { type User as FirebaseUser } from "firebase/auth";
-import { Phone, User, Mail, LockKeyhole, Building2 } from "lucide-react";
+import {
+  Phone,
+  User,
+  Mail,
+  LockKeyhole,
+  Building2,
+  FileText,
+} from "lucide-react";
 import { validationUtils } from "../../../lib/utils";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -44,7 +51,7 @@ export default function RegisterModal({
   onClose,
   onSuccess,
 }: RegisterModalProps) {
-  const { signInWithGoogle, registerWithEmail, updatePhoneNumber } = useAuth();
+  const { signInWithGoogle, registerWithEmail, updateUserProfile } = useAuth();
   const [step, setStep] = useState("register");
   const [formData, setFormData] = useState({
     firstName: "",
@@ -52,6 +59,7 @@ export default function RegisterModal({
     email: "",
     phone: "",
     password: "",
+    cpf: "",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -59,28 +67,15 @@ export default function RegisterModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let formattedValue = value;
+
     if (name === "phone") {
-      const numbers = value.replace(/\D/g, "").slice(0, 11);
-      let formattedPhone = numbers;
-      if (numbers.length > 10) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
-          2,
-          7
-        )}-${numbers.slice(7)}`;
-      } else if (numbers.length > 6) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
-          2,
-          6
-        )}-${numbers.slice(6)}`;
-      } else if (numbers.length > 2) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-      } else if (numbers.length > 0) {
-        formattedPhone = `(${numbers}`;
-      }
-      setFormData((prev) => ({ ...prev, [name]: formattedPhone }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      formattedValue = validationUtils.formatPhone(value);
+    } else if (name === "cpf") {
+      formattedValue = validationUtils.formatCPF(value);
     }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (error) setError("");
   };
 
@@ -111,9 +106,11 @@ export default function RegisterModal({
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validationUtils.isValidPhone(formData.phone)) {
-      setError(
-        "Por favor, insira um número de telefone válido no formato (XX) XXXXX-XXXX."
-      );
+      setError("Por favor, insira um número de telefone válido.");
+      return;
+    }
+    if (!validationUtils.isValidCPF(formData.cpf)) {
+      setError("Por favor, insira um CPF válido.");
       return;
     }
     if (formData.password.length < 6) {
@@ -127,6 +124,7 @@ export default function RegisterModal({
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
+        cpf: formData.cpf,
       });
       onSuccess();
     } catch (err: unknown) {
@@ -140,25 +138,31 @@ export default function RegisterModal({
     }
   };
 
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  const handleCompleteGoogleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validationUtils.isValidPhone(formData.phone)) {
-      setError(
-        "Por favor, insira um número de telefone válido no formato (XX) XXXXX-XXXX."
-      );
+      setError("Por favor, insira um número de telefone válido.");
+      return;
+    }
+    if (!validationUtils.isValidCPF(formData.cpf)) {
+      setError("Por favor, insira um CPF válido.");
       return;
     }
     if (!googleUser) return;
+
     setError("");
     setIsLoading(true);
     try {
-      await updatePhoneNumber(googleUser.uid, formData.phone);
+      await updateUserProfile(googleUser.uid, {
+        phone: formData.phone,
+        cpf: formData.cpf,
+      });
       onSuccess();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Não foi possível atualizar o telefone.");
+        setError("Não foi possível salvar os dados.");
       }
     } finally {
       setIsLoading(false);
@@ -242,6 +246,7 @@ export default function RegisterModal({
                 </div>
                 {renderInput("email", "email", "E-mail", Mail)}
                 {renderInput("phone", "tel", "Telefone (WhatsApp)", Phone)}
+                {renderInput("cpf", "tel", "CPF", FileText)}
                 {renderInput(
                   "password",
                   "password",
@@ -268,10 +273,14 @@ export default function RegisterModal({
               Só mais um passo!
             </h3>
             <p className="text-center text-gray-500 text-sm mt-1">
-              Bem-vindo(a)! Precisamos do seu telefone para o agendamento.
+              Bem-vindo(a)! Precisamos de mais algumas informações.
             </p>
-            <form onSubmit={handlePhoneSubmit} className="space-y-4 mt-6">
+            <form
+              onSubmit={handleCompleteGoogleSignUp}
+              className="space-y-4 mt-6"
+            >
               {renderInput("phone", "tel", "Seu Telefone (WhatsApp)", Phone)}
+              {renderInput("cpf", "tel", "CPF", FileText)}
               {error && (
                 <p className="text-red-500 text-xs text-center">{error}</p>
               )}

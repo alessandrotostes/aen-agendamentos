@@ -44,6 +44,7 @@ export interface RegisterFormData {
   imageFile?: File | null;
 }
 
+// Alteração 1: Atualizar a assinatura da função 'registerWithEmail' na interface
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: AuthUser | null;
@@ -53,7 +54,12 @@ interface AuthContextType {
   registerWithEmail: (
     email: string,
     password: string,
-    additionalData: { firstName: string; lastName: string; phone: string }
+    additionalData: {
+      firstName: string;
+      lastName: string;
+      phone: string;
+      cpf: string; // Adicionado
+    }
   ) => Promise<FirebaseUser>;
   signInWithGoogle: () => Promise<{ user: FirebaseUser; isNewUser: boolean }>;
   updatePhoneNumber: (uid: string, phone: string) => Promise<void>;
@@ -113,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await user.getIdToken(true);
 
     const createdAt = serverTimestamp();
-    // Construir o documento do usuário
     const newUserBase: Omit<AuthUser, "createdAt" | "uid"> = {
       firstName: data.firstName,
       lastName: data.lastName,
@@ -123,7 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       termsAccepted: false,
     };
 
-    // E então adicionamos as propriedades opcionais de forma segura
     const newUser = { ...newUserBase };
     if (data.role === "client" && data.cpf) {
       (newUser as AuthUser).cpf = data.cpf;
@@ -131,7 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await setDoc(doc(db, "users", uid), { ...newUser, uid, createdAt });
 
-    // Construir o documento do estabelecimento se for owner
     if (data.role === "owner") {
       let imageURL = "";
       if (data.imageFile) {
@@ -186,10 +189,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
+  // Alteração 2: Atualizar a função para aceitar e salvar o CPF
   async function registerWithEmail(
     email: string,
     password: string,
-    additionalData: { firstName: string; lastName: string; phone: string }
+    additionalData: {
+      firstName: string;
+      lastName: string;
+      phone: string;
+      cpf: string; // Adicionado
+    }
   ): Promise<FirebaseUser> {
     setAuthLoading(true);
     const userCredential = await createUserWithEmailAndPassword(
@@ -205,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: additionalData.firstName,
       lastName: additionalData.lastName,
       phone: additionalData.phone,
+      cpf: additionalData.cpf, // Adicionado
       termsAccepted: false,
       createdAt: serverTimestamp(),
     });
@@ -229,7 +239,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: "client",
         firstName: firstName || "",
         lastName: lastNameParts.join(" ") || "",
-        phone: "",
+        phone: "", // Deixamos em branco para ser preenchido no próximo passo
+        cpf: "", // Deixamos em branco para ser preenchido no próximo passo
         termsAccepted: false,
         createdAt: serverTimestamp(),
       });
@@ -238,11 +249,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user, isNewUser: false };
   }
 
+  // A função `updatePhoneNumber` não é mais necessária, pois `updateUserProfile` é mais versátil.
+  // Pode ser removida se não for usada em mais nenhum lugar.
   async function updatePhoneNumber(uid: string, phone: string): Promise<void> {
     const userDocRef = doc(db, "users", uid);
     await updateDoc(userDocRef, { phone: phone });
   }
 
+  // A função updateUserProfile já está perfeita para o que precisamos.
+  // Ela pode receber tanto o 'phone' quanto o 'cpf' para completar o cadastro via Google.
   async function updateUserProfile(
     uid: string,
     data: Partial<AuthUser>
