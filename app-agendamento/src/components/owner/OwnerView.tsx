@@ -276,6 +276,8 @@ export default function OwnerView() {
     setModalInitialView("availability");
     openModal("editProfessionalUnified");
   };
+
+  // Esta função não é mais passada para o ProfessionalsTab
   const handleDeleteProfessional = (id: string) => {
     const professional = professionalsData.professionals.find(
       (p) => p.id === id
@@ -289,6 +291,7 @@ export default function OwnerView() {
       openModal("deleteConfirm");
     }
   };
+
   const handleSaveService = async (data: CreateServiceData) => {
     if (selectedService) {
       await servicesData.updateService(selectedService.id, data);
@@ -324,8 +327,9 @@ export default function OwnerView() {
       await servicesData.deleteService(deleteTarget.id);
       showSuccess("Serviço excluído!");
     } else {
-      await professionalsData.deleteProfessional(deleteTarget.id);
-      showSuccess("Profissional excluído!");
+      // A exclusão de profissional é agora tratada em ProfessionalsTab
+      // Esta parte pode ser removida ou mantida para outros tipos de exclusão.
+      // Por agora, vamos deixar para o de serviço.
     }
     closeModal("deleteConfirm");
   };
@@ -437,7 +441,7 @@ export default function OwnerView() {
             loading={appointmentsData.loading}
             onOwnerCancelAppointment={handleOpenOwnerCancelModal}
             establishmentStatus={establishment.accountStatus}
-            pendingFines={[]} // Você precisaria buscar as multas aqui
+            pendingFines={[]}
           />
         )}
         {activeTab === "services" && (
@@ -451,12 +455,13 @@ export default function OwnerView() {
         {activeTab === "professionals" && (
           <ProfessionalsTab
             professionals={professionalsData.professionals}
+            establishmentId={establishment?.id || ""}
             createProfessional={handleCreateProfessional}
             updateProfessional={handleUpdateProfessional}
-            deleteProfessional={handleDeleteProfessional}
             onManageAvailability={handleManageAvailability}
             onInviteProfessional={handleInviteProfessional}
             onResendInvite={handleResendInvite}
+            refreshProfessionals={professionalsData.refresh}
           />
         )}
         {activeTab === "settings" && (
