@@ -80,7 +80,7 @@ export default function OwnerSettingsView() {
       await reauthenticateWithCredential(user, credential);
       setIsReauthModalOpen(false);
       setIsDeleteModalOpen(true);
-    } catch (_error) {
+    } catch {
       setReauthError("Senha incorreta. Por favor, tente novamente.");
     } finally {
       setIsDeleting(false);

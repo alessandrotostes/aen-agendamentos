@@ -283,7 +283,7 @@ export default function ClientSettingsView() {
 
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 mb-6">
-          <Settings /> Privacidade e Comunicações{" "}
+          <Settings /> Privacidade e Comunicações
           <InfoTooltip>
             Você pode cancelar a inscrição a qualquer momento. Marque ou
             desmarque esta opção para atualizar sua preferência, e depois clique
