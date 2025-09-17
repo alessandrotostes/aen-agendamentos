@@ -4,7 +4,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter, notFound } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "../../../../contexts/AuthContext";
-import RegisterModal from "../../../../components/client/modals/RegisterModal";
+// 1. A importação foi atualizada para o novo AuthModal
+import AuthModal from "../../../../components/client/modals/AuthModal";
 import { db } from "../../../../lib/firebaseConfig";
 import {
   collection,
@@ -29,8 +30,6 @@ import {
   Search,
   X,
 } from "lucide-react";
-// A importação abaixo não é mais necessária nesta página se o fluxo for apenas pelo modal
-// import CompleteProfileView from "@/components/auth/CompleteProfileView";
 
 // --- COMPONENTES INTERNOS ---
 
@@ -154,11 +153,11 @@ export default function SalonDetailPage() {
   const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  // 2. A variável de estado foi renomeada para maior clareza
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     if (!salonSlug) return;
-
     setLoading(true);
 
     const fetchSalonBySlug = async () => {
@@ -172,7 +171,6 @@ export default function SalonDetailPage() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-          console.error("Nenhum estabelecimento encontrado com este slug.");
           setSalon(null);
           return null;
         }
@@ -180,9 +178,8 @@ export default function SalonDetailPage() {
         const salonDoc = querySnapshot.docs[0];
         const salonData = {
           id: salonDoc.id,
-          ...(salonDoc.data() as Omit<Establishment, "id">),
-        };
-
+          ...salonDoc.data(),
+        } as Establishment;
         setSalon(salonData);
         return salonData.id;
       } catch (error) {
@@ -197,24 +194,18 @@ export default function SalonDetailPage() {
         query(collection(db, "establishments", salonId, "services")),
         (snapshot) =>
           setServices(
-            snapshot.docs.map((d) => ({
-              id: d.id,
-              ...(d.data() as Omit<Service, "id">),
-            }))
+            snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Service))
           )
       );
-
       const professionalsUnsub = onSnapshot(
         query(collection(db, "establishments", salonId, "professionals")),
         (snapshot) =>
           setProfessionals(
-            snapshot.docs.map((d) => ({
-              id: d.id,
-              ...(d.data() as Omit<Professional, "id">),
-            }))
+            snapshot.docs.map(
+              (d) => ({ id: d.id, ...d.data() } as Professional)
+            )
           )
       );
-
       return () => {
         servicesUnsub();
         professionalsUnsub();
@@ -222,7 +213,6 @@ export default function SalonDetailPage() {
     };
 
     let listenersUnsubscribe: (() => void) | undefined;
-
     const initializePage = async () => {
       const foundSalonId = await fetchSalonBySlug();
       if (foundSalonId) {
@@ -232,7 +222,6 @@ export default function SalonDetailPage() {
     };
 
     initializePage();
-
     return () => {
       if (listenersUnsubscribe) {
         listenersUnsubscribe();
@@ -241,8 +230,6 @@ export default function SalonDetailPage() {
   }, [salonSlug]);
 
   useEffect(() => {
-    // Este useEffect reage a mudanças e pode abrir o modal de agendamento
-    // se as condições forem atendidas (ex: após um refresh da página).
     if (
       selectedService &&
       userData &&
@@ -254,30 +241,41 @@ export default function SalonDetailPage() {
   }, [userData, selectedService, isSchedulingModalOpen]);
 
   const filteredServices = useMemo(() => {
-    if (!searchTerm) {
-      return services;
-    }
+    if (!searchTerm) return services;
     return services.filter((service) =>
       service.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [services, searchTerm]);
 
+  // 3. Lógica principal do fluxo de agendamento/autenticação
   const handleServiceClick = (service: Service) => {
     setSelectedService(service);
+    // Se o usuário está logado e completo, abre o agendamento
     if (userData && userData.profileStatus === "complete") {
       setIsSchedulingModalOpen(true);
     } else {
-      setIsRegisterModalOpen(true);
+      // Caso contrário, abre o modal de autenticação (login/registo)
+      setIsAuthModalOpen(true);
+    }
+  };
+  //Função para lidar com o clique de voltar
+  const handleBackClick = () => {
+    // Verificamos se há mais de uma página no histórico da aba do navegador.
+    // Usamos "> 2" como uma margem de segurança para garantir que há um "voltar" real.
+    if (window.history.length > 2) {
+      router.back(); // Se houver histórico, simplesmente volte.
+    } else {
+      router.push("/client"); // Se não houver, leve para a página principal do cliente.
     }
   };
 
-  const onRegisterSuccess = async () => {
-    setIsRegisterModalOpen(false);
+  // 4. Função de sucesso renomeada para refletir a autenticação
+  const onAuthSuccess = async () => {
+    setIsAuthModalOpen(false); // Fecha o modal de autenticação
     try {
       await refreshUserData();
-      // O useEffect acima irá capturar a mudança no `userData`
-      // e abrir o modal de agendamento se um serviço estiver selecionado.
-      // Para uma experiência mais imediata, também podemos acioná-lo aqui.
+      // Após o sucesso do login/registo, se houver um serviço selecionado,
+      // o useEffect acima ou esta verificação direta abrirá o modal de agendamento.
       if (selectedService) {
         setIsSchedulingModalOpen(true);
       }
@@ -289,17 +287,6 @@ export default function SalonDetailPage() {
   if (authLoading || loading) {
     return <SalonPageSkeleton />;
   }
-
-  // ==================================================================
-  // BLOCO DE CÓDIGO REMOVIDO
-  // A lógica abaixo estava a causar o conflito, renderizando
-  // o CompleteProfileView e interrompendo o fluxo do RegisterModal.
-  /*
-  if (userData && userData.profileStatus === "incomplete") {
-    return <CompleteProfileView />;
-  }
-  */
-  // ==================================================================
 
   if (!salon) {
     return notFound();
@@ -321,14 +308,14 @@ export default function SalonDetailPage() {
             src={imageSrc}
             alt={`Imagem de ${salon.name}`}
             fill
-            className="object-cover bg-slate-800"
+            className="object-contain bg-slate-800"
             sizes="100vw"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute top-4 left-4 z-10">
             <button
-              onClick={() => router.back()}
+              onClick={handleBackClick} // Use a nova função aqui
               className="bg-white/80 backdrop-blur-sm text-slate-800 p-2 rounded-full hover:bg-white transition-all shadow-md"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -476,10 +463,11 @@ export default function SalonDetailPage() {
         />
       )}
 
-      <RegisterModal
-        isOpen={isRegisterModalOpen}
-        onClose={() => setIsRegisterModalOpen(false)}
-        onSuccess={onRegisterSuccess}
+      {/* 5. O novo AuthModal é renderizado com os estados e funções corretos */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={onAuthSuccess}
       />
     </div>
   );

@@ -21,6 +21,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     height="24px"
     {...props}
   >
+    {/* ... (código do ícone do Google permanece o mesmo) ... */}
     <path
       fill="#FFC107"
       d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
@@ -40,19 +41,22 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-interface RegisterModalProps {
+interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function RegisterModal({
+export default function AuthModal({
   isOpen,
   onClose,
   onSuccess,
-}: RegisterModalProps) {
-  const { signInWithGoogle, registerWithEmail, updateUserProfile } = useAuth();
-  const [step, setStep] = useState("register");
+}: AuthModalProps) {
+  const { login, signInWithGoogle, registerWithEmail, updateUserProfile } =
+    useAuth();
+  const [view, setView] = useState<"login" | "register" | "complete_google">(
+    "login"
+  );
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -68,15 +72,24 @@ export default function RegisterModal({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     let formattedValue = value;
-
-    if (name === "phone") {
-      formattedValue = validationUtils.formatPhone(value);
-    } else if (name === "cpf") {
-      formattedValue = validationUtils.formatCPF(value);
-    }
-
+    if (name === "phone") formattedValue = validationUtils.formatPhone(value);
+    if (name === "cpf") formattedValue = validationUtils.formatCPF(value);
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (error) setError("");
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+    try {
+      await login(formData.email, formData.password);
+      onSuccess();
+    } catch (err) {
+      setError("E-mail ou senha inválidos. Por favor, tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -86,16 +99,15 @@ export default function RegisterModal({
       const { user, isNewUser } = await signInWithGoogle();
       if (isNewUser) {
         setGoogleUser(user);
-        setStep("phone_number");
+        setView("complete_google");
       } else {
         onSuccess();
       }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        if (!err.message.includes("popup-closed-by-user")) {
-          setError(err.message);
-        }
-      } else {
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        !err.message.includes("popup-closed-by-user")
+      ) {
         setError("Falha ao entrar com Google.");
       }
     } finally {
@@ -105,12 +117,11 @@ export default function RegisterModal({
 
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validationUtils.isValidPhone(formData.phone)) {
-      setError("Por favor, insira um número de telefone válido.");
-      return;
-    }
-    if (!validationUtils.isValidCPF(formData.cpf)) {
-      setError("Por favor, insira um CPF válido.");
+    if (
+      !validationUtils.isValidPhone(formData.phone) ||
+      !validationUtils.isValidCPF(formData.cpf)
+    ) {
+      setError("Por favor, preencha um telefone e CPF válidos.");
       return;
     }
     if (formData.password.length < 6) {
@@ -127,12 +138,10 @@ export default function RegisterModal({
         cpf: formData.cpf,
       });
       onSuccess();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Não foi possível criar a conta.");
-      }
+    } catch (err) {
+      setError(
+        "Não foi possível criar a conta. O e-mail pode já estar em uso."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -140,24 +149,14 @@ export default function RegisterModal({
 
   const handleCompleteGoogleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!googleUser) {
-      setError(
-        "Ocorreu um erro de sessão. Por favor, feche este aviso e tente fazer o login novamente."
-      );
-      setIsLoading(false);
+    if (
+      !googleUser ||
+      !validationUtils.isValidPhone(formData.phone) ||
+      !validationUtils.isValidCPF(formData.cpf)
+    ) {
+      setError("Por favor, preencha um telefone e CPF válidos.");
       return;
     }
-
-    if (!validationUtils.isValidPhone(formData.phone)) {
-      setError("Por favor, insira um número de telefone válido.");
-      return;
-    }
-    if (!validationUtils.isValidCPF(formData.cpf)) {
-      setError("Por favor, insira um CPF válido.");
-      return;
-    }
-
     setError("");
     setIsLoading(true);
     try {
@@ -166,16 +165,10 @@ export default function RegisterModal({
         cpf: formData.cpf,
         profileStatus: "complete",
       });
-
       onSuccess();
-    } catch (err: unknown) {
-      // É uma boa prática manter um log de erro para depuração futura
-      console.error("RegisterModal: Erro ao atualizar o perfil", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Não foi possível salvar os dados.");
-      }
+    } catch (err) {
+      console.error("AuthModal: Erro ao completar perfil do Google", err);
+      setError("Não foi possível salvar os seus dados.");
     } finally {
       setIsLoading(false);
     }
@@ -187,8 +180,7 @@ export default function RegisterModal({
     name: keyof typeof formData,
     type: string,
     placeholder: string,
-    Icon: React.ElementType,
-    required = true
+    Icon: React.ElementType
   ) => (
     <div className="relative">
       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -200,7 +192,7 @@ export default function RegisterModal({
         onChange={handleInputChange}
         value={formData[name]}
         placeholder={placeholder}
-        required={required}
+        required
         className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-3 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-teal-600"
       />
     </div>
@@ -212,7 +204,7 @@ export default function RegisterModal({
       onClick={onClose}
     >
       <div
-        className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full relative transform transition-all"
+        className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full relative"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -221,50 +213,39 @@ export default function RegisterModal({
         >
           &times;
         </button>
-        {step === "register" && (
+
+        {view === "login" && (
           <div>
             <h3 className="text-2xl font-bold text-gray-800 text-center">
-              Crie uma conta para continuar
+              Entre para continuar
             </h3>
             <p className="text-center text-gray-500 text-sm mt-1">
-              É rápido e fácil!
+              Bem-vindo(a) de volta!
             </p>
             <div className="my-6 space-y-4">
               <button
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 <GoogleIcon />
                 <span className="font-semibold text-gray-700">
                   Continuar com Google
                 </span>
               </button>
+              {/* Divisor */}
               <div className="relative">
-                <div
-                  className="absolute inset-0 flex items-center"
-                  aria-hidden="true"
-                >
+                <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="bg-white px-2 text-gray-500">ou</span>
                 </div>
               </div>
-              <form onSubmit={handleEmailRegister} className="space-y-3">
-                <div className="flex gap-3">
-                  {renderInput("firstName", "text", "Nome", User)}
-                  {renderInput("lastName", "text", "Sobrenome", Building2)}
-                </div>
+
+              <form onSubmit={handleEmailLogin} className="space-y-3">
                 {renderInput("email", "email", "E-mail", Mail)}
-                {renderInput("phone", "tel", "Telefone (WhatsApp)", Phone)}
-                {renderInput("cpf", "tel", "CPF", FileText)}
-                {renderInput(
-                  "password",
-                  "password",
-                  "Crie uma senha",
-                  LockKeyhole
-                )}
+                {renderInput("password", "password", "Senha", LockKeyhole)}
                 {error && (
                   <p className="text-red-500 text-xs text-center">{error}</p>
                 )}
@@ -273,19 +254,74 @@ export default function RegisterModal({
                   disabled={isLoading}
                   className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
                 >
-                  {isLoading ? "Criando..." : "Criar Conta"}
+                  {isLoading ? "Entrando..." : "Entrar"}
                 </button>
               </form>
+              <p className="text-center text-sm text-gray-600">
+                Não tem uma conta?{" "}
+                <button
+                  onClick={() => setView("register")}
+                  className="font-semibold text-indigo-600 hover:underline"
+                >
+                  Crie uma agora
+                </button>
+              </p>
             </div>
           </div>
         )}
-        {step === "phone_number" && (
+
+        {view === "register" && (
+          <div>
+            <h3 className="text-2xl font-bold text-gray-800 text-center">
+              Crie uma conta para continuar
+            </h3>
+            <p className="text-center text-gray-500 text-sm mt-1">
+              É rápido e fácil!
+            </p>
+            <form onSubmit={handleEmailRegister} className="space-y-3 mt-6">
+              <div className="flex gap-3">
+                {renderInput("firstName", "text", "Nome", User)}
+                {renderInput("lastName", "text", "Sobrenome", Building2)}
+              </div>
+              {renderInput("email", "email", "E-mail", Mail)}
+              {renderInput("phone", "tel", "Telefone (WhatsApp)", Phone)}
+              {renderInput("cpf", "tel", "CPF", FileText)}
+              {renderInput(
+                "password",
+                "password",
+                "Crie uma senha",
+                LockKeyhole
+              )}
+              {error && (
+                <p className="text-red-500 text-xs text-center">{error}</p>
+              )}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
+              >
+                {isLoading ? "Criando..." : "Criar Conta"}
+              </button>
+            </form>
+            <p className="text-center text-sm text-gray-600 mt-4">
+              Já tem uma conta?{" "}
+              <button
+                onClick={() => setView("login")}
+                className="font-semibold text-indigo-600 hover:underline"
+              >
+                Entre aqui
+              </button>
+            </p>
+          </div>
+        )}
+
+        {view === "complete_google" && (
           <div>
             <h3 className="text-2xl font-bold text-gray-800 text-center">
               Só mais um passo!
             </h3>
             <p className="text-center text-gray-500 text-sm mt-1">
-              Bem-vindo(a)! Precisamos de mais algumas informações.
+              Complete seu cadastro para continuar.
             </p>
             <form
               onSubmit={handleCompleteGoogleSignUp}
@@ -299,7 +335,7 @@ export default function RegisterModal({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
+                className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
                 {isLoading ? "Salvando..." : "Salvar e Continuar"}
               </button>
