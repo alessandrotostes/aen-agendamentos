@@ -288,6 +288,7 @@ export default function OwnerView() {
     closeModal("editService");
   };
   const handleSaveProfessional = async (data: UnifiedProfessionalData) => {
+    data.name = data.firstName;
     if (selectedProfessional) {
       await professionalsData.updateProfessional(selectedProfessional.id, data);
       showSuccess("Profissional atualizado!");
@@ -295,6 +296,8 @@ export default function OwnerView() {
       await professionalsData.createProfessional(data);
       showSuccess("Profissional criado!");
     }
+
+    await professionalsData.refresh();
     closeModal("editProfessionalUnified");
   };
   const handleSaveEstablishment = async (data: UpdateEstablishmentData) => {

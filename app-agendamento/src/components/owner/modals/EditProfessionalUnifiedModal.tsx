@@ -369,17 +369,19 @@ export default function EditProfessionalUnifiedModal({
                         />
                         {(formData.imageFile || formData.photoURL) && (
                           <div className="mt-2">
-                            <Image
-                              src={
-                                formData.imageFile
-                                  ? URL.createObjectURL(formData.imageFile)
-                                  : formData.photoURL!
-                              }
-                              alt="Preview"
-                              width={60}
-                              height={60}
-                              className="rounded-full object-cover"
-                            />
+                            {/* Este div pai agora controla o tamanho (w-16 h-16 => 64x64 pixels) e a forma (rounded-full) */}
+                            <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                              <Image
+                                src={
+                                  formData.imageFile
+                                    ? URL.createObjectURL(formData.imageFile)
+                                    : formData.photoURL!
+                                }
+                                alt="Preview"
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>

@@ -85,7 +85,7 @@ export default function AuthModal({
     try {
       await login(formData.email, formData.password);
       onSuccess();
-    } catch (err) {
+    } catch {
       setError("E-mail ou senha inválidos. Por favor, tente novamente.");
     } finally {
       setIsLoading(false);
@@ -138,7 +138,7 @@ export default function AuthModal({
         cpf: formData.cpf,
       });
       onSuccess();
-    } catch (err) {
+    } catch {
       setError(
         "Não foi possível criar a conta. O e-mail pode já estar em uso."
       );
