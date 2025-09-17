@@ -356,7 +356,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      handleTestLogin("aenteste@gmail.com", "aenteste123")
+                      handleTestLogin("aenteste@gmail.com", "@Aenteste123")
                     }
                     disabled={loading}
                     className="sm:col-span-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
