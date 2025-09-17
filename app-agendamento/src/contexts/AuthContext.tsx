@@ -224,13 +224,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: FirebaseUser;
     isNewUser: boolean;
   }> {
-    setAuthLoading(true);
+    // REMOVIDO: setAuthLoading(true); -> O listener global já trata disto.
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
+
     const userDocRef = doc(db, "users", user.uid);
     const userDoc = await getDoc(userDocRef);
+
+    let isNew = false;
     if (!userDoc.exists()) {
+      isNew = true;
       const [firstName, ...lastNameParts] = (user.displayName || "").split(" ");
       await setDoc(userDocRef, {
         uid: user.uid,
@@ -241,12 +245,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: "",
         cpf: "",
         termsAccepted: false,
-        profileStatus: "incomplete", // Cadastro via Google é incompleto inicialmente
+        profileStatus: "incomplete",
         createdAt: serverTimestamp(),
       });
-      return { user, isNewUser: true };
     }
-    return { user, isNewUser: false };
+
+    // ADICIONADO: Força a atualização do estado userData em toda a aplicação imediatamente.
+    await refreshUserData();
+
+    return { user, isNewUser: isNew };
   }
 
   async function updatePhoneNumber(uid: string, phone: string): Promise<void> {

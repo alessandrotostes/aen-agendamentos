@@ -140,6 +140,15 @@ export default function RegisterModal({
 
   const handleCompleteGoogleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!googleUser) {
+      setError(
+        "Ocorreu um erro de sessão. Por favor, feche este aviso e tente fazer o login novamente."
+      );
+      setIsLoading(false);
+      return;
+    }
+
     if (!validationUtils.isValidPhone(formData.phone)) {
       setError("Por favor, insira um número de telefone válido.");
       return;
@@ -148,7 +157,6 @@ export default function RegisterModal({
       setError("Por favor, insira um CPF válido.");
       return;
     }
-    if (!googleUser) return;
 
     setError("");
     setIsLoading(true);
@@ -156,9 +164,13 @@ export default function RegisterModal({
       await updateUserProfile(googleUser.uid, {
         phone: formData.phone,
         cpf: formData.cpf,
+        profileStatus: "complete",
       });
+
       onSuccess();
     } catch (err: unknown) {
+      // É uma boa prática manter um log de erro para depuração futura
+      console.error("RegisterModal: Erro ao atualizar o perfil", err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -287,7 +299,7 @@ export default function RegisterModal({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
+                className="w-full bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
                 {isLoading ? "Salvando..." : "Salvar e Continuar"}
               </button>

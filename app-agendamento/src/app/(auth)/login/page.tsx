@@ -13,6 +13,7 @@ import {
   Building,
   User,
   Briefcase,
+  FileText, // Importar o ícone para o CPF
 } from "lucide-react";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { AuthUser } from "../../../types";
@@ -49,43 +50,31 @@ export default function LoginPage() {
     email: "",
     password: "",
     phone: "",
+    cpf: "", // Adicionado CPF ao estado do formulário
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // ALTERAÇÃO 1: Importar a função 'refreshUserData'
-  const { login, signInWithGoogle, updatePhoneNumber, refreshUserData } =
+  const { login, signInWithGoogle, updateUserProfile, refreshUserData } =
     useAuth();
 
-  const [step, setStep] = useState<"login" | "phone_number">("login");
+  const [step, setStep] = useState<"login" | "complete_profile">("login"); // Renomeado o passo
   const [googleUser, setGoogleUser] = useState<FirebaseUser | null>(null);
   const [showTestLogins, setShowTestLogins] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let formattedValue = value;
+
+    // Adicionado formatador para CPF
     if (name === "phone") {
-      const numbers = value.replace(/\D/g, "").slice(0, 11);
-      let formattedPhone = numbers;
-      if (numbers.length > 10) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
-          2,
-          7
-        )}-${numbers.slice(7)}`;
-      } else if (numbers.length > 6) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(
-          2,
-          6
-        )}-${numbers.slice(6)}`;
-      } else if (numbers.length > 2) {
-        formattedPhone = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-      } else if (numbers.length > 0) {
-        formattedPhone = `(${numbers}`;
-      }
-      setFormData((prev) => ({ ...prev, [name]: formattedPhone }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      formattedValue = validationUtils.formatPhone(value);
+    } else if (name === "cpf") {
+      formattedValue = validationUtils.formatCPF(value);
     }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (error) setError("");
   };
 
@@ -128,14 +117,16 @@ export default function LoginPage() {
       const { user, isNewUser } = await signInWithGoogle();
       if (isNewUser) {
         setGoogleUser(user);
-        setStep("phone_number");
+        setStep("complete_profile"); // Atualizado para o novo passo
       } else {
-        const tempUserData = {
-          uid: user.uid,
-          email: user.email || "",
-          role: "client",
-        } as AuthUser;
-        handleRedirect(tempUserData);
+        // Para usuários existentes, precisamos dos dados completos para o redirecionamento
+        const freshUserData = await refreshUserData();
+        if (freshUserData) {
+          handleRedirect(freshUserData);
+        } else {
+          // Fallback caso o refresh falhe
+          router.push("/client");
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -150,12 +141,16 @@ export default function LoginPage() {
     }
   };
 
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  // Função renomeada e atualizada para lidar com telefone e CPF
+  const handleProfileCompleteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validationUtils.isValidPhone(formData.phone)) {
-      setError(
-        "Por favor, insira um número de telefone válido no formato (XX) XXXXX-XXXX."
-      );
+      setError("Por favor, insira um número de telefone válido.");
+      return;
+    }
+    // Adicionada validação de CPF
+    if (!validationUtils.isValidCPF(formData.cpf)) {
+      setError("Por favor, insira um CPF válido.");
       return;
     }
     if (!googleUser) return;
@@ -164,22 +159,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Atualiza o banco de dados
-      await updatePhoneNumber(googleUser.uid, formData.phone);
+      // Usando updateUserProfile para salvar todos os dados de uma vez
+      await updateUserProfile(googleUser.uid, {
+        phone: formData.phone,
+        cpf: formData.cpf,
+        profileStatus: "complete",
+      });
 
-      // 2. ESPERA pela atualização do contexto e recebe os dados frescos
       const freshUserData = await refreshUserData();
 
-      // 3. Redireciona APENAS se os dados frescos foram recebidos com sucesso
       if (freshUserData) {
         handleRedirect(freshUserData);
       } else {
-        // Se algo correr mal, manda para o login como segurança
-        router.push("/login");
+        throw new Error(
+          "Não foi possível obter os dados atualizados do usuário."
+        );
       }
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
-      else setError("Não foi possível guardar o telefone.");
+      else setError("Não foi possível guardar os seus dados.");
     } finally {
       setLoading(false);
     }
@@ -204,6 +202,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm mx-auto">
         {step === "login" ? (
           <>
+            {/* --- SEÇÃO DE LOGIN (SEM ALTERAÇÕES) --- */}
             <div className="text-center mb-8">
               <div className="inline-block p-3 bg-indigo-50 rounded-full mb-4">
                 <LockKeyhole className="w-8 h-8 text-indigo-600" />
@@ -332,10 +331,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      handleTestLogin(
-                        "aenestabelecimento@gmail.com",
-                        "aenteste123"
-                      )
+                      handleTestLogin("aenelecimento@gmail.com", "aenteste123")
                     }
                     disabled={loading}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
@@ -370,36 +366,56 @@ export default function LoginPage() {
             </div>
           </>
         ) : (
+          // --- SEÇÃO PARA COMPLETAR O PERFIL (ATUALIZADA) ---
           <div>
             <div className="text-center mb-8">
               <div className="inline-block p-3 bg-indigo-50 rounded-full mb-4">
-                <Phone className="w-8 h-8 text-indigo-600" />
+                <User className="w-8 h-8 text-indigo-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-900">
                 Só mais um passo!
               </h2>
               <p className="text-center text-gray-500 text-sm mt-1">
-                Precisamos do seu telefone para concluir o seu registo.
+                Complete seu cadastro para continuar.
               </p>
             </div>
-            <form onSubmit={handlePhoneSubmit} className="space-y-4 mt-6">
-              <input
-                name="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Seu Telefone (WhatsApp)"
-                required
-                autoFocus
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-              />
+            <form
+              onSubmit={handleProfileCompleteSubmit}
+              className="space-y-4 mt-6"
+            >
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Seu Telefone (WhatsApp)"
+                  required
+                  autoFocus
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="relative">
+                <FileText className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  name="cpf"
+                  type="tel"
+                  value={formData.cpf}
+                  onChange={handleChange}
+                  placeholder="Seu CPF"
+                  required
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
               {error && (
                 <p className="text-red-500 text-xs text-center">{error}</p>
               )}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
+                className="w-full bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 disabled:bg-teal-400"
               >
                 {loading ? "Salvando..." : "Salvar e Continuar"}
               </button>

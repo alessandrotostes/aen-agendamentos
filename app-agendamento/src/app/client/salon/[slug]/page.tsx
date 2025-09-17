@@ -29,8 +29,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import CompleteProfileView from "@/components/auth/CompleteProfileView";
-import LoadingSpinner from "@/components/owner/common/LoadingSpinner";
+// A importação abaixo não é mais necessária nesta página se o fluxo for apenas pelo modal
+// import CompleteProfileView from "@/components/auth/CompleteProfileView";
 
 // --- COMPONENTES INTERNOS ---
 
@@ -146,8 +146,7 @@ export default function SalonDetailPage() {
   const router = useRouter();
   const salonSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
 
-  const { userData, authLoading } = useAuth();
-
+  const { userData, authLoading, refreshUserData } = useAuth();
   const [salon, setSalon] = useState<Establishment | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -242,6 +241,8 @@ export default function SalonDetailPage() {
   }, [salonSlug]);
 
   useEffect(() => {
+    // Este useEffect reage a mudanças e pode abrir o modal de agendamento
+    // se as condições forem atendidas (ex: após um refresh da página).
     if (
       selectedService &&
       userData &&
@@ -270,17 +271,35 @@ export default function SalonDetailPage() {
     }
   };
 
-  const onRegisterSuccess = () => {
+  const onRegisterSuccess = async () => {
     setIsRegisterModalOpen(false);
+    try {
+      await refreshUserData();
+      // O useEffect acima irá capturar a mudança no `userData`
+      // e abrir o modal de agendamento se um serviço estiver selecionado.
+      // Para uma experiência mais imediata, também podemos acioná-lo aqui.
+      if (selectedService) {
+        setIsSchedulingModalOpen(true);
+      }
+    } catch (error) {
+      console.error("ERRO ao executar refreshUserData:", error);
+    }
   };
 
   if (authLoading || loading) {
     return <SalonPageSkeleton />;
   }
 
+  // ==================================================================
+  // BLOCO DE CÓDIGO REMOVIDO
+  // A lógica abaixo estava a causar o conflito, renderizando
+  // o CompleteProfileView e interrompendo o fluxo do RegisterModal.
+  /*
   if (userData && userData.profileStatus === "incomplete") {
     return <CompleteProfileView />;
   }
+  */
+  // ==================================================================
 
   if (!salon) {
     return notFound();
@@ -296,7 +315,6 @@ export default function SalonDetailPage() {
   return (
     <div className="bg-slate-50 min-h-screen relative overflow-hidden">
       <div className="absolute top-0 left-0 -translate-x-1/4 -translate-y-1/2 w-[150vw] h-[100vh] bg-gradient-to-br from-teal-100 via-white to-white rounded-full opacity-50" />
-
       <main className="max-w-6xl mx-auto pb-12 z-10 relative">
         <div className="relative w-full h-52 md:h-64 rounded-b-3xl overflow-hidden shadow-2xl shadow-slate-300/50">
           <Image
