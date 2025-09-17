@@ -5,6 +5,7 @@ import React, { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "../contexts/AuthContext";
 import CookieConsent from "react-cookie-consent";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Link from "next/link";
 
 // Alteração 1: Importar o SEU componente de rodapé do caminho correto
@@ -47,55 +48,57 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body
         className={`${inter.className} bg-slate-50 flex flex-col min-h-screen`}
       >
-        <AuthProvider>
-          {/* A tag <main> ocupa o espaço disponível */}
-          <main className="flex-grow">{children}</main>
+        <ErrorBoundary>
+          <AuthProvider>
+            {/* A tag <main> ocupa o espaço disponível */}
+            <main className="flex-grow">{children}</main>
 
-          {/* Alteração 4: Adicionar o SEU componente Footer aqui */}
-          <Footer />
+            {/* Alteração 4: Adicionar o SEU componente Footer aqui */}
+            <Footer />
 
-          {/* O CookieConsent pode ficar logo após o footer */}
-          <CookieConsent
-            location="bottom"
-            buttonText="Eu aceito"
-            cookieName="aenAgendamentosCookieConsent"
-            style={{
-              background: "linear-gradient(to right, #1f2937, #111827)",
-              color: "#f3f4f6",
-              fontSize: "14px",
-              boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-              zIndex: 9999,
-            }}
-            buttonStyle={{
-              background: "#14b8a6",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: "600",
-              borderRadius: "8px",
-              padding: "10px 15px",
-            }}
-            expires={150}
-            declineButtonText="Eu recuso"
-            enableDeclineButton
-            declineButtonStyle={{
-              background: "#4b5563",
-              color: "#f3f4f6",
-              fontSize: "14px",
-              borderRadius: "8px",
-              padding: "10px 15px",
-            }}
-          >
-            Nós utilizamos cookies para melhorar a sua experiência no nosso
-            site. Ao continuar a navegar, você concorda com a nossa{" "}
-            <Link
-              href="/politica-de-privacidade"
-              className="font-bold text-teal-400 hover:underline"
+            {/* O CookieConsent pode ficar logo após o footer */}
+            <CookieConsent
+              location="bottom"
+              buttonText="Eu aceito"
+              cookieName="aenAgendamentosCookieConsent"
+              style={{
+                background: "linear-gradient(to right, #1f2937, #111827)",
+                color: "#f3f4f6",
+                fontSize: "14px",
+                boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+                zIndex: 9999,
+              }}
+              buttonStyle={{
+                background: "#14b8a6",
+                color: "white",
+                fontSize: "14px",
+                fontWeight: "600",
+                borderRadius: "8px",
+                padding: "10px 15px",
+              }}
+              expires={150}
+              declineButtonText="Eu recuso"
+              enableDeclineButton
+              declineButtonStyle={{
+                background: "#4b5563",
+                color: "#f3f4f6",
+                fontSize: "14px",
+                borderRadius: "8px",
+                padding: "10px 15px",
+              }}
             >
-              Política de Privacidade
-            </Link>
-            .
-          </CookieConsent>
-        </AuthProvider>
+              Nós utilizamos cookies para melhorar a sua experiência no nosso
+              site. Ao continuar a navegar, você concorda com a nossa{" "}
+              <Link
+                href="/politica-de-privacidade"
+                className="font-bold text-teal-400 hover:underline"
+              >
+                Política de Privacidade
+              </Link>
+              .
+            </CookieConsent>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

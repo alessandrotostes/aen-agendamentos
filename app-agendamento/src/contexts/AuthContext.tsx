@@ -97,7 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        console.error("AuthContext: Falha ao desinscrever o listener.", error);
+      }
+    };
   }, []);
 
   async function register(data: RegisterFormData): Promise<AuthUser> {
