@@ -163,7 +163,7 @@ export const termsContent: LegalContent = {
     {
       title: "11. CONTATO",
       content: [
-        "E-mail: aensuporte@gmail.com",
+        "E-mail: suporte@aenagendamentos.com.br",
         "Telefone: (16) 99764-3604",
         "Endereço: Rua Marcos Markarian, 565, Nova Aliança, Ribeirão Preto - SP, CEP 14026-583",
       ],
@@ -196,7 +196,7 @@ export const privacyPolicyContent: LegalContent = {
             "Razão Social: TS Desenvolvimentos",
             "CNPJ: 50.711.059/0001-66",
             "Endereço: Rua Marcos Markarian, 565, Nova Aliança, Ribeirão Preto - SP, CEP 14026-583",
-            "E-mail para questões de privacidade: privacidade@anagendamentos.com.br",
+            "E-mail para questões de privacidade: suporte@anagendamentos.com.br",
           ],
         },
       ],
@@ -458,7 +458,7 @@ export const privacyPolicyContent: LegalContent = {
         {
           type: "list",
           items: [
-            "Encarregado de Proteção de Dados: dpo@anagendamentos.com.br",
+            "Encarregado de Proteção de Dados: suporte@anagendamentos.com.br",
             "Telefone: (16) 99764-3604",
             "Endereço: Rua Marcos Markarian, 565, Nova Aliança, Ribeirão Preto - SP, CEP 14026-583",
             "Horário de Atendimento: Segunda a sexta-feira, das 9h às 17h",
