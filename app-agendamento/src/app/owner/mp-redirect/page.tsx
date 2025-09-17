@@ -92,7 +92,7 @@ function RedirectHandler() {
           <>
             <LoadingSpinner size="lg" />
             <h2 className="text-2xl font-bold text-gray-800 mt-4">
-              Finalizando a conexão com o Mercado Pago...
+              Finalizando conexão com o Mercado Pago...
             </h2>
             <p className="text-gray-600 mt-2">
               Isto pode levar alguns segundos. Por favor, não feche esta página.
