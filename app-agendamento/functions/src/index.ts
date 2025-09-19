@@ -308,6 +308,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
           quantity: 1,
           currency_id: "BRL",
           unit_price: transaction_amount,
+          category_id: "MLB124646",
         },
       ],
       payer: {
@@ -332,6 +333,11 @@ export const createMercadoPagoPreference = onCall(async (request) => {
       notification_url:
         "https://southamerica-east1-aen-agendamentos-produca-f8e06.cloudfunctions.net/mercadoPagoWebhook",
     };
+
+    logger.info(
+      "Enviando os seguintes dados para a preferência do Mercado Pago:",
+      { preferenceData: preferenceBody }
+    );
 
     const preferenceResponse = await preference.create({
       body: preferenceBody,

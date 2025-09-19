@@ -1,23 +1,29 @@
 // src/app/layout.tsx
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "../contexts/AuthContext";
 import CookieConsent from "react-cookie-consent";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Link from "next/link";
-
-// Alteração 1: Importar o SEU componente de rodapé do caminho correto
 import { Footer } from "@/components/landing/Footer";
+
+// Importa a nossa nova função para registar o Service Worker
+import { registerServiceWorker } from "./register-sw";
 
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // Este useEffect garante que o Service Worker seja registado
+  // apenas no lado do cliente e em ambiente de produção.
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
-    // Alteração 2: Adicionar a classe h-full para o flexbox funcionar corretamente
     <html lang="pt-BR" className="h-full">
       <head>
         {/* Tags essenciais para responsividade e PWA */}
@@ -29,10 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="A&N" />
-        <meta
-          name="description"
-          content="Sua plataforma de agendamentos para estabelecimentos de beleza e bem-estar."
-        />
+        <meta name="description" content="Sua plataforma de agendamentos." />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
 
@@ -44,7 +47,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         <title>A&N Agendamentos</title>
       </head>
-      {/* Alteração 3: Usar flexbox para empurrar o rodapé para baixo */}
       <body
         className={`${inter.className} bg-slate-50 flex flex-col min-h-screen`}
       >
@@ -53,10 +55,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {/* A tag <main> ocupa o espaço disponível */}
             <main className="flex-grow">{children}</main>
 
-            {/* Alteração 4: Adicionar o SEU componente Footer aqui */}
             <Footer />
 
-            {/* O CookieConsent pode ficar logo após o footer */}
             <CookieConsent
               location="bottom"
               buttonText="Eu aceito"
