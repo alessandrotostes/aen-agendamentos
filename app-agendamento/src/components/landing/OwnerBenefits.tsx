@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react"; // <--- CORREÇÃO AQUI
-import { TrendingUp, BadgeDollarSign, Globe } from "lucide-react";
+import React from "react";
+// 1. IMPORTAR O NOVO ÍCONE
+import { TrendingUp, BadgeDollarSign, Globe, BarChart3 } from "lucide-react";
 import { PricingCard } from "./PricingCard";
 
+// 2. ADICIONAR O NOVO BENEFÍCIO À LISTA
 const ownerBenefits = [
   {
     icon: <TrendingUp />,
@@ -23,6 +25,14 @@ const ownerBenefits = [
     description:
       "Ganhe uma página pública personalizada com URL amigável para divulgar seus serviços e ser encontrado por novos clientes na sua região.",
   },
+  // --- NOVO CARTÃO ADICIONADO AQUI ---
+  {
+    icon: <BarChart3 />,
+    title: "Decisões Baseadas em Dados",
+    description:
+      "Acesse relatórios completos de faturamento, serviços mais populares e horários de pico. Tome decisões inteligentes que impulsionam o crescimento do seu negócio.",
+  },
+  // ------------------------------------
 ];
 
 export const OwnerBenefits = () => (
@@ -35,15 +45,14 @@ export const OwnerBenefits = () => (
         Ferramentas poderosas para você gerenciar, crescer e simplificar a
         operação do seu estabelecimento.
       </p>
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* 3. ATUALIZAR AS CLASSES DO GRID PARA 4 COLUNAS */}
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {ownerBenefits.map((benefit) => (
           <div
             key={benefit.title}
             className="bg-slate-50 p-8 rounded-2xl shadow-lg shadow-slate-200/60 text-left border border-transparent hover:border-purple-300 transition-all duration-300 transform hover:-translate-y-2 group"
           >
-            {/* ALTERAÇÃO NA COR DE FUNDO DO ÍCONE */}
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-100 to-violet-100 mb-6 transition-all duration-300 group-hover:scale-110">
-              {/* ALTERAÇÃO NA COR DO ÍCONE */}
               {React.cloneElement(benefit.icon, {
                 className: "w-8 h-8 text-purple-600",
               })}

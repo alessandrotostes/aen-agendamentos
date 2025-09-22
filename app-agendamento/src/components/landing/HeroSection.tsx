@@ -34,8 +34,9 @@ export const HeroSection = () => (
               <div className="text-left">
                 <p className="text-lg text-indigo-700 font-semibold">None:</p>
                 <p className="text-gray-700">
-                  Nenhuma das preocupações com agendamentos perdidos ou
-                  pagamentos complicados. Nós cuidamos de tudo por você.
+                  Nenhuma preocupação com agendamentos perdidos ou dificuldade
+                  de ter insights sobre o seu negócio. Nós cuidamos disso para
+                  você.
                 </p>
               </div>
             </div>

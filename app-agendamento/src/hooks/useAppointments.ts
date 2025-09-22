@@ -9,13 +9,14 @@ import {
   where,
   onSnapshot,
   getDocs,
+  orderBy, // Importar o orderBy
 } from "firebase/firestore";
 import { Appointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../lib/firebaseConfig";
 import { errorUtils, timestampUtils } from "../lib/utils";
 
-// HOOK PARA O CLIENTE
+// HOOK PARA O CLIENTE (Sem alterações)
 export function useAppointments() {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -41,21 +42,11 @@ export function useAppointments() {
         const apps = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
         );
-
-        // =================================================================
-        // ===== CORREÇÃO APLICADA AQUI ==================================
-        // =================================================================
         const sortedApps = apps.sort((a, b) => {
-          // Se 'b' não tem data, ele vai para o fim da lista.
           if (!b.dateTime) return -1;
-          // Se 'a' não tem data, ele vai para o fim da lista.
           if (!a.dateTime) return 1;
-
-          // Se ambos têm data, ordena pela mais recente primeiro.
           return b.dateTime.toMillis() - a.dateTime.toMillis();
         });
-        // =================================================================
-
         setAppointments(sortedApps);
         setLoading(false);
       },
@@ -77,7 +68,7 @@ export function useAppointments() {
   };
 }
 
-// HOOK PARA O OWNER
+// HOOK PARA O OWNER (Sem alterações)
 export function useAppointmentsForDate(date: Date) {
   const { userData } = useAuth();
   const [appointmentsForDate, setAppointmentsForDate] = useState<Appointment[]>(
@@ -181,7 +172,67 @@ export function useAppointmentsForDate(date: Date) {
   return { appointmentsForDate, loading, error, refresh: () => {} };
 }
 
-// UTILITIES
+// =================================================================
+// ===== NOVO HOOK PARA OS RELATÓRIOS ==============================
+// =================================================================
+export function useAppointmentsForRange(startDate: Date, endDate: Date) {
+  const { userData } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userData?.uid || userData.role !== "owner" || !startDate || !endDate) {
+      setLoading(false);
+      setAppointments([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Garante que o fim do dia seja incluído na busca
+    const endOfDayEndDate = new Date(endDate);
+    endOfDayEndDate.setHours(23, 59, 59, 999);
+
+    const collectionPath = `establishments/${userData.uid}/appointments`;
+    const appointmentsRef = collection(db, collectionPath);
+
+    const q = query(
+      appointmentsRef,
+      where("dateTime", ">=", Timestamp.fromDate(startDate)),
+      where("dateTime", "<=", Timestamp.fromDate(endOfDayEndDate)),
+      orderBy("dateTime", "asc")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const appts = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Appointment[];
+
+        setAppointments(appts);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Erro ao buscar agendamentos por período:", err);
+        setError(errorUtils.getFirebaseErrorMessage(err));
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userData, startDate, endDate]);
+
+  return { appointments, loading, error };
+}
+// =================================================================
+// =================== FIM DO NOVO HOOK ============================
+// =================================================================
+
+// UTILITIES (Sem alterações)
 export const appointmentUtils = {
   filterByStatus: (
     appointments: Appointment[],
@@ -255,7 +306,7 @@ export const appointmentUtils = {
   },
 };
 
-// HOOK PARA O PROFISSIONAL
+// HOOK PARA O PROFISSIONAL (Sem alterações)
 export function useAppointmentsForProfessional(date: Date) {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);

@@ -7,6 +7,8 @@ import DashboardTab from "./DashboardTab";
 import ServicesTab from "./ServicesTab";
 import ProfessionalsTab from "./ProfessionalsTab";
 import SettingsTab from "./SettingsTab";
+// 1. Importar o novo componente de Relatórios
+import ReportsTab from "./ReportsTab";
 import ModalsManager from "./ModalsManager";
 import LoadingSpinner from "./common/LoadingSpinner";
 import OwnerCancelModal from "../shared/modals/OwnerCancelModal";
@@ -16,7 +18,11 @@ import {
   useServices,
   useProfessionals,
 } from "../../hooks/useEstablishment";
-import { useAppointmentsForDate } from "../../hooks/useAppointments";
+// 2. Importar o nosso novo hook
+import {
+  useAppointmentsForDate,
+  useAppointmentsForRange,
+} from "../../hooks/useAppointments";
 import { getApp } from "firebase/app";
 import {
   getFunctions,
@@ -32,6 +38,7 @@ import {
   LayoutGrid,
   CalendarDays,
   BriefcaseBusiness,
+  BarChart3, // 3. Importar o ícone para a nova aba
 } from "lucide-react";
 import type {
   Service,
@@ -44,6 +51,8 @@ import type {
   Appointment,
 } from "../../types";
 import InfoTooltip from "@/components/shared/InfoTooltip";
+// 4. Importar a biblioteca de manipulação de datas
+import { startOfMonth, endOfMonth } from "date-fns";
 
 type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
@@ -54,10 +63,17 @@ interface OnboardingLinkData {
 }
 
 export default function OwnerView() {
+  // 5. Adicionar 'reports' ao tipo do estado da aba ativa
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "services" | "professionals" | "settings"
+    "dashboard" | "services" | "professionals" | "settings" | "reports"
   >("dashboard");
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // 6. Adicionar estado para controlar o período dos relatórios
+  const [reportDateRange, setReportDateRange] = useState({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
 
   const [modals, setModals] = useState({
     editService: false,
@@ -98,6 +114,11 @@ export default function OwnerView() {
   const servicesData = useServices();
   const professionalsData = useProfessionals();
   const appointmentsData = useAppointmentsForDate(selectedDate);
+  // 7. Usar o novo hook para buscar os dados para os relatórios
+  const reportAppointmentsData = useAppointmentsForRange(
+    reportDateRange.from,
+    reportDateRange.to
+  );
 
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
@@ -314,12 +335,7 @@ export default function OwnerView() {
     if (deleteTarget.type === "service") {
       await servicesData.deleteService(deleteTarget.id);
       showSuccess("Serviço excluído!");
-    } else {
-      // A exclusão de profissional é agora tratada em ProfessionalsTab
-      // Esta parte pode ser removida ou mantida para outros tipos de exclusão.
-      // Por agora, vamos deixar para o de serviço.
     }
-    closeModal("deleteConfirm");
   };
   const handleShareLink = () => {
     if (!establishment?.slug) {
@@ -348,10 +364,12 @@ export default function OwnerView() {
     );
   }
 
+  // 8. Adicionar o novo item "Relatórios" à lista de navegação
   const navItems = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { key: "services", label: "Serviços", icon: ClipboardList },
     { key: "professionals", label: "Profissionais", icon: Users },
+    { key: "reports", label: "Relatórios", icon: BarChart3 },
     { key: "settings", label: "Configurações", icon: Settings },
   ] as const;
 
@@ -457,6 +475,17 @@ export default function OwnerView() {
             mpData={mpData}
             onEditEstablishment={() => openModal("editEstablishment")}
             onManageOperatingHours={() => openModal("editOperatingHours")}
+          />
+        )}
+        {/* 9. Renderizar o novo componente de relatórios */}
+        {activeTab === "reports" && (
+          <ReportsTab
+            data={reportAppointmentsData.appointments}
+            loading={reportAppointmentsData.loading}
+            dateRange={reportDateRange}
+            onDateRangeChange={setReportDateRange}
+            professionals={professionalsData.professionals}
+            services={servicesData.services}
           />
         )}
       </main>
