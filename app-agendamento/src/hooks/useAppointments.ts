@@ -9,14 +9,14 @@ import {
   where,
   onSnapshot,
   getDocs,
-  orderBy, // Importar o orderBy
+  orderBy,
 } from "firebase/firestore";
 import { Appointment } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../lib/firebaseConfig";
 import { errorUtils, timestampUtils } from "../lib/utils";
 
-// HOOK PARA O CLIENTE (Sem alterações)
+// HOOK PARA O CLIENTE (COM A CORREÇÃO DE ORDENAÇÃO)
 export function useAppointments() {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -33,7 +33,9 @@ export function useAppointments() {
     setLoading(true);
     const q = query(
       collectionGroup(db, "appointments"),
-      where("clientId", "==", userData.uid)
+      where("clientId", "==", userData.uid),
+      // ▼▼▼ ALTERAÇÃO 1: Adicionada a ordenação pela data mais próxima primeiro ▼▼▼
+      orderBy("dateTime", "asc")
     );
 
     const unsubscribe = onSnapshot(
@@ -42,12 +44,10 @@ export function useAppointments() {
         const apps = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Appointment)
         );
-        const sortedApps = apps.sort((a, b) => {
-          if (!b.dateTime) return -1;
-          if (!a.dateTime) return 1;
-          return b.dateTime.toMillis() - a.dateTime.toMillis();
-        });
-        setAppointments(sortedApps);
+
+        // ▼▼▼ ALTERAÇÃO 2: A ordenação manual foi removida daqui ▼▼▼
+        // A lista 'apps' já vem ordenada corretamente pelo Firestore.
+        setAppointments(apps);
         setLoading(false);
       },
       (err) => {
@@ -172,9 +172,7 @@ export function useAppointmentsForDate(date: Date) {
   return { appointmentsForDate, loading, error, refresh: () => {} };
 }
 
-// =================================================================
-// ===== NOVO HOOK PARA OS RELATÓRIOS ==============================
-// =================================================================
+// HOOK PARA OS RELATÓRIOS (Sem alterações)
 export function useAppointmentsForRange(startDate: Date, endDate: Date) {
   const { userData } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -191,7 +189,6 @@ export function useAppointmentsForRange(startDate: Date, endDate: Date) {
     setLoading(true);
     setError(null);
 
-    // Garante que o fim do dia seja incluído na busca
     const endOfDayEndDate = new Date(endDate);
     endOfDayEndDate.setHours(23, 59, 59, 999);
 
@@ -228,9 +225,6 @@ export function useAppointmentsForRange(startDate: Date, endDate: Date) {
 
   return { appointments, loading, error };
 }
-// =================================================================
-// =================== FIM DO NOVO HOOK ============================
-// =================================================================
 
 // UTILITIES (Sem alterações)
 export const appointmentUtils = {

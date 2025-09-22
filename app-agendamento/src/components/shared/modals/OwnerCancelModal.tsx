@@ -61,6 +61,7 @@ export default function OwnerCancelModal({
             <span className="text-sm font-semibold text-red-800">
               Entendo que esta ação é irreversível e irá reembolsar o cliente.
               <strong>
+                <br />
                 Me compremeto a informar o cliente sobre o cancelamento através
                 de ligação ou mensagem, descrevendo o motivo do cancelamento,
                 conforme as políticas de uso da plataforma.

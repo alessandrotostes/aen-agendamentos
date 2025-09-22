@@ -1091,7 +1091,7 @@ export const onEstablishmentWritten = onDocumentWritten(
   }
 );
 // ====================================================================
-// ===== ALTERAÇÃO 2: NOVA FUNÇÃO PARA MONITORAR REEMBOLSOS
+// ===== NOVA FUNÇÃO PARA MONITORAR REEMBOLSOS
 // ====================================================================
 /**
  * Corre a cada 24 horas para verificar agendamentos com reembolsos pendentes
@@ -1100,7 +1100,7 @@ export const onEstablishmentWritten = onDocumentWritten(
 export const monitorarReembolsos = onSchedule(
   "every 24 hours",
   async (event) => {
-    logger.info("A iniciar a verificação de reembolsos atrasados...");
+    logger.info("Iniciando verificação de reembolsos atrasados...");
 
     const now = new Date();
     const fiveDaysAgo = new Date(now.setDate(now.getDate() - 5));
@@ -1167,6 +1167,9 @@ export const monitorarReembolsos = onSchedule(
     // CORREÇÃO: A linha 'return null;' foi removida do final da função.
   }
 );
+// ====================================================================
+// ===== NOVA FUNÇÃO PARA LIMPAR PAGAMENTOS PENDENTES EXPIRADOS
+// ====================================================================
 export const cleanupPendingPayments = onSchedule(
   "every 24 hours",
   async (event) => {

@@ -26,8 +26,8 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CSVLink } from "react-csv";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-// Interface para as props do componente (sem alterações)
 interface ReportsTabProps {
   data: Appointment[];
   loading: boolean;
@@ -37,7 +37,6 @@ interface ReportsTabProps {
   services: Service[];
 }
 
-// Componente para os filtros (sem alterações)
 const ReportFilters = ({
   dateRange,
   onDateRangeChange,
@@ -114,6 +113,14 @@ const ReportFilters = ({
   );
 };
 
+// Função auxiliar para cortar o texto das legendas do eixo Y
+const truncateTick = (tick: string, maxLength: number) => {
+  if (tick.length > maxLength) {
+    return `${tick.substring(0, maxLength)}...`;
+  }
+  return tick;
+};
+
 export default function ReportsTab({
   data,
   loading,
@@ -122,14 +129,14 @@ export default function ReportsTab({
   professionals,
   services,
 }: ReportsTabProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const processedData = useMemo(() => {
     const confirmedAppointments = data.filter((a) => a.status === "confirmado");
-
-    // Cálculos existentes
     const totalRevenue = confirmedAppointments.reduce(
       (acc, curr) => acc + curr.price,
       0
     );
+
     const revenueByService = services
       .map((service) => ({
         name: service.name,
@@ -149,9 +156,6 @@ export default function ReportsTab({
       ([name, Agendamentos]) => ({ name, Agendamentos })
     );
 
-    // --- LÓGICA PARA OS NOVOS RELATÓRIOS ---
-
-    // 1. Faturamento por Profissional
     const revenueByProfessional = professionals
       .map((prof) => ({
         name: prof.firstName,
@@ -162,17 +166,13 @@ export default function ReportsTab({
       .filter((item) => item.Faturamento > 0)
       .sort((a, b) => b.Faturamento - a.Faturamento);
 
-    // 2. Dados para o Heatmap de Horários de Pico
     const heatmapData = confirmedAppointments.reduce((acc, curr) => {
       const date = curr.dateTime.toDate();
-      const dayOfWeek = getDay(date); // Domingo = 0, Segunda = 1, etc.
+      const dayOfWeek = getDay(date);
       const hour = getHours(date);
-
       if (!acc[dayOfWeek]) acc[dayOfWeek] = {};
       if (!acc[dayOfWeek][hour]) acc[dayOfWeek][hour] = 0;
-
       acc[dayOfWeek][hour]++;
-
       return acc;
     }, {} as Record<number, Record<number, number>>);
 
@@ -198,21 +198,29 @@ export default function ReportsTab({
     }));
   }, [data, professionals]);
 
-  if (loading) return <div>A carregar relatórios...</div>;
+  // Variáveis dinâmicas para o layout responsivo dos gráficos
+  const yAxisWidth = isMobile ? 65 : 100;
+  const chartMargin = isMobile
+    ? { top: 5, right: 20, left: 5, bottom: 20 }
+    : { top: 5, right: 30, left: 20, bottom: 20 };
+  const yAxisTickStyle = isMobile ? { fontSize: 10 } : { fontSize: 12 };
+
+  if (loading)
+    return <div className="text-center p-8">A carregar relatórios...</div>;
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  const operatingHours = Array.from({ length: 12 }, (_, i) => i + 8); // Das 8h às 19h
+  const operatingHours = Array.from({ length: 12 }, (_, i) => i + 8);
 
   const getHeatmapColor = (count: number = 0) => {
-    if (count === 0) return "bg-slate-100";
-    if (count <= 2) return "bg-teal-200";
-    if (count <= 5) return "bg-teal-400";
+    if (count === 0) return "bg-slate-100 text-slate-500";
+    if (count <= 2) return "bg-teal-100 text-teal-800";
+    if (count <= 5) return "bg-teal-300 text-teal-900";
     return "bg-teal-600 text-white";
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 className="text-3xl font-bold text-gray-900">Relatórios</h2>
         <CSVLink
           data={csvData}
@@ -220,7 +228,7 @@ export default function ReportsTab({
             new Date(),
             "yyyy-MM-dd"
           )}.csv`}
-          className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700"
+          className="w-full sm:w-auto px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 text-center"
         >
           Exportar para CSV
         </CSVLink>
@@ -232,14 +240,13 @@ export default function ReportsTab({
         disabled={loading}
       />
 
-      {/* Relatórios Financeiros */}
       <section className="space-y-6">
         <h3 className="text-2xl font-semibold text-slate-800 border-b pb-2">
           Financeiro
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-slate-500">Faturamento Total Bruto</p>
+            <p className="text-slate-500">Faturamento Total no Período</p>
             <p className="text-4xl font-bold text-teal-600">
               {processedData.totalRevenue.toLocaleString("pt-BR", {
                 style: "currency",
@@ -256,14 +263,14 @@ export default function ReportsTab({
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border">
           <h4 className="font-bold mb-4">Faturamento por Serviço</h4>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 500 : 400}>
             <BarChart
               data={processedData.revenueByService}
-              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+              layout="vertical"
+              margin={chartMargin}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <XAxis type="number" tick={{ fontSize: 10 }} />
               <Tooltip
                 formatter={(value: number) =>
                   value.toLocaleString("pt-BR", {
@@ -274,20 +281,29 @@ export default function ReportsTab({
               />
               <Legend />
               <Bar dataKey="Faturamento" fill="#14b8a6" />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={yAxisWidth}
+                tick={yAxisTickStyle}
+                interval={0}
+                tickFormatter={(value) =>
+                  truncateTick(value, isMobile ? 10 : 18)
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {/* --- NOVO GRÁFICO: Faturamento por Profissional --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <h4 className="font-bold mb-4">Faturamento por Profissional Bruto</h4>
-          <ResponsiveContainer width="100%" height={300}>
+          <h4 className="font-bold mb-4">Faturamento por Profissional</h4>
+          <ResponsiveContainer width="100%" height={isMobile ? 500 : 400}>
             <BarChart
               data={processedData.revenueByProfessional}
-              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+              layout="vertical"
+              margin={chartMargin}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <XAxis type="number" tick={{ fontSize: 10 }} />
               <Tooltip
                 formatter={(value: number) =>
                   value.toLocaleString("pt-BR", {
@@ -298,17 +314,25 @@ export default function ReportsTab({
               />
               <Legend />
               <Bar dataKey="Faturamento" fill="#4f46e5" />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={yAxisWidth}
+                tick={yAxisTickStyle}
+                interval={0}
+                tickFormatter={(value) =>
+                  truncateTick(value, isMobile ? 10 : 18)
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      {/* Relatórios Operacionais */}
       <section className="space-y-6">
         <h3 className="text-2xl font-semibold text-slate-800 border-b pb-2">
           Operacional
         </h3>
-        {/* --- NOVO RELATÓRIO: Heatmap de Horários de Pico --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border">
           <h4 className="font-bold mb-4">Horários de Pico</h4>
           <p className="text-sm text-slate-500 mb-4">
@@ -316,12 +340,12 @@ export default function ReportsTab({
             Quanto mais escuro, maior o movimento.
           </p>
           <div className="overflow-x-auto">
-            <table className="w-full text-center text-sm">
+            <table className="w-full text-center text-xs sm:text-sm">
               <thead>
                 <tr>
-                  <th className="p-2 border">Hora</th>
+                  <th className="p-1 sm:p-2 border">Hora</th>
                   {weekDays.map((day) => (
-                    <th key={day} className="p-2 border">
+                    <th key={day} className="p-1 sm:p-2 border">
                       {day}
                     </th>
                   ))}
@@ -330,13 +354,13 @@ export default function ReportsTab({
               <tbody>
                 {operatingHours.map((hour) => (
                   <tr key={hour}>
-                    <td className="p-2 border font-semibold">{`${hour
+                    <td className="p-1 sm:p-2 border font-semibold">{`${hour
                       .toString()
                       .padStart(2, "0")}:00`}</td>
                     {weekDays.map((_, dayIndex) => (
                       <td
                         key={`${hour}-${dayIndex}`}
-                        className={`p-2 border font-bold ${getHeatmapColor(
+                        className={`p-1 sm:p-2 border font-bold ${getHeatmapColor(
                           processedData.heatmapData[dayIndex]?.[hour]
                         )}`}
                       >
@@ -357,7 +381,17 @@ export default function ReportsTab({
               margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10 }}
+                interval={
+                  isMobile
+                    ? Math.ceil(
+                        processedData.appointmentsByDayChartData.length / 5
+                      )
+                    : 0
+                }
+              />
               <YAxis />
               <Tooltip />
               <Legend />

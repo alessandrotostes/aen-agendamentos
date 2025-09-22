@@ -1,15 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic"; // 1. Importar o 'dynamic'
 import { useAuth } from "@/contexts/AuthContext";
 import OwnerHeader from "./OwnerHeader";
-import DashboardTab from "./DashboardTab";
-import ServicesTab from "./ServicesTab";
-import ProfessionalsTab from "./ProfessionalsTab";
-import SettingsTab from "./SettingsTab";
-// 1. Importar o novo componente de Relatórios
-import ReportsTab from "./ReportsTab";
-import ModalsManager from "./ModalsManager";
 import LoadingSpinner from "./common/LoadingSpinner";
 import OwnerCancelModal from "../shared/modals/OwnerCancelModal";
 import TermsAndConditionsModal from "../shared/modals/TermsAndConditionsModal";
@@ -18,7 +12,6 @@ import {
   useServices,
   useProfessionals,
 } from "../../hooks/useEstablishment";
-// 2. Importar o nosso novo hook
 import {
   useAppointmentsForDate,
   useAppointmentsForRange,
@@ -38,7 +31,7 @@ import {
   LayoutGrid,
   CalendarDays,
   BriefcaseBusiness,
-  BarChart3, // 3. Importar o ícone para a nova aba
+  BarChart3,
 } from "lucide-react";
 import type {
   Service,
@@ -51,8 +44,26 @@ import type {
   Appointment,
 } from "../../types";
 import InfoTooltip from "@/components/shared/InfoTooltip";
-// 4. Importar a biblioteca de manipulação de datas
 import { startOfMonth, endOfMonth } from "date-fns";
+
+// 2. Substituir as importações estáticas por dinâmicas
+//    Isso garante que o código de cada aba só seja descarregado quando o usuário clicar nela.
+const DashboardTab = dynamic(() => import("./DashboardTab"), {
+  loading: () => <LoadingSpinner />,
+});
+const ServicesTab = dynamic(() => import("./ServicesTab"), {
+  loading: () => <LoadingSpinner />,
+});
+const ProfessionalsTab = dynamic(() => import("./ProfessionalsTab"), {
+  loading: () => <LoadingSpinner />,
+});
+const SettingsTab = dynamic(() => import("./SettingsTab"), {
+  loading: () => <LoadingSpinner />,
+});
+const ReportsTab = dynamic(() => import("./ReportsTab"), {
+  loading: () => <LoadingSpinner />,
+});
+const ModalsManager = dynamic(() => import("./ModalsManager"));
 
 type UnifiedProfessionalData = CreateProfessionalData & {
   availability?: Availability;
@@ -63,13 +74,10 @@ interface OnboardingLinkData {
 }
 
 export default function OwnerView() {
-  // 5. Adicionar 'reports' ao tipo do estado da aba ativa
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "services" | "professionals" | "settings" | "reports"
   >("dashboard");
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  // 6. Adicionar estado para controlar o período dos relatórios
   const [reportDateRange, setReportDateRange] = useState({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -87,11 +95,9 @@ export default function OwnerView() {
 
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
-
   const [modalInitialView, setModalInitialView] = useState<
     "details" | "availability"
   >("details");
-
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedProfessional, setSelectedProfessional] =
     useState<Professional | null>(null);
@@ -114,7 +120,6 @@ export default function OwnerView() {
   const servicesData = useServices();
   const professionalsData = useProfessionals();
   const appointmentsData = useAppointmentsForDate(selectedDate);
-  // 7. Usar o novo hook para buscar os dados para os relatórios
   const reportAppointmentsData = useAppointmentsForRange(
     reportDateRange.from,
     reportDateRange.to
@@ -317,7 +322,6 @@ export default function OwnerView() {
       await professionalsData.createProfessional(data);
       showSuccess("Profissional criado!");
     }
-
     await professionalsData.refresh();
     closeModal("editProfessionalUnified");
   };
@@ -364,7 +368,6 @@ export default function OwnerView() {
     );
   }
 
-  // 8. Adicionar o novo item "Relatórios" à lista de navegação
   const navItems = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { key: "services", label: "Serviços", icon: ClipboardList },
@@ -477,7 +480,6 @@ export default function OwnerView() {
             onManageOperatingHours={() => openModal("editOperatingHours")}
           />
         )}
-        {/* 9. Renderizar o novo componente de relatórios */}
         {activeTab === "reports" && (
           <ReportsTab
             data={reportAppointmentsData.appointments}

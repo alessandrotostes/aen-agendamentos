@@ -299,6 +299,9 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
   };
 
   const { upcomingAppointments, pastAppointments } = useMemo(() => {
+    // A lista 'appointments' agora vem do hook ordenada do mais próximo para o mais distante.
+
+    // Filtra os agendamentos futuros.
     const upcoming = appointments.filter(
       (a) =>
         a.status === "confirmado" &&
@@ -306,12 +309,22 @@ export default function ClientDashboardView({ onNavigateToSearch }: Props) {
         a.dateTime.toDate() > new Date() &&
         !dismissedIds.includes(a.id)
     );
-    const past = appointments.filter(
-      (a) =>
-        (a.status !== "confirmado" ||
-          (a.dateTime && a.dateTime.toDate() < new Date())) &&
-        !dismissedIds.includes(a.id)
-    );
+
+    // Filtra os agendamentos passados e inverte a ordem para mostrar os mais recentes primeiro.
+    const past = appointments
+      .filter(
+        (a) =>
+          (a.status !== "confirmado" ||
+            (a.dateTime && a.dateTime.toDate() < new Date())) &&
+          !dismissedIds.includes(a.id)
+      )
+      .sort((a, b) => {
+        // Ordena em ordem decrescente (mais recente primeiro)
+        if (!b.dateTime) return -1;
+        if (!a.dateTime) return 1;
+        return b.dateTime.toMillis() - a.dateTime.toMillis();
+      });
+
     return { upcomingAppointments: upcoming, pastAppointments: past };
   }, [appointments, dismissedIds]);
 
