@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { Appointment } from "@/types";
 
 interface Props {
@@ -20,12 +20,14 @@ export default function OwnerCancelModal({
 }: Props) {
   const [accepted, setAccepted] = useState(false);
 
-  if (!isOpen || !appointment) return null;
+  // Efeito para resetar o checkbox ao fechar o modal
+  useEffect(() => {
+    if (!isOpen) {
+      setAccepted(false);
+    }
+  }, [isOpen]);
 
-  const handleClose = () => {
-    setAccepted(false);
-    onClose();
-  };
+  if (!isOpen || !appointment) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex justify-center items-center p-4">
@@ -42,37 +44,42 @@ export default function OwnerCancelModal({
           <p className="text-xs text-gray-500">{appointment.serviceName}</p>
         </div>
 
-        {/* ALTERAÇÃO: A mensagem agora informa sobre o reembolso automático */}
-        <p className="mt-4 text-sm text-red-700">
-          Ao confirmar, um <strong>reembolso automático</strong> será processado
-          para o cliente através da sua conta Mercado Pago conectada. O horário
-          ficará novamente disponível.
+        {/* TEXTO PRINCIPAL ATUALIZADO */}
+        <p className="mt-4 text-sm text-red-700 bg-red-50 p-3 rounded-md">
+          O cancelamento por parte do estabelecimento gera um{" "}
+          <strong>reembolso integral (100%)</strong> para o cliente, que será
+          processado automaticamente. O horário ficará novamente disponível.
+          Certifique-se de que o valor recebido pelo serviço encontra-se
+          disponível na sua conta do mercado pago para que o reembolso seja
+          realizado com sucesso.
         </p>
 
-        {/* ALTERAÇÃO: A confirmação agora é genérica */}
+        {/* TEXTO DO CHECKBOX ATUALIZADO */}
         <div className="mt-4">
-          <label className="flex items-center gap-3 p-3 bg-red-50 rounded-md cursor-pointer">
+          <label className="flex items-start gap-3 p-3 bg-red-50 rounded-md cursor-pointer">
             <input
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+              className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500 shrink-0 mt-0.5"
             />
-            <span className="text-sm font-semibold text-red-800">
-              Entendo que esta ação é irreversível e irá reembolsar o cliente.
-              <strong>
-                <br />
-                Me compremeto a informar o cliente sobre o cancelamento através
-                de ligação ou mensagem, descrevendo o motivo do cancelamento,
-                conforme as políticas de uso da plataforma.
-              </strong>
-            </span>
+            <div className="text-sm font-semibold text-red-800">
+              <p>
+                Entendo que esta ação é irreversível e irá{" "}
+                <strong>reembolsar integralmente</strong> o cliente.
+              </p>
+              <p className="mt-2 font-normal text-red-700">
+                Comprometo-me a informar o cliente sobre este cancelamento
+                conforme os termos de uso. Estou ciente que o não cumprimento
+                pode resultar em penalidades à minha conta.
+              </p>
+            </div>
           </label>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-semibold"
             disabled={isLoading}
           >

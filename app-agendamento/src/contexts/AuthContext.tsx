@@ -76,32 +76,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // A função onIdTokenChanged retorna a função 'unsubscribe'
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      if (user) {
-        await user.getIdToken(true);
-        const userDocRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
-          const data = userSnap.data() as AuthUser;
-          setUserData(data);
-          setCurrentUser(user);
+      // --- Início da Correção ---
+      try {
+        // Toda a sua lógica original é movida para dentro do 'try'
+        if (user) {
+          // Esta chamada pode falhar em produção e causar o erro 400
+          await user.getIdToken(true);
+
+          const userDocRef = doc(db, "users", user.uid);
+          const userSnap = await getDoc(userDocRef);
+
+          if (userSnap.exists()) {
+            const data = userSnap.data() as AuthUser;
+            setUserData(data);
+            setCurrentUser(user);
+          } else {
+            console.warn(
+              "Documento do usuário não encontrado no Firestore. Pode ser um novo registro."
+            );
+            // Se o documento não existe, tratamos como deslogado para evitar um estado inconsistente.
+            setUserData(null);
+            setCurrentUser(null);
+          }
         } else {
-          console.warn(
-            "Documento do usuário não encontrado no Firestore. Pode ser um novo registro."
-          );
+          // Se não há usuário, limpa os dados.
+          setUserData(null);
+          setCurrentUser(null);
         }
-      } else {
+      } catch (error) {
+        // Se qualquer uma das operações 'await' falhar, o erro é apanhado aqui.
+        console.error(
+          "Erro crítico durante a verificação de autenticação:",
+          error
+        );
+        // Garante que a aplicação não fique num estado de "meio-logado"
         setUserData(null);
         setCurrentUser(null);
+      } finally {
+        // Esta linha é movida para o 'finally' para garantir que o loading
+        // sempre termine, quer a operação tenha sucesso ou falhe.
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
+      // --- Fim da Correção ---
     });
 
+    // A sua função de limpeza, que já está correta, permanece a mesma.
     return () => {
-      try {
-        unsubscribe();
-      } catch (error) {
-        console.error("AuthContext: Falha ao desinscrever o listener.", error);
+      if (typeof unsubscribe === "function") {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error(
+            "AuthContext: Falha ao desinscrever o listener.",
+            error
+          );
+        }
       }
     };
   }, []);

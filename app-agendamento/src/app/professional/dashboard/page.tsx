@@ -24,22 +24,9 @@ import TermsAndConditionsModal from "../../../components/shared/modals/TermsAndC
 type DisplayStatus = Appointment["status"] | "concluido";
 
 const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
-  if (appointment.status === "pending_payment" || !appointment.dateTime) {
-    return (
-      <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-gray-50 border border-gray-200 opacity-80">
-        <div className="flex items-center space-x-4">
-          <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-400" />
-          <div>
-            <p className="font-bold truncate text-gray-700">
-              {appointment.serviceName}
-            </p>
-            <p className="text-sm text-gray-500">
-              Aguardando confirmação de pagamento do cliente.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  // A lógica especial para 'pending_payment' é movida para o componente principal
+  if (!appointment.dateTime) {
+    return null;
   }
 
   const now = new Date();
@@ -64,7 +51,6 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     statusText = "Reembolsado";
   }
 
-  // ALTERAÇÃO 1: Adicionar a propriedade 'icon' a cada estilo
   const statusStyles: {
     [key: string]: {
       bg: string;
@@ -122,7 +108,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
       textColor: "text-gray-900",
       lineThrough: "",
       icon: Clock,
-    }, // Ícone de relógio para 'atrasado'
+    },
   };
   const currentStyle =
     statusStyles[virtualStatus as keyof typeof statusStyles] ||
@@ -133,11 +119,9 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     <div
       className={`flex flex-col sm:flex-row items-start py-4 px-5 rounded-lg transition-all duration-200 hover:shadow-md ${currentStyle.bg} border ${currentStyle.border}`}
     >
-      {/* ALTERAÇÃO 2: Substituir o círculo colorido pelo ícone real */}
       <Icon
         className={`w-6 h-6 mt-1 flex-shrink-0 ${currentStyle.indicator}`}
       />
-
       <div className="flex-1 sm:ml-4 mt-2 sm:mt-0">
         <div className="flex justify-between items-start">
           <div>
@@ -174,19 +158,35 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   );
 };
 
+// Componente específico para agendamentos pendentes de pagamento
+const PendingPaymentCard = ({ appointment }: { appointment: Appointment }) => (
+  <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-gray-50 border border-gray-200 opacity-80">
+    <div className="flex items-center space-x-4">
+      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+        <Hourglass className="w-5 h-5 text-gray-400" />
+      </div>
+      <div>
+        <p className="font-bold truncate text-gray-700">
+          {appointment.serviceName}
+        </p>
+        <p className="text-sm text-gray-500">
+          Aguardando confirmação de pagamento do cliente.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 function ProfessionalDashboardView() {
   const { userData, logout, acceptTerms, refreshUserData } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { appointments, loading } =
     useAppointmentsForProfessional(selectedDate);
-
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
 
   useEffect(() => {
-    if (userData && !userData.termsAccepted) {
-      setIsTermsModalOpen(true);
-    }
+    if (userData && !userData.termsAccepted) setIsTermsModalOpen(true);
   }, [userData]);
 
   const handleAcceptTerms = async () => {
@@ -204,26 +204,27 @@ function ProfessionalDashboardView() {
     }
   };
 
-  const sortedAppointments = useMemo(() => {
-    const now = Date.now();
-    const getStatusRank = (app: Appointment) => {
-      if (!app.dateTime) return 4;
-      if (
-        app.status === "cancelado" ||
-        app.status === "refunded" ||
-        app.status === "refund_overdue"
-      )
-        return 3;
-      if (app.dateTime.toMillis() < now) return 2;
-      return 1; // 'confirmado' e 'pending_refund'
-    };
-    return [...appointments].sort((a, b) => {
-      const rankA = getStatusRank(a);
-      const rankB = getStatusRank(b);
-      if (rankA !== rankB) return rankA - rankB;
+  // --- LÓGICA DE ORDENAÇÃO ATUALIZADA ---
+  const { sortedAppointments, pendingPaymentAppointments } = useMemo(() => {
+    // 1. Separa os agendamentos 'pending_payment'
+    const pending = appointments.filter(
+      (app) => app.status === "pending_payment"
+    );
+    const others = appointments.filter(
+      (app) => app.status !== "pending_payment"
+    );
+
+    // 2. Ordena os outros agendamentos
+    const sortedOthers = [...others].sort((a, b) => {
+      // Ordena por data/hora, do mais próximo para o mais distante
       if (!a.dateTime || !b.dateTime) return 0;
       return a.dateTime.toMillis() - b.dateTime.toMillis();
     });
+
+    return {
+      sortedAppointments: sortedOthers,
+      pendingPaymentAppointments: pending,
+    };
   }, [appointments]);
 
   if (!userData && !loading) {
@@ -277,10 +278,28 @@ function ProfessionalDashboardView() {
                 <div className="flex justify-center items-center h-64">
                   <LoadingSpinner />
                 </div>
-              ) : sortedAppointments.length > 0 ? (
-                sortedAppointments.map((app) => (
-                  <AppointmentCard key={app.id} appointment={app} />
-                ))
+              ) : sortedAppointments.length > 0 ||
+                pendingPaymentAppointments.length > 0 ? (
+                <>
+                  {/* --- RENDERIZAÇÃO ATUALIZADA --- */}
+                  {/* 3. Renderiza primeiro a lista principal ordenada */}
+                  {sortedAppointments.map((app) => (
+                    <AppointmentCard key={app.id} appointment={app} />
+                  ))}
+                  {/* 4. Renderiza os pendentes de pagamento no final, se existirem */}
+                  {pendingPaymentAppointments.length > 0 && (
+                    <div className="pt-4 mt-4 border-t">
+                      <h3 className="text-sm font-semibold text-gray-500 mb-3">
+                        Aguardando Pagamento
+                      </h3>
+                      <div className="space-y-4">
+                        {pendingPaymentAppointments.map((app) => (
+                          <PendingPaymentCard key={app.id} appointment={app} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
                   <p className="text-gray-500">

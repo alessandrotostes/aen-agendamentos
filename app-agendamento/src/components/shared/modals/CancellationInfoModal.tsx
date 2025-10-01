@@ -1,6 +1,6 @@
-// src/components/modals/CancellationInfoModal.tsx
-
 "use client";
+
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -17,19 +17,62 @@ export default function CancellationInfoModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex justify-center items-center p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-        <h3 className="text-lg font-bold text-gray-800">
-          Atenção ao Cancelamento
-        </h3>
-        <p className="mt-2 text-sm text-gray-600">
-          Política de cancelamento:
-          <br />
-          Mais de 24h: reembolso 100% <br />
-          3h a 24h: reembolso 80%
-          <br />
-          Menos de 3h: sem reembolso, salvo casos excepcionais (nesse caso
-          contate o estabelecimento a efetuação do cancelamento)
-        </p>
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="w-8 h-8 text-yellow-500" />
+          <h3 className="text-xl font-bold text-gray-800">
+            Atenção à Política de Cancelamento
+          </h3>
+        </div>
+
+        {/* NOVO TEXTO ESTRUTURADO */}
+        <div className="mt-4 space-y-4 text-sm text-gray-600">
+          <p>
+            Por favor, revise as regras antes de continuar. O seu direito ao
+            reembolso depende da antecedência do seu pedido:
+          </p>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-emerald-800">
+                  Reembolso Integral (100%)
+                </strong>
+                <p className="text-emerald-700 text-xs">
+                  Garantido por lei ou pela plataforma nestas condições:
+                </p>
+                <ul className="list-disc list-inside text-emerald-700 text-xs mt-1">
+                  <li>
+                    Até <strong>7 dias</strong> após a compra (Direito de
+                    Arrependimento).
+                  </li>
+                  <li>
+                    A qualquer momento, se o cancelamento for feito com mais de{" "}
+                    <strong>3 horas</strong> de antecedência do horário
+                    agendado.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
+              <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-amber-800">
+                  Menos de 3 horas de antecedência
+                </strong>
+                <p className="text-amber-700 text-xs">
+                  O reembolso automático pela plataforma não está disponível.
+                  Você deverá{" "}
+                  <strong>contactar o estabelecimento diretamente</strong> para
+                  negociar um possível reembolso, conforme as regras do local.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onClose}
