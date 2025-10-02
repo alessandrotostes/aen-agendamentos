@@ -6,7 +6,8 @@ import { useAuth, RegisterFormData } from "../../../contexts/AuthContext";
 import AuthLayout from "../../../components/shared/AuthLayout";
 import { validationUtils } from "../../../lib/utils";
 import PasswordStrengthIndicator from "../../../components/shared/PasswordStrengthIndicator";
-import { AlertTriangle, UserPlus } from "lucide-react";
+// 1. IMPORTAR OS NOVOS ÍCONES
+import { AlertTriangle, UserPlus, Eye, EyeOff } from "lucide-react";
 
 const initialPasswordValidation = {
   minLength: false,
@@ -59,6 +60,8 @@ export default function RegisterPage() {
   const [passwordValidation, setPasswordValidation] = useState(
     initialPasswordValidation
   );
+  // 2. ADICIONAR O ESTADO DE VISIBILIDADE DA SENHA
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register } = useAuth();
   const router = useRouter();
@@ -102,12 +105,10 @@ export default function RegisterPage() {
       return "Nome e sobrenome são obrigatórios.";
     if (!validationUtils.isValidEmail(formData.email)) return "Email inválido.";
 
-    // --- CORREÇÃO APLICADA AQUI ---
     const passwordCheck = validationUtils.validatePasswordStrength(password);
     if (!passwordCheck.isValid) {
       return "A senha não cumpre todos os requisitos de segurança.";
     }
-    // -----------------------------
 
     if (!formData.phone) return "O número de telefone é obrigatório.";
 
@@ -269,6 +270,8 @@ export default function RegisterPage() {
               placeholder="(XX) XXXXX-XXXX"
             />
           </div>
+
+          {/* --- 3. CAMPO DE SENHA ATUALIZADO --- */}
           <div>
             <label
               htmlFor="password"
@@ -276,15 +279,29 @@ export default function RegisterPage() {
             >
               Senha
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={handlePasswordChange}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-            />
+            <div className="relative mt-1">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={handlePasswordChange}
+                required
+                className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             <PasswordStrengthIndicator validation={passwordValidation} />
           </div>
 

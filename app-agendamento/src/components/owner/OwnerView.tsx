@@ -344,7 +344,7 @@ export default function OwnerView() {
   const handleShareLink = () => {
     if (!establishment?.slug) {
       alert(
-        "Não foi possível gerar o link, dados do estabelecimento incompletos ou incorretos. Tente editar e salvar o nome novamente na aba de configurações. Não é permitido caracteres especiais no nome. Ex: @, #, $, %, ã, ç, etc."
+        "Não foi possível gerar o link, dados do estabelecimento incompletos ou incorretos. Tente editar e salvar o nome novamente na aba de configurações. Não é permitido caracteres especiais no nome. Ex: @, #, $, %, ã, ç, etc. Certifique-se de que você salvou o nome do estabelecimento na aba de configurações antes de compartilhar o link, pois o link é gerado a partir do nome."
       );
       return;
     }

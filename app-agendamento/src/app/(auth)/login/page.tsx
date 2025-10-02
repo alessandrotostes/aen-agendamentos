@@ -10,7 +10,7 @@ import {
   AlertTriangle,
   LockKeyhole,
   Phone,
-  Building,
+  UserRoundPlus,
   User,
   Briefcase,
   FileText, // Importar o ícone para o CPF
@@ -202,22 +202,17 @@ export default function LoginPage() {
       <div className="w-full max-w-sm mx-auto">
         {step === "login" ? (
           <>
-            {/* --- SEÇÃO DE LOGIN (SEM ALTERAÇÕES) --- */}
+            {/* --- SEÇÃO DE LOGIN PRINCIPAL --- */}
             <div className="text-center mb-8">
               <div className="inline-block p-3 bg-indigo-50 rounded-full mb-4">
                 <LockKeyhole className="w-8 h-8 text-indigo-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-900">
-                Entre na sua conta
+                Acesse sua conta
               </h2>
+              {/* O texto antigo foi substituído por uma saudação mais genérica */}
               <p className="mt-2 text-sm text-gray-600">
-                Ou{" "}
-                <Link
-                  href="/register"
-                  className="font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  crie uma nova conta como estabelecimento aqui
-                </Link>
+                Bem-vindo(a) de volta!
               </p>
             </div>
             {error && (
@@ -308,6 +303,7 @@ export default function LoginPage() {
               </form>
             </div>
 
+            {/* Acesso rápido para teste (mantido igual) */}
             <div className="pt-4 text-center">
               <div className="relative">
                 <div
@@ -339,7 +335,7 @@ export default function LoginPage() {
                     disabled={loading}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    <Building className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                    <UserRoundPlus className="w-5 h-5 text-indigo-500 flex-shrink-0" />
                     Estabelecimento
                   </button>
                   <button
@@ -367,9 +363,31 @@ export default function LoginPage() {
                 </div>
               )}
             </div>
+
+            {/* --- NOVA SECÇÃO PARA ESTABELECIMENTOS --- */}
+            <div className="mt-10 pt-8 border-t border-gray-200 text-center">
+              <div className="inline-block p-3 bg-teal-50 rounded-full mb-4">
+                <UserRoundPlus className="w-8 h-8 text-teal-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">
+                É novo por aqui?
+              </h3>
+              <p className="mt-2 text-sm text-gray-600 max-w-xs mx-auto">
+                Cadastre-se como cliente ou estabelecimento através do botão a
+                baixo.
+              </p>
+              <div className="mt-6">
+                <Link
+                  href="/register"
+                  className="inline-block w-full px-6 py-3 bg-white text-teal-600 font-bold border-2 border-teal-600 rounded-lg shadow-sm hover:bg-teal-50 transition-colors"
+                >
+                  Cadastre-se
+                </Link>
+              </div>
+            </div>
           </>
         ) : (
-          // --- SEÇÃO PARA COMPLETAR O PERFIL (ATUALIZADA) ---
+          // --- SEÇÃO PARA COMPLETAR O PERFIL (SEM ALTERAÇÕES) ---
           <div>
             <div className="text-center mb-8">
               <div className="inline-block p-3 bg-indigo-50 rounded-full mb-4">
