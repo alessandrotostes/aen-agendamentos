@@ -3,6 +3,7 @@
 
 import { Header } from "@/components/landing/Header";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { AudienceSection } from "@/components/landing/AudienceSection";
 import { ClientBenefits } from "@/components/landing/ClientBenefits";
 import { OwnerBenefits } from "@/components/landing/OwnerBenefits";
 import { ProfessionalBenefits } from "@/components/landing/ProfessionalBenefits";
@@ -15,8 +16,9 @@ export default function HomePage() {
       <Header />
       <main>
         <HeroSection />
-        <ClientBenefits />
+        <AudienceSection />
         <OwnerBenefits />
+        <ClientBenefits />
         <ProfessionalBenefits />
         <CTASection />
       </main>
