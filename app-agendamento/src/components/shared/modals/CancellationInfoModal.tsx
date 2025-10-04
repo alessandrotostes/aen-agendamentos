@@ -40,17 +40,14 @@ export default function CancellationInfoModal({
                   Reembolso Integral (100%)
                 </strong>
                 <p className="text-emerald-700 text-xs">
-                  Garantido por lei ou pela plataforma nestas condições:
+                  Garantido pela plataforma nestas condições:
                 </p>
                 <ul className="list-disc list-inside text-emerald-700 text-xs mt-1">
                   <li>
-                    Até <strong>7 dias</strong> após a compra (Direito de
-                    Arrependimento).
-                  </li>
-                  <li>
                     A qualquer momento, se o cancelamento for feito com mais de{" "}
                     <strong>3 horas</strong> de antecedência do horário
-                    agendado.
+                    agendado. O reembolso será processado automaticamente pela
+                    plataforma.
                   </li>
                 </ul>
               </div>
