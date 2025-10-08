@@ -99,7 +99,6 @@ Projeto--Sal-es-Barbearias/
 ├── tailwind.config.js # Customização Tailwind CSS
 ├── postcss.config.js # Processamento CSS
 ├── .env.local
-├── LICENSE # Licença do projeto
 └── README.md # Documentação principal do projeto
 
 ```
