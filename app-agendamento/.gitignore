@@ -47,3 +47,20 @@ next-env.d.ts
 
 storage.rules
 firestore.rules
+
+.vscode/
+
+.firebaserc
+
+# VS Code
+.vscode/
+../.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
