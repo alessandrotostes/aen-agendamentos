@@ -69,13 +69,6 @@ O projeto contempla desde o **agendamento inteligente** até a **gestão de prof
 Projeto--Sal-es-Barbearias/
 ├── src/
 │ ├── app/ # App Router do Next.js (rotas, layouts e páginas principais)
-│ │ ├── layout.tsx # Layout global da aplicação (menu, header, footer, provedores)
-│ │ ├── page.tsx # Página principal (home ou dashboard inicial)
-│ │ ├── globals.css # Estilos globais do projeto
-│ │ ├── head.tsx # Configuração global do <head> (meta tags, favicon, SEO)
-│ │ ├── error.tsx # Página de erro padrão em falhas de renderização/navegação
-│ │ ├── loading.tsx # Componente global para loading durante transições de rotas
-│ │ ├── not-found.tsx # Página 404
 │ │ ├── auth/ # Telas e lógica de autenticação (login, cadastro, etc)
 │ │ ├── api/ # Endpoints internos (webhooks, integrações Next.js)
 │ │ ├── checkout/ # Fluxo de pagamentos e agendamentos
@@ -85,7 +78,14 @@ Projeto--Sal-es-Barbearias/
 │ │ ├── professional/ # Área do profissional colaborador
 │ │ ├── termos-de-uso/ # Página com os termos de uso do serviço
 │ │ ├── search/ # Rotas
-│ ├── components/ # Componentes reutilizáveis (botões, modais, formulários)
+│ │ ├── layout.tsx # Layout global da aplicação (menu, header, footer, provedores)
+│ │ ├── page.tsx # Página principal (home ou dashboard inicial)
+│ │ ├── globals.css # Estilos globais do projeto
+│ │ ├── head.tsx # Configuração global do <head> (meta tags, favicon, SEO)
+│ │ ├── error.tsx # Página de erro padrão em falhas de renderização/navegação
+│ │ ├── loading.tsx # Componente global para loading durante transições de rotas
+│ │ └── global-error.tsx # Página 404
+│ ├── components/ # Componentes reutilizáveis: auth, checkout, client, landig, owner, shared. (botões, modais, formulários)
 │ ├── context/ # Contextos globais (auth, agenda, permissões)
 │ ├── hooks/ # Custom hooks
 │ ├── services/ # Integrações: Firebase, APIs externas, notificações
@@ -98,11 +98,29 @@ Projeto--Sal-es-Barbearias/
 ├── tsconfig.json # Configuração TypeScript
 ├── tailwind.config.js # Customização Tailwind CSS
 ├── postcss.config.js # Processamento CSS
-├── .env.local # Variáveis de ambiente (NÃO versionar)
+├── .env.local
 ├── LICENSE # Licença do projeto
 └── README.md # Documentação principal do projeto
 
 ```
+### Descrição das pastas principais em src/app
+
+- auth/: Telas e lógica de autenticação (login, cadastro, recuperação de senha)
+- api/: Endpoints internos, webhooks e integrações Next.js
+- checkout/: Fluxo e páginas de pagamento/agendamento
+- client/: Área do cliente final (perfil, histórico, notificação)
+- owner/: Área do proprietário/admin (dashboard, gestão de serviços/profissionais)
+- politica-de-privacidade/: Política de privacidade do serviço
+- termos-de-uso/: Termos de uso acordados com o usuário
+- search/: Página ou funcionalidade para buscas gerais (serviços, agendamentos, profissionais)
+
+- layout.tsx: Layout global do app (menus, headers, footers, contextos)
+- page.tsx: Página inicial/dash
+- globals.css: Estilos globais
+- head.tsx: Meta tags/SEO central
+- error.tsx: Tela de erro global
+- loading.tsx: Loader global/transição de rotas
+- global-error.tsx Página para erro 404
 
 ## 📦 Instalação
 
