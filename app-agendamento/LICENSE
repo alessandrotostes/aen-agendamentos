@@ -1,0 +1,134 @@
+A&N AGENDAMENTOS - LICENÇA DE SOFTWARE PROPRIETÁRIO
+==================================================
+
+Copyright (c) 2025 Alessandro Tostes Arruda Junior
+Email: alessandrotostesarruda@gmail.com
+Todos os direitos reservados.
+
+DEFINIÇÕES
+----------
+"Software" refere-se ao sistema A&N Agendamentos, incluindo todo o código-fonte, 
+documentação, assets, configurações e arquivos relacionados contidos neste repositório.
+
+"Licenciado" refere-se à pessoa ou entidade que obtém uma cópia deste Software.
+
+"Uso Comercial" significa qualquer uso do Software para fins lucrativos, incluindo 
+mas não limitado a: operação de negócios, prestação de serviços pagos, ou 
+incorporação em produtos comerciais.
+
+CONCESSÃO DE DIREITOS LIMITADOS
+-------------------------------
+Sujeito aos termos desta licença, o titular dos direitos autorais concede ao 
+Licenciado uma licença limitada, não exclusiva, não transferível e revogável para:
+
+1. VISUALIZAR o código-fonte para fins educacionais e de aprendizado
+2. EXECUTAR o Software em ambiente de desenvolvimento local para avaliação
+3. CRIAR fork do repositório para propor contribuições via pull request
+
+RESTRIÇÕES
+----------
+O Licenciado NÃO PODE, sob nenhuma circunstância:
+
+1. Usar o Software para fins comerciais sem autorização expressa por escrito
+2. Distribuir, sublicenciar, vender ou transferir o Software ou suas partes
+3. Modificar, adaptar ou criar trabalhos derivados baseados no Software
+4. Remover ou alterar avisos de direitos autorais, marcas registradas ou licença
+5. Fazer engenharia reversa, descompilar ou desmontar o Software
+6. Usar o Software em produção ou ambiente comercial
+7. Extrair, copiar ou reutilizar algoritmos ou lógica de negócio do Software
+8. Publicar benchmarks, análises de performance ou avaliações técnicas sem autorização
+
+PROPRIEDADE INTELECTUAL
+-----------------------
+Todo direito, título e interesse no Software permanecem exclusivamente com 
+Alessandro Tostes Arruda Junior. Esta licença não concede direitos sobre:
+
+- Marcas registradas, nomes comerciais ou logotipos
+- Patentes ou direitos de propriedade intelectual
+- Dados proprietários, algoritmos ou métodos de negócio
+- Configurações de API, chaves de acesso ou credenciais
+
+CONTRIBUIÇÕES
+-------------
+Qualquer contribuição (código, documentação, sugestões) submetida ao projeto 
+torna-se automaticamente propriedade de Alessandro Tostes Arruda Junior, com os mesmos 
+termos desta licença aplicados.
+
+O contribuidor garante que possui todos os direitos necessários para fazer 
+tal contribuição.
+
+USO DE TERCEIROS
+----------------
+O Software incorpora componentes de terceiros licenciados sob suas respectivas 
+licenças (MIT, Apache, etc.). Esta licença não afeta os direitos desses componentes.
+
+Bibliotecas de terceiros incluem, mas não se limitam a:
+- Next.js (MIT License)
+- Firebase SDK (Apache License 2.0)
+- Tailwind CSS (MIT License)
+- React (MIT License)
+
+LIMITAÇÃO DE RESPONSABILIDADE
+-----------------------------
+O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIAS DE QUALQUER TIPO, EXPRESSAS 
+OU IMPLÍCITAS, INCLUINDO MAS NÃO LIMITADAS ÀS GARANTIAS DE COMERCIALIZAÇÃO, 
+ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO E NÃO VIOLAÇÃO.
+
+EM NENHUMA CIRCUNSTÂNCIA O TITULAR DOS DIREITOS AUTORAIS SERÁ RESPONSÁVEL POR 
+QUALQUER REIVINDICAÇÃO, DANO OU OUTRA RESPONSABILIDADE, SEJA EM AÇÃO DE CONTRATO, 
+AÇÃO CIVIL EXTRACONTRATUAL OU QUALQUER OUTRA AÇÃO, DECORRENTE DE, OU EM CONEXÃO 
+COM O SOFTWARE OU O USO OU OUTRAS NEGOCIAÇÕES NO SOFTWARE.
+
+VIOLAÇÃO E RESCISÃO
+-------------------
+Esta licença é automaticamente rescindida em caso de violação de qualquer termo.
+Em caso de rescisão, o Licenciado deve:
+
+1. Cessar imediatamente todo uso do Software
+2. Excluir todas as cópias do Software em sua posse
+3. Destruir qualquer trabalho derivado não autorizado
+
+Alessandro Tostes Arruda Junior reserva-se o direito de tomar medidas legais apropriadas contra 
+violações desta licença, incluindo mas não limitado a:
+- Medidas cautelares e liminares
+- Indenização por danos e lucros cessantes  
+- Honorários advocatícios e custas judiciais
+
+LICENCIAMENTO COMERCIAL
+----------------------
+Para obter uma licença comercial que permita:
+- Uso em produção
+- Modificação do código
+- Distribuição ou revenda
+- Suporte técnico personalizado
+- Remoção de restrições desta licença
+
+Entre em contato através dos canais oficiais:
+- Email: suporte@aenagendamentos.com.br
+- Whatsapp: +55 16 99764-3604
+- Website: https://aenagendamentos.com.br
+- LinkedIn: https://www.linkedin.com/in/alessandro-tostes-940972242/
+
+JURISDIÇÃO E LEI APLICÁVEL
+--------------------------
+Esta licença é regida pelas leis da República Federativa do Brasil.
+Qualquer disputa relacionada a esta licença será resolvida exclusivamente pelos 
+tribunais competentes da cidade de Ribeirão Preto, São Paulo, Brasil.
+
+VERSÃO DA LICENÇA
+-----------------
+Esta é a versão 1.0 desta licença, datada de 8 de outubro de 2025.
+Alessandro Tostes Arruda Junior reserva-se o direito de modificar os termos desta licença 
+para versões futuras do Software.
+
+RECONHECIMENTO
+--------------
+Ao usar este Software, o Licenciado reconhece ter lido, compreendido e concordado 
+com os termos desta licença.
+
+---
+
+Para dúvidas sobre esta licença ou solicitação de permissões especiais, 
+entre em contato através dos canais oficiais listados acima.
+
+Última atualização: 8 de outubro de 2025

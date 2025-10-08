@@ -2,6 +2,8 @@
   "name": "app-agendamento",
   "version": "0.1.5",
   "private": true,
+  "license": "UNLICENSED",
+  "author": "Alessandro Tostes <alessandrotostesarruda@gmail.com>",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
