@@ -67,24 +67,40 @@ O projeto contempla desde o **agendamento inteligente** até a **gestão de prof
 
 ```yaml
 Projeto--Sal-es-Barbearias/
-├── app-agendamento/
-│ ├── components/ # Componentes reutilizáveis (botões, modais, formulários, cards)
-│ ├── pages/ # Páginas de navegação do sistema (home, agendamento, serviços, profissionais, dashboard, login, cadastro, perfil)
-│ ├── context/ # Gestão de estados globais
-│ ├── hooks/ # Custom hooks como useAuth, useAgenda
-│ ├── utils/ # Funções utilitárias diversas
-│ ├── styles/ # Estilos globais e tema Tailwind
-│ ├── public/ # Imagens, ícones, manifest PWA, favicon e arquivos estáticos
-│ └── services/ # Integração Firebase/Auth, Firestore, Mercado Pago, notificações
-├── .vscode/ # Sugestões de configuração para o editor
-├── firebase.json # Configuração Firebase, se necessário
-├── package.json # Dependências e scripts npm
+├── src/
+│ ├── app/ # App Router do Next.js (rotas, layouts e páginas principais)
+│ │ ├── layout.tsx # Layout global da aplicação (menu, header, footer, provedores)
+│ │ ├── page.tsx # Página principal (home ou dashboard inicial)
+│ │ ├── globals.css # Estilos globais do projeto
+│ │ ├── head.tsx # Configuração global do <head> (meta tags, favicon, SEO)
+│ │ ├── error.tsx # Página de erro padrão em falhas de renderização/navegação
+│ │ ├── loading.tsx # Componente global para loading durante transições de rotas
+│ │ ├── not-found.tsx # Página 404
+│ │ ├── auth/ # Telas e lógica de autenticação (login, cadastro, etc)
+│ │ ├── api/ # Endpoints internos (webhooks, integrações Next.js)
+│ │ ├── checkout/ # Fluxo de pagamentos e agendamentos
+│ │ ├── client/ # Área exclusiva do cliente (perfil, histórico, notificações)
+│ │ ├── owner/ # Área administrativa do proprietário/salão
+│ │ ├── politica-de-privacidade/ # Página com os termos de política de privacidade
+│ │ ├── professional/ # Área do profissional colaborador
+│ │ ├── termos-de-uso/ # Página com os termos de uso do serviço
+│ │ ├── search/ # Rotas
+│ ├── components/ # Componentes reutilizáveis (botões, modais, formulários)
+│ ├── context/ # Contextos globais (auth, agenda, permissões)
+│ ├── hooks/ # Custom hooks
+│ ├── services/ # Integrações: Firebase, APIs externas, notificações
+│ ├── styles/ # Temas e configuração do Tailwind CSS
+│ ├── utils/ # Funções auxiliares e helpers
+├── public/ # Imagens, ícones, manifest PWA, favicon, arquivos estáticos
+├── .vscode/ # Configuração recomendada para editores de código
+├── firebase.json # Deploy do Firebase Hosting/Functions
+├── package.json # Dependências, scripts npm
 ├── tsconfig.json # Configuração TypeScript
-├── tailwind.config.js # Customização Tailwind
+├── tailwind.config.js # Customização Tailwind CSS
 ├── postcss.config.js # Processamento CSS
-├── .env.local # Variáveis de ambiente para credenciais (NÃO versionar)
+├── .env.local # Variáveis de ambiente (NÃO versionar)
 ├── LICENSE # Licença do projeto
-└── README.md # Documentação principal
+└── README.md # Documentação principal do projeto
 
 ```
 
