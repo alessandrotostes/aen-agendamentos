@@ -1,197 +1,324 @@
-# 💈 Projeto - Salões & Barbearias
+# A&N Agendamentos - Sistema de Agendamentos para Salões e Barbearias
 
-Plataforma moderna de **agendamento online** para barbearias e salões, integrando clientes, profissionais e estabelecimentos em um ambiente rápido, funcional e seguro.
-
----
-
-## 📌 Visão Geral
-
-Automatize o atendimento, organize a agenda, ofereça uma experiência digital profissional e aumente a produtividade do seu salão ou barbearia com este sistema completo. 
-
-O projeto contempla desde o **agendamento inteligente** até a **gestão de profissionais, serviços, clientes e estatísticas**, sendo totalmente adaptável às necessidades do mercado de beleza.
-
----
+Uma plataforma completa de agendamentos online desenvolvida com Next.js e Firebase, integrada ao Mercado Pago para processamento de pagamentos. O sistema conecta clientes, estabelecimentos e profissionais em uma única plataforma intuitiva.
 
 ## 🚀 Funcionalidades
 
-- ✅ **Sistema de Agendamento Online**  
-  Visualização de horários disponíveis, agendamento com confirmação instantânea.
+### Para Clientes
 
-- 🛠 **Painel Administrativo**  
-  Controle de profissionais, serviços, agenda, estatísticas e permissões.
+- **Cadastro e autenticação** segura com validação de dados
+- **Busca e descoberta** de estabelecimentos por localização e serviços
+- **Agendamento online** com seleção de profissionais e horários
+- **Sistema de favoritos** para salvar estabelecimentos preferidos
+- **Dashboard personalizado** com histórico e agendamentos futuros
+- **Pagamentos integrados** via Mercado Pago Checkout Pro
+- **Cancelamento de agendamentos** com regras de antecedência (3 horas)
+- **Reembolsos automáticos** para cancelamentos dentro do prazo
+- **Sistema de avaliações** e feedback
 
-- 👥 **Gestão de Profissionais**  
-  Cadastro, edição e organização dos colaboradores.
+### Para Proprietários de Estabelecimentos
 
-- 💇‍♂️ **Gestão de Serviços**  
-  Categorização dos tipos de serviços, preço e duração.
+- **Painel administrativo** completo para gestão do negócio
+- **Cadastro de serviços** com preços e duração
+- **Gerenciamento de profissionais** com sistema de convites
+- **Agenda integrada** com visão de todos os agendamentos
+- **Integração com Mercado Pago** via Mercado Pago Connect
+- **Controle de disponibilidade** por profissional
+- **Sistema de comissões** e taxas automáticas
+- **Relatórios e métricas** de desempenho
+- **URLs personalizadas** (slug) para o estabelecimento
+- **Upload de imagens** e galeria de trabalhos
+- **Configuração de horários de funcionamento**
+- **Sistema de penalidades** para reembolsos em atraso
 
-- 📁 **Gestão de Clientes**  
-  Histórico de clientes, agendamentos e buscas rápidas.
+### Para Profissionais
 
-- 🔔 **Notificações**  
-  Lembretes automáticos e comunicados via e-mail (integrável com SMS/WhatsApp).
+- **Painel dedicado** com agenda pessoal
+- **Visualização de agendamentos** sem dados sensíveis do cliente
+- **Sistema de convites** automático pelo proprietário
+- **Gestão de disponibilidade** individual
+- **Notificações** de novos agendamentos
 
-- 📱 **PWA & SEO**  
-  Progressive Web App instalável e otimização para buscadores.
+## 🏗️ Arquitetura Técnica
 
-- 🛒 **Marketplace Modular**  
-  Integração (opcional) com pagamentos e onboarding de salões.
+### Frontend (Next.js)
 
-- 🔐 **Segurança e Autenticação**  
-  Proteção de rotas, autenticação via Firebase/Auth e permissões por tipo de usuário.
+- **Framework**: Next.js 15.4.6 com App Router
+- **Linguagem**: TypeScript para tipagem forte
+- **Estilização**: Tailwind CSS para design responsivo
+- **Estado**: Context API para autenticação global
+- **Componentes**: Arquitetura modular com componentes reutilizáveis
 
-- 📊 **Relatórios & Estatísticas**  
-  Gráficos e relatórios de movimentação, produtividade e faturamento.
+#### Estrutura de Páginas:
 
-- 📱 **Responsividade Total**  
-  Interface adaptada para desktop, tablet e mobile.
+- `/` - Landing page com seções para diferentes tipos de usuários
+- `/login`, `/register`, `/reset-password` - Autenticação completa
+- `/client/*` - Dashboard e funcionalidades do cliente
+- `/owner/*` - Painel administrativo do proprietário
+- `/professional/*` - Área do profissional
+- `/checkout` - Processamento de pagamentos
+- `/search` - Busca de estabelecimentos
 
----
+### Backend (Firebase Cloud Functions V2)
 
-## 🛠 Tecnologias Utilizadas
+- **Linguagem**: TypeScript
+- **Runtime**: Node.js serverless
+- **Região**: South America East 1 (São Paulo)
 
-- **Next.js** – SSR, SSG, SPA, rotas dinâmicas  
-- **TypeScript** – Tipagem estática robusta  
-- **Tailwind CSS** – Estilos modernos e responsivos  
-- **Firebase** – Autenticação, Firestore, functions serverless  
-- **Vercel** – Deploy instantâneo com preview automático  
-- **React Icons / Lucide** – Conjunto moderno de ícones  
-- **Recharts** – Visualização gráfica de dados  
-- **PWA** – Progressive Web App instalável  
-- **SEO Dinâmico** – Meta tags e sitemap dinâmico
+#### Funções Principais:
 
----
+**Pagamentos (Mercado Pago):**
 
-## 📁 Estrutura Detalhada do Projeto
+- `generateMercadoPagoOnboardingLink` - Gera URLs de conexão de conta
+- `exchangeCodeForCredentials` - Troca código OAuth por credenciais
+- `createMercadoPagoPreference` - Cria preferências de pagamento
+- `mercadoPagoWebhook` - Processa notificações de pagamento
 
-```yaml
-Projeto--Sal-es-Barbearias/
-├── src/
-│ ├── app/ # App Router do Next.js (rotas, layouts e páginas principais)
-│ │ ├── auth/ # Telas e lógica de autenticação (login, cadastro, etc)
-│ │ ├── api/ # Endpoints internos (webhooks, integrações Next.js)
-│ │ ├── checkout/ # Fluxo de pagamentos e agendamentos
-│ │ ├── client/ # Área exclusiva do cliente (perfil, histórico, notificações)
-│ │ ├── owner/ # Área administrativa do proprietário/salão
-│ │ ├── politica-de-privacidade/ # Página com os termos de política de privacidade
-│ │ ├── professional/ # Área do profissional colaborador
-│ │ ├── termos-de-uso/ # Página com os termos de uso do serviço
-│ │ ├── search/ # Rotas
-│ │ ├── layout.tsx # Layout global da aplicação (menu, header, footer, provedores)
-│ │ ├── page.tsx # Página principal (home ou dashboard inicial)
-│ │ ├── globals.css # Estilos globais do projeto
-│ │ ├── head.tsx # Configuração global do <head> (meta tags, favicon, SEO)
-│ │ ├── error.tsx # Página de erro padrão em falhas de renderização/navegação
-│ │ ├── loading.tsx # Componente global para loading durante transições de rotas
-│ │ └── global-error.tsx # Página 404
-│ ├── components/ # Componentes reutilizáveis: auth, checkout, client, landig, owner, shared. (botões, modais, formulários)
-│ ├── context/ # Contextos globais (auth, agenda, permissões)
-│ ├── hooks/ # Custom hooks
-│ ├── services/ # Integrações: Firebase, APIs externas, notificações
-│ ├── styles/ # Temas e configuração do Tailwind CSS
-│ ├── utils/ # Funções auxiliares e helpers
-├── public/ # Imagens, ícones, manifest PWA, favicon, arquivos estáticos
-├── .vscode/ # Configuração recomendada para editores de código
-├── firebase.json # Deploy do Firebase Hosting/Functions
-├── package.json # Dependências, scripts npm
-├── tsconfig.json # Configuração TypeScript
-├── tailwind.config.js # Customização Tailwind CSS
-├── postcss.config.js # Processamento CSS
-├── .env.local
-└── README.md # Documentação principal do projeto
+**Agendamentos:**
+
+- `clientCancelAppointment` - Cancelamento pelo cliente com reembolso
+- `ownerCancelAppointment` - Cancelamento pelo proprietário
+- `getProfessionalAvailability` - Consulta disponibilidade em tempo real
+
+**Gestão de Usuários:**
+
+- `inviteProfessional` / `resendInvite` - Sistema de convites
+- `deleteClientAccount` / `deleteOwnerAccount` - Exclusão de contas
+- `setInitialUserClaims` - Configuração de permissões
+
+**Automação:**
+
+- `onUserRoleChange` - Sincroniza custom claims automaticamente
+- `onEstablishmentWritten` - Gera slugs únicos para URLs
+- `onFavoriteCreate/Delete` - Atualiza contadores atomicamente
+- `monitorarReembolsos` - Verifica reembolsos em atraso (24h)
+- `cleanupPendingPayments` - Remove pagamentos expirados
+
+### Banco de Dados (Firestore)
 
 ```
-### Descrição das pastas principais em src/app
+users/
+├── {uid}/
+│   ├── firstName, lastName, email, role
+│   └── favorites/{establishmentId}
 
-- auth/: Telas e lógica de autenticação (login, cadastro, recuperação de senha)
-- api/: Endpoints internos, webhooks e integrações Next.js
-- checkout/: Fluxo e páginas de pagamento/agendamento
-- client/: Área do cliente final (perfil, histórico, notificação)
-- owner/: Área do proprietário/admin (dashboard, gestão de serviços/profissionais)
-- politica-de-privacidade/: Política de privacidade do serviço
-- termos-de-uso/: Termos de uso acordados com o usuário
-- search/: Página ou funcionalidade para buscas gerais (serviços, agendamentos, profissionais)
+establishments/
+├── {ownerId}/
+│   ├── name, slug, address, mpCredentials
+│   ├── services/{serviceId}
+│   ├── professionals/{professionalId}
+│   ├── appointments/{appointmentId}
+│   └── penalties/{penaltyId}
+```
 
-- layout.tsx: Layout global do app (menus, headers, footers, contextos)
-- page.tsx: Página inicial/dash
-- globals.css: Estilos globais
-- head.tsx: Meta tags/SEO central
-- error.tsx: Tela de erro global
-- loading.tsx: Loader global/transição de rotas
-- global-error.tsx Página para erro 404
+### Segurança (Firestore Rules)
 
-## 📦 Instalação
+- **Custom Claims** baseados em roles (owner/client/professional)
+- **Regras granulares** por coleção e subcoleção
+- **Validação de propriedade** para operações sensíveis
+- **Leitura pública** para dados de estabelecimentos
+- **Isolamento de dados** por usuário e estabelecimento
 
-### 1. Clone o repositório
+### Integração de Pagamentos
+
+- **Mercado Pago Connect** para onboarding de vendedores
+- **Checkout Pro** para experiência de pagamento otimizada
+- **Webhooks** para confirmação automática de pagamentos
+- **Sistema de marketplace** com comissões automáticas (4.99%)
+- **Reembolsos automáticos** via API
+- **Cobrança de multas** por atraso em reembolsos (10%)
+
+## 🛠️ Tecnologias
+
+### Principais Dependências
+
+```json
+{
+  "next": "15.4.6",
+  "react": "19.1.0",
+  "typescript": "^5.6.3",
+  "firebase": "^12.1.0",
+  "firebase-admin": "^13.4.0",
+  "mercadopago": "^2.8.0",
+  "@mercadopago/sdk-react": "^1.0.3",
+  "tailwindcss": "^3.4.17",
+  "framer-motion": "^12.23.12"
+}
+```
+
+### Ferramentas de Desenvolvimento
+
+- **ESLint** - Linting e padronização de código
+- **PostCSS** - Processamento de CSS
+- **Autoprefixer** - Compatibilidade com browsers
+- **Sentry** - Monitoramento de erros em produção
+
+## 📱 Funcionalidades Avançadas
+
+### PWA (Progressive Web App)
+
+- **Service Worker** registrado para funcionamento offline
+- **Manifesto** configurado para instalação em dispositivos
+- **Cache inteligente** para melhor performance
+
+### SEO e Performance
+
+- **URLs amigáveis** com sistema de slugs únicos
+- **Metadados dinâmicos** por página
+- **Otimização de imagens** automática
+- **Server-Side Rendering** com Next.js
+
+### Sistema de Notificações
+
+- **Lembretes automáticos** de agendamentos
+- **Notificações push** para atualizações importantes
+- **Emails transacionais** para confirmações
+
+### Analytics e Monitoramento
+
+- **Sentry integration** para tracking de erros
+- **Métricas de performance** integradas
+- **Logs estruturados** nas Cloud Functions
+
+## 🚀 Deploy e Hospedagem
+
+### Frontend
+
+- **Vercel** - Build e hospedagem automática
+- **Integração contínua** com GitHub
+- **Domínio personalizado**: aenagendamentos.com.br
+
+### Backend
+
+- **Firebase Hosting** para arquivos estáticos
+- **Cloud Functions** para lógica serverless
+- **Firestore** para banco de dados em tempo real
+- **Cloud Storage** para upload de imagens
+
+### Configurações de Ambiente
+
 ```bash
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+
+# Mercado Pago (via Secret Manager)
+MERCADOPAGO_ACCESS_TOKEN=
+MERCADOPAGO_PUBLIC_KEY=
+MERCADOPAGO_APP_ID=
+MERCADOPAGO_SECRET_KEY=
+```
+
+## 📋 Instalação e Desenvolvimento
+
+### Pré-requisitos
+
+- Node.js 18+
+- npm ou yarn
+- Conta Firebase
+- Conta Mercado Pago Developers
+
+### Setup Local
+
+```bash
+# Clone o repositório
 git clone https://github.com/alessandrotostes/Projeto--Sal-es-Barbearias.git
-cd Projeto--Sal-es-Barbearias
-```
-### 2. Instale as dependências:
-```bash
+
+# Navegue para o diretório do app
+cd Projeto--Sal-es-Barbearias/app-agendamento
+
+# Instale as dependências
 npm install
+
+# Configure as variáveis de ambiente
+cp .env.example .env.local
+
+# Execute em modo desenvolvimento
+npm run dev
 ```
 
-### 3. Configure as variáveis de ambiente:
-- Crie um arquivo `.env.local` na raiz do projeto com suas credenciais do Firebase/Auth e demais APIs externas necessárias.
-- **Exemplo:**  
-  ```
-  NEXT_PUBLIC_FIREBASE_API_KEY=xxxxxx
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxxxxx
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxxxxx
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=xxxxxx
-  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxxxxx
-  NEXT_PUBLIC_FIREBASE_APP_ID=xxxxxx
-  NEXT_PUBLIC_PAYMENT_FUNCTION_URL=xxxxxx
-  NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=xxxxxx
-  Entre outras
-  ```
-  ### 4. Execute o projeto em modo desenvolvimento:
-  ```bash
-  npm run dev
-  ```
-  ## ☁️ Deploy
+### Deploy das Cloud Functions
 
-- **Vercel:**  
-- Acesse [Vercel](https://vercel.com), conecte seu repositório, configure as variáveis de ambiente e realize o deploy automático.
-- **Firebase Hosting:**  
-- Configure o arquivo `firebase.json` na raiz do projeto e execute:
- ```
- firebase deploy
- ```
-- Certifique-se de instalar e autenticar o Firebase CLI previamente.
+```bash
+# Navegue para o diretório functions
+cd functions
 
----
+# Instale as dependências
+npm install
+
+# Deploy das functions
+firebase deploy --only functions
+```
+
+## 📊 Modelo de Negócio
+
+### Sistema de Marketplace
+
+- **Taxa por transação**: 4.99% sobre o valor do serviço
+- **Multas por atraso**: 10% do valor para reembolsos não processados em 5 dias
+- **Suspensão automática** de contas inadimplentes
+
+### Controle de Qualidade
+
+- **Sistema de avaliações** obrigatório
+- **Monitoramento de reembolsos** automatizado
+- **Penalidades por descumprimento** de prazos
+- **Mediação de conflitos** integrada
+
+## 🔒 Segurança e Compliance
+
+### Proteção de Dados
+
+- **Criptografia** de dados sensíveis
+- **Tokenização** de informações de pagamento
+- **Logs de auditoria** para todas as transações
+- **Backup automático** de dados críticos
+
+### Conformidade Legal
+
+- **Termos de uso** e política de privacidade integrados
+- **LGPD compliance** com consentimento explícito
+- **PCI DSS** via integração Mercado Pago
+- **Exclusão de dados** Feita diretamente do perfil do usuário.
 
 ## 🤝 Contribuição
 
-1. Faça um fork do projeto e crie uma branch para sua melhoria ou feature:
-```bash
-git checkout -b feature/nome-da-feature
-```
+### Estrutura de Branches
 
-2. Realize seus commits:
-```bash
-git commit -m "feat: descreva a feature"
-```
-3. Abra um Pull Request detalhado no GitHub, explicando a motivação e as alterações propostas.
+- `master` - Produção
+- `develop` - Desenvolvimento principal
+- `feature/*` - Novas funcionalidades
+- `hotfix/*` - Correções críticas
+
+### Padrões de Código
+
+- **TypeScript strict** habilitado
+- **ESLint** configurado com regras Next.js
+- **Componentes funcionais** com hooks
+- **Nomenclatura descritiva** para funções e variáveis
+
+---
+
+## 📞 Suporte
+
+Para dúvidas técnicas ou problemas com a plataforma:
+
+- **Website**: [aenagendamentos.com.br](https://aenagendamentos.com.br)
+- **Email**: suporte@aenagendamentos.com.br
 
 ---
 
 ## 📄 Licença
 
-Este projeto está sob licença MIT.
+Este projeto é **software proprietário** licenciado sob termos restritivos.
 
----
+- ✅ **Permitido**: Visualização educacional, fork para contribuições
+- ❌ **Proibido**: Uso comercial, distribuição, modificação não autorizada
 
-## 👨‍💻 Autor
+Para **licenciamento comercial**, entre em contato através dos canais oficiais.
 
-Desenvolvido por Alessandro Tostes.
+**Copyright © 2025 Alessandro Tostes. Todos os direitos reservados.**
 
-Para dúvidas, sugestões ou parcerias, utilize o perfil do GitHub ou LinkedIn para contato.
-
-
-
-
-
+Consulte o arquivo [LICENSE](LICENSE) para detalhes completos.
