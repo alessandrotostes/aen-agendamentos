@@ -80,6 +80,23 @@ button:disabled {
 .modal-content {
   animation: slideUp 0.3s ease-out;
 }
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  /* Garante que o elemento começa invisível antes da animação */
+  opacity: 0;
+  /* Aplica a animação */
+  animation: fadeInUp 0.5s ease-out forwards;
+}
 
 @keyframes fadeIn {
   from {
@@ -131,4 +148,21 @@ input[type="number"] {
   .no-print {
     display: none !important;
   }
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  /* Garante que o elemento começa invisível antes da animação */
+  opacity: 0;
+  /* Aplica a animação */
+  animation: fadeInUp 0.5s ease-out forwards;
 }

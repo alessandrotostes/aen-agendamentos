@@ -1,16 +1,13 @@
 "use client";
 
-// ALTERAÇÃO 1: Importar o 'useRef'
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+// ALTERAÇÃO 1: Importar os ícones que vamos usar
+import { Menu, X, Building2, Users, LogIn, Briefcase } from "lucide-react";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-
-  // ALTERAÇÃO 2: Usar 'useRef' para guardar a posição do scroll.
-  // O valor inicial é 0.
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -21,7 +18,6 @@ export const Header = () => {
 
       const currentScrollY = window.scrollY;
 
-      // Agora lemos e comparamos com 'lastScrollY.current'
       if (currentScrollY <= 10) {
         setIsHeaderVisible(true);
       } else if (currentScrollY > lastScrollY.current) {
@@ -30,7 +26,6 @@ export const Header = () => {
         setIsHeaderVisible(true);
       }
 
-      // E atualizamos o valor do ref diretamente, sem causar re-renderização.
       lastScrollY.current = currentScrollY;
     };
 
@@ -38,13 +33,13 @@ export const Header = () => {
     return () => {
       window.removeEventListener("scroll", controlHeader);
     };
-    // ALTERAÇÃO 3: O array de dependências agora é estável.
   }, [isMenuOpen]);
 
+  // ALTERAÇÃO 2: Adicionar a propriedade 'icon' ao nosso array de links
   const navLinks = [
-    { href: "#negocios", label: "Para seu Negócio" },
-    { href: "#clientes", label: "Para Clientes" },
-    { href: "#profissionais", label: "Para Profissionais" },
+    { href: "#negocios", label: "Para seu Negócio", icon: Building2 },
+    { href: "#clientes", label: "Para Clientes", icon: Users },
+    { href: "#profissionais", label: "Para Profissionais", icon: Briefcase },
   ];
 
   const headerClasses = "fixed md:sticky top-0 z-50 w-full";
@@ -58,12 +53,11 @@ export const Header = () => {
   };
 
   return (
-    // ALTERAÇÃO 4: A lógica de estilo agora lê do ref para a borda
     <header
-      className={`${headerClasses} bg-white/75 backdrop-blur-lg transition-transform duration-300 ease-in-out transform ${
+      className={`${headerClasses} bg-white/60 backdrop-blur-lg transition-transform duration-300 ease-in-out transform ${
         isHeaderVisible ? "translate-y-0" : "-translate-y-full"
       } ${
-        lastScrollY.current > 10 // Lendo o valor atual do ref
+        lastScrollY.current > 10
           ? "border-b border-slate-600/20 shadow-sm"
           : "border-b border-transparent"
       }`}
@@ -114,30 +108,42 @@ export const Header = () => {
         </div>
       </div>
 
+      {/* --- ALTERAÇÕES PRINCIPAIS APLICADAS AQUI --- */}
       <div
-        className={`md:hidden absolute top-16 left-0 w-full bg-white/90 backdrop-blur-xl shadow-xl transition-all duration-300 ease-in-out transform rounded-b-2xl border-x border-b border-slate-600/20 ${
+        className={`md:hidden absolute top-16 left-0 w-full bg-white/80 backdrop-blur-xl shadow-xl transition-all duration-300 ease-in-out transform rounded-b-2xl border-x border-b border-slate-600/20 ${
           isMenuOpen
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-4 pointer-events-none"
         }`}
       >
-        <nav className="flex flex-col p-2 divide-y divide-slate-600/20">
-          {navLinks.map((link) => (
+        <nav className="flex flex-col gap-2 p-4">
+          {navLinks.map((link, index) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-slate-900 font-semibold hover:bg-slate-100/70 rounded-lg text-lg w-full text-center py-3 transition-colors"
+              className={`flex items-center gap-4 text-slate-900 font-semibold hover:bg-slate-100/70 rounded-lg text-lg w-full p-3 transition-colors ${
+                isMenuOpen ? "animate-fadeInUp" : "opacity-0"
+              }`}
+              style={{ animationDelay: `${index * 100}ms` }}
               onClick={() => setIsMenuOpen(false)}
             >
-              {link.label}
+              <link.icon className="w-6 h-6 text-teal-600" />
+              <span>{link.label}</span>
             </a>
           ))}
+
+          <div className="w-full h-[1px] bg-slate-600/20 my-2" />
+
           <Link
             href="/login"
-            className="block text-center px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md mt-2"
+            className={`flex items-center justify-center gap-3 text-center px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md ${
+              isMenuOpen ? "animate-fadeInUp" : "opacity-0"
+            }`}
+            style={{ animationDelay: `${navLinks.length * 100}ms` }}
             onClick={() => setIsMenuOpen(false)}
           >
-            Acessar / Cadastrar
+            <LogIn className="w-5 h-5" />
+            <span>Acessar / Cadastrar</span>
           </Link>
         </nav>
       </div>
