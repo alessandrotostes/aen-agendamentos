@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, useRouter, notFound } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // 'notFound' foi removido pois não será mais usado diretamente
 import Image from "next/image";
 import { useAuth } from "../../../../contexts/AuthContext";
-// 1. A importação foi atualizada para o novo AuthModal
 import AuthModal from "../../../../components/client/modals/AuthModal";
 import { db } from "../../../../lib/firebaseConfig";
 import {
@@ -19,6 +18,8 @@ import { Establishment, Service, Professional } from "../../../../types";
 import SchedulingModal from "../../../../components/client/modals/SchedulingModal";
 import { currencyUtils } from "../../../../lib/utils";
 import EmptyState from "../../../../components/owner/common/EmptyState";
+// 1. A importação do componente NotFoundDisplay está aqui
+import NotFoundDisplay from "../../../../components/shared/NotFoundDisplay";
 import {
   ArrowLeft,
   Users,
@@ -31,8 +32,8 @@ import {
   X,
 } from "lucide-react";
 
-// --- COMPONENTES INTERNOS ---
-
+// --- COMPONENTES INTERNOS (ProfessionalCard, ServiceCard) ---
+// Seus componentes internos permanecem inalterados.
 const ProfessionalCard = ({
   professional,
   allServices,
@@ -118,6 +119,7 @@ const ServiceCard = ({
   );
 };
 
+// --- COMPONENTE DE ESQUELETO (LOADING) ---
 const SalonPageSkeleton = () => (
   <div className="max-w-6xl mx-auto pb-12 animate-pulse">
     <div className="relative w-full h-52 md:h-64 rounded-b-3xl bg-slate-200" />
@@ -140,13 +142,15 @@ const SalonPageSkeleton = () => (
   </div>
 );
 
+// --- COMPONENTE PRINCIPAL DA PÁGINA ---
 export default function SalonDetailPage() {
-  const params = useParams();
+  // 2. CORREÇÃO DE SEGURANÇA PARA O 'params'
+  // Criamos uma cópia do objeto de parâmetros para evitar mutações inesperadas.
+  const rawParams = useParams();
+  const params = { ...rawParams };
+
   const router = useRouter();
-  const mutableParams = { ...params };
-  const salonSlug = Array.isArray(mutableParams.slug)
-    ? mutableParams.slug[0]
-    : mutableParams.slug;
+  const salonSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
 
   const { userData, authLoading, refreshUserData } = useAuth();
   const [salon, setSalon] = useState<Establishment | null>(null);
@@ -156,7 +160,6 @@ export default function SalonDetailPage() {
   const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  // 2. A variável de estado foi renomeada para maior clareza
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
@@ -174,7 +177,7 @@ export default function SalonDetailPage() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-          setSalon(null);
+          setSalon(null); // Se não encontrar, definimos 'salon' como nulo.
           return null;
         }
 
@@ -250,35 +253,27 @@ export default function SalonDetailPage() {
     );
   }, [services, searchTerm]);
 
-  // 3. Lógica principal do fluxo de agendamento/autenticação
   const handleServiceClick = (service: Service) => {
     setSelectedService(service);
-    // Se o usuário está logado e completo, abre o agendamento
     if (userData && userData.profileStatus === "complete") {
       setIsSchedulingModalOpen(true);
     } else {
-      // Caso contrário, abre o modal de autenticação (login/registo)
       setIsAuthModalOpen(true);
     }
   };
-  //Função para lidar com o clique de voltar
+
   const handleBackClick = () => {
-    // Verificamos se há mais de uma página no histórico da aba do navegador.
-    // Usamos "> 2" como uma margem de segurança para garantir que há um "voltar" real.
     if (window.history.length > 2) {
-      router.back(); // Se houver histórico, simplesmente volte.
+      router.back();
     } else {
-      router.push("/client"); // Se não houver, leve para a página principal do cliente.
+      router.push("/client");
     }
   };
 
-  // 4. Função de sucesso renomeada para refletir a autenticação
   const onAuthSuccess = async () => {
-    setIsAuthModalOpen(false); // Fecha o modal de autenticação
+    setIsAuthModalOpen(false);
     try {
       await refreshUserData();
-      // Após o sucesso do login/registo, se houver um serviço selecionado,
-      // o useEffect acima ou esta verificação direta abrirá o modal de agendamento.
       if (selectedService) {
         setIsSchedulingModalOpen(true);
       }
@@ -287,19 +282,27 @@ export default function SalonDetailPage() {
     }
   };
 
+  // Enquanto os dados de autenticação ou do salão estão carregando, mostramos o esqueleto.
   if (authLoading || loading) {
     return <SalonPageSkeleton />;
   }
 
+  // 3. LÓGICA DE RENDERIZAÇÃO ATUALIZADA
+  // Se, após o carregamento, o estado 'salon' continuar nulo, mostramos a nossa página personalizada.
   if (!salon) {
-    return notFound();
+    return (
+      <NotFoundDisplay
+        title="Link não encontrado"
+        message="O estabelecimento que você procura não foi encontrado. Por favor, verifique se o link está correto ou peça para o estabelecimento fornecer o link novamente."
+        buttonText="Voltar ao início"
+      />
+    );
   }
 
+  // Se o salão foi encontrado, o restante do componente é renderizado normalmente.
   const imageSrc = salon.imageURL || "/placeholder.png";
   const mapsUrl = salon.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        salon.address
-      )}`
+    ? `https://maps.google.com/?q=${encodeURIComponent(salon.address)}`
     : "#";
 
   return (
@@ -311,14 +314,14 @@ export default function SalonDetailPage() {
             src={imageSrc}
             alt={`Imagem de ${salon.name}`}
             fill
-            className="object-contain bg-slate-800"
+            className="object-cover bg-slate-800"
             sizes="100vw"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute top-4 left-4 z-10">
             <button
-              onClick={handleBackClick} // Use a nova função aqui
+              onClick={handleBackClick}
               className="bg-white/80 backdrop-blur-sm text-slate-800 p-2 rounded-full hover:bg-white transition-all shadow-md"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -466,7 +469,6 @@ export default function SalonDetailPage() {
         />
       )}
 
-      {/* 5. O novo AuthModal é renderizado com os estados e funções corretos */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
