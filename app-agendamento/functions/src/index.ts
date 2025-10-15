@@ -265,7 +265,7 @@ export const createMercadoPagoPreference = onCall(async (request) => {
     );
   }
 
-  const normalApplicationFee = transaction_amount * 0.0499; // Sua taxa de 4.99%
+  const normalApplicationFee = transaction_amount * 0.0299; // Sua taxa de 2.99%
   const finalApplicationFee = normalApplicationFee + totalFineAmount;
 
   // Garantir que a taxa não exceda o valor da transação e arredondar para 2 casas decimais

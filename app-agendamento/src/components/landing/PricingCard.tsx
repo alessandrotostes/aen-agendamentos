@@ -25,7 +25,7 @@ export const PricingCard = () => {
           E quanto custa tudo isso?
         </h3>
         <p className="text-6xl sm:text-7xl font-extrabold my-4 tracking-tight">
-          4,99%
+          2,99%
         </p>
         <p className="font-semibold text-indigo-200 text-lg">
           Por agendamento pago e confirmado.

@@ -254,7 +254,7 @@ export const termsContent: LegalContent = {
           emphasis: "info",
         },
         "**6.1.** Todos os pagamentos são processados pela intermediadora **Mercado Pago**.",
-        "**6.2.** O valor é **automaticamente dividido** entre Estabelecimento e Plataforma conforme acordado.",
+        "**6.2.** O valor é **automaticamente dividido** entre Estabelecimento e Plataforma conforme acordado. 2.99% de comissão por agendamento pago e confirmado(este valor pode ser alterado mediante aviso prévio).",
         "**6.3.** Disputas técnicas são **reguladas pelo Mercado Pago**.",
       ],
     },
