@@ -58,6 +58,16 @@ export default function ComingSoonShowcase({
             estabelecimentos para você. Em breve, explorar e agendar as suas
             próximas experiências será mais fácil e prático do que nunca.
           </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+            className="mt-4 text-lg text-indigo-100 max-w-lg mx-auto"
+          >
+            Por enquanto, utilize o link compartilhado pelo seu estabelecimento
+            para agendar seus serviços. Agradecemos a sua paciência e estamos
+            ansiosos para revelar essa nova funcionalidade em breve!
+          </motion.p>
         </div>
       </div>
     </div>
