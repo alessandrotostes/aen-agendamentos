@@ -1,21 +1,45 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-// O 'Link' do Next.js ainda é usado para os botões de Acessar, então o mantemos.
+// ALTERAÇÃO 1: Importar o 'useRef'
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [hasScrolled, setHasScrolled] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+
+  // ALTERAÇÃO 2: Usar 'useRef' para guardar a posição do scroll.
+  // O valor inicial é 0.
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setHasScrolled(window.scrollY > 10);
+    const controlHeader = () => {
+      if (isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+
+      const currentScrollY = window.scrollY;
+
+      // Agora lemos e comparamos com 'lastScrollY.current'
+      if (currentScrollY <= 10) {
+        setIsHeaderVisible(true);
+      } else if (currentScrollY > lastScrollY.current) {
+        setIsHeaderVisible(false);
+      } else {
+        setIsHeaderVisible(true);
+      }
+
+      // E atualizamos o valor do ref diretamente, sem causar re-renderização.
+      lastScrollY.current = currentScrollY;
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+
+    window.addEventListener("scroll", controlHeader);
+    return () => {
+      window.removeEventListener("scroll", controlHeader);
+    };
+    // ALTERAÇÃO 3: O array de dependências agora é estável.
+  }, [isMenuOpen]);
 
   const navLinks = [
     { href: "#negocios", label: "Para seu Negócio" },
@@ -23,17 +47,10 @@ export const Header = () => {
     { href: "#profissionais", label: "Para Profissionais" },
   ];
 
-  const headerClasses = `sticky top-0 z-50 w-full transition-all duration-300 ${
-    hasScrolled
-      ? "bg-white/60 backdrop-blur-lg shadow-sm"
-      : "border-transparent"
-  }`;
+  const headerClasses = "fixed md:sticky top-0 z-50 w-full";
 
-  // ALTERAÇÃO 1: Criar a função para o scroll suave
   const handleScrollToTop = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // Previne o comportamento padrão do link de recarregar a página
     e.preventDefault();
-    // Executa a animação de scroll para o topo
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -41,10 +58,18 @@ export const Header = () => {
   };
 
   return (
-    <header className={headerClasses}>
+    // ALTERAÇÃO 4: A lógica de estilo agora lê do ref para a borda
+    <header
+      className={`${headerClasses} bg-white/75 backdrop-blur-lg transition-transform duration-300 ease-in-out transform ${
+        isHeaderVisible ? "translate-y-0" : "-translate-y-full"
+      } ${
+        lastScrollY.current > 10 // Lendo o valor atual do ref
+          ? "border-b border-slate-600/20 shadow-sm"
+          : "border-b border-transparent"
+      }`}
+    >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        {/* ALTERAÇÃO 2: Substituir <Link> por <a> e adicionar o onClick */}
-        <a
+        <Link
           href="/"
           onClick={handleScrollToTop}
           className="inline-flex items-center space-x-3 group cursor-pointer"
@@ -53,7 +78,7 @@ export const Header = () => {
             <span className="text-white font-bold text-lg">A&N</span>
           </div>
           <span className="text-xl font-bold text-slate-800">All & None</span>
-        </a>
+        </Link>
 
         <nav className="hidden md:flex gap-8 text-sm font-semibold tracking-wide text-gray-700">
           {navLinks.map((link) => (
@@ -90,18 +115,18 @@ export const Header = () => {
       </div>
 
       <div
-        className={`md:hidden absolute top-16 left-0 w-full bg-white shadow-lg transition-all duration-300 ease-in-out transform ${
+        className={`md:hidden absolute top-16 left-0 w-full bg-white/90 backdrop-blur-xl shadow-xl transition-all duration-300 ease-in-out transform rounded-b-2xl border-x border-b border-slate-600/20 ${
           isMenuOpen
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-4 pointer-events-none"
         }`}
       >
-        <nav className="flex flex-col items-center gap-4 p-4">
+        <nav className="flex flex-col p-2 divide-y divide-slate-600/20">
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-gray-700 hover:text-indigo-600 text-lg w-full text-center py-2"
+              className="text-slate-900 font-semibold hover:bg-slate-100/70 rounded-lg text-lg w-full text-center py-3 transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               {link.label}
@@ -109,7 +134,7 @@ export const Header = () => {
           ))}
           <Link
             href="/login"
-            className="mt-4 w-full text-center px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md"
+            className="block text-center px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md mt-2"
             onClick={() => setIsMenuOpen(false)}
           >
             Acessar / Cadastrar

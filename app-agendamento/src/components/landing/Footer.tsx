@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 export const Footer = () => {
-  // Função para scroll suave ao topo, igual à do Header para consistência
   const handleScrollToTop = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     window.scrollTo({
@@ -14,11 +13,10 @@ export const Footer = () => {
 
   return (
     <footer className="bg-slate-900 text-white">
-      <div className="container mx-auto px-4 pt-8 pb-6">
-        {/* --- SEÇÃO PRINCIPAL: Logo à esquerda, Links à direita --- */}
+      <div className="container mx-auto px-4 pt-16 pb-8">
         <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
-          {/* Logo/Nome da Marca (consistente com o Header) */}
-          <a
+          {/* ALTERAÇÃO: Voltamos a usar o componente <Link> e passamos o onClick para ele */}
+          <Link
             href="/"
             onClick={handleScrollToTop}
             className="inline-flex items-center space-x-3 group cursor-pointer"
@@ -27,9 +25,9 @@ export const Footer = () => {
               <span className="text-white font-bold text-lg">A&N</span>
             </div>
             <span className="text-xl font-bold text-white">All & None</span>
-          </a>
+          </Link>
 
-          {/* Links Legais */}
+          {/* O resto do componente continua igual... */}
           <div className="flex items-center space-x-6">
             <Link
               href="/termos-de-uso"
@@ -46,10 +44,8 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* --- LINHA SEPARADORA --- */}
         <hr className="my-8 border-slate-700" />
 
-        {/* --- SEÇÃO DE COPYRIGHT --- */}
         <div className="text-center">
           <p className="text-xs text-slate-500">
             © {new Date().getFullYear()} TS Desenvolvimentos. Todos os direitos
