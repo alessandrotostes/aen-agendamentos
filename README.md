@@ -1,4 +1,4 @@
-# A&N Agendamentos - Sistema de Agendamentos para Salões e Barbearias
+# A&N Agendamentos - Sistema de Agendamentos Online 24/7
 
 Uma plataforma completa de agendamentos online desenvolvida com Next.js e Firebase, integrada ao Mercado Pago para processamento de pagamentos. O sistema conecta clientes, estabelecimentos e profissionais em uma única plataforma intuitiva.
 
