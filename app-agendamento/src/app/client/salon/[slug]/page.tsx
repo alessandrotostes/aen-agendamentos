@@ -143,7 +143,10 @@ const SalonPageSkeleton = () => (
 export default function SalonDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const salonSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+  const mutableParams = { ...params };
+  const salonSlug = Array.isArray(mutableParams.slug)
+    ? mutableParams.slug[0]
+    : mutableParams.slug;
 
   const { userData, authLoading, refreshUserData } = useAuth();
   const [salon, setSalon] = useState<Establishment | null>(null);

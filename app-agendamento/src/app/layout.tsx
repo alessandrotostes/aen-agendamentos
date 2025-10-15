@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <html lang="pt-BR" className="h-full">
+    <html lang="pt-BR" className="h-full" suppressHydrationWarning={true}>
       <head>
         {/* Tags essenciais para responsividade e PWA */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />

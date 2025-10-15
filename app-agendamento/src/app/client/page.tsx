@@ -1,4 +1,4 @@
-// src/app/client/page.tsx (VERSÃO FINAL UNIFICADA)
+// src/app/client/page.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -6,9 +6,15 @@ import { ClientRoute } from "../../components/auth/ProtectedRoute";
 import ClientHeader from "../../components/client/ClientHeader";
 import ClientDashboardView from "../../components/client/ClientDashboardView";
 import EstablishmentSearchView from "../../components/client/EstablishmentSearchView";
-import ClientSettingsView from "../../components/client/ClientSettingsView"; // Importar a nova vista
+// 1. Importar o nosso novo componente "em breve"
+import ComingSoonShowcase from "../../components/client/ComingSoonShowcase";
+import ClientSettingsView from "../../components/client/ClientSettingsView";
 
 type ActiveView = "dashboard" | "search" | "settings";
+
+// 2. A nossa "chave" para ligar ou desligar a funcionalidade de busca
+//    Quando quiser reativar a busca, basta mudar para 'true'.
+const IS_SEARCH_FEATURE_ENABLED = false;
 
 export default function ClientPage() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -21,14 +27,22 @@ export default function ClientPage() {
             onNavigateToSearch={() => setActiveView("search")}
           />
         );
+
+      // 3. Lógica condicional adicionada aqui
       case "search":
-        return (
+        return IS_SEARCH_FEATURE_ENABLED ? (
           <EstablishmentSearchView
             onNavigateBack={() => setActiveView("dashboard")}
           />
+        ) : (
+          <ComingSoonShowcase
+            onNavigateBack={() => setActiveView("dashboard")}
+          />
         );
+
       case "settings":
         return <ClientSettingsView />;
+
       default:
         return (
           <ClientDashboardView
